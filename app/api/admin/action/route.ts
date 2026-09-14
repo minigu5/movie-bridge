@@ -3,8 +3,19 @@ import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { requireAdmin } from '@/lib/api-auth';
 import { uploadImageDataUri } from '@/lib/cloudinary';
+import { fetchSafeImage } from '@/lib/safeImageFetch';
 import { extractSchoolEmails } from '@/lib/parseEmails';
 import { admissionYearForGrade, gradeEmails } from '@/lib/schoolEmails';
+
+// 원본 포스터 링크(나무위키 등)는 며칠 뒤 만료되는 경우가 있어, 링크를
+// 저장하는 시점에 바이트를 받아 Cloudinary에 영구 복사해 둔다. 실패하면
+// null을 돌려주고 호출부에서 poster_cdn_url을 비워 원본 링크로 폴백시킨다.
+async function rehostPosterUrl(posterUrl: string): Promise<string | null> {
+  const image = await fetchSafeImage(posterUrl);
+  if (!image.ok) return null;
+  const base64 = Buffer.from(image.body).toString('base64');
+  return uploadImageDataUri(`data:${image.contentType};base64,${base64}`);
+}
 
 export async function POST(req: Request) {
   try {
@@ -51,7 +62,16 @@ export async function POST(req: Request) {
       }
 
       case 'UPDATE_SETTINGS': {
-        const { error } = await supabaseAdmin.from('movie_settings').update(payload).eq('is_active', true);
+        const updatePayload = { ...payload };
+        if (typeof updatePayload.poster_url === 'string' && updatePayload.poster_url) {
+          const { data: current } = await supabaseAdmin.from('movie_settings')
+            .select('poster_url').eq('is_active', true).single();
+          if (current?.poster_url !== updatePayload.poster_url) {
+            updatePayload.poster_cdn_url = await rehostPosterUrl(updatePayload.poster_url);
+          }
+        }
+
+        const { error } = await supabaseAdmin.from('movie_settings').update(updatePayload).eq('is_active', true);
         if (error) throw error;
         return NextResponse.json({ success: true });
       }
@@ -107,8 +127,13 @@ export async function POST(req: Request) {
         const { error: deactivateError } = await supabaseAdmin.from('movie_settings').update({ is_active: false }).eq('is_active', true);
         if (deactivateError) throw deactivateError;
 
+        const insertPayload = { ...payload };
+        if (typeof insertPayload.poster_url === 'string' && insertPayload.poster_url) {
+          insertPayload.poster_cdn_url = await rehostPosterUrl(insertPayload.poster_url);
+        }
+
         const { data: newMovie, error: insertError } = await supabaseAdmin.from('movie_settings')
-          .insert([{ ...payload, is_active: true }]).select('*').single();
+          .insert([{ ...insertPayload, is_active: true }]).select('*').single();
         if (insertError) {
           // 새 행 생성 실패 시 활성 회차가 하나도 없는 상태로 남지 않도록 이전 회차를 복구.
           if (prevActive) await supabaseAdmin.from('movie_settings').update({ is_active: true }).eq('id', prevActive.id);
