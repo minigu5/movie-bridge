@@ -296,7 +296,7 @@ export default function AdminPage() {
     if (!data.success) return alert("승인 실패: " + data.error);
 
     if (ticket.email) {
-      fetch('/api/ticket', { method: 'POST', body: JSON.stringify({ email: ticket.email, name: ticket.student_name, seat: ticket.seat_number, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: 'confirmed', popcorn: ticket.popcorn_order, ticketId: ticket.id, baseUrl }) });
+      fetch('/api/ticket', { method: 'POST', body: JSON.stringify({ email: ticket.email, name: ticket.student_name, seat: ticket.seat_number, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, venue: movieInfo.venue, ageRating: movieInfo.age_rating, posterUrl: movieInfo.poster_cdn_url || movieInfo.poster_url, backgroundTemplateUrl: movieInfo.background_template_url, statusType: 'confirmed', popcorn: ticket.popcorn_order, ticketId: ticket.id, baseUrl }) });
     }
     setReservations(prev => prev.map(r => r.id === ticket.id ? { ...r, payment_status: 'confirmed' } : r));
     fetchAdminData();
@@ -318,7 +318,7 @@ export default function AdminPage() {
       const isRefundNeeded = ticket.popcorn_order !== 'none' && ticket.payment_status === 'confirmed';
       fetch('/api/ticket', {
         method: 'POST',
-        body: JSON.stringify({ email: ticket.email, name: ticket.student_name, seat: ticket.seat_number, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: 'canceled', popcorn: ticket.popcorn_order, ticketId: ticket.id, baseUrl, isRefundNeeded })
+        body: JSON.stringify({ email: ticket.email, name: ticket.student_name, seat: ticket.seat_number, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, venue: movieInfo.venue, ageRating: movieInfo.age_rating, posterUrl: movieInfo.poster_cdn_url || movieInfo.poster_url, backgroundTemplateUrl: movieInfo.background_template_url, statusType: 'canceled', popcorn: ticket.popcorn_order, ticketId: ticket.id, baseUrl, isRefundNeeded })
       });
     }
     setReservations(prev => prev.filter(r => r.id !== ticket.id));
@@ -360,7 +360,7 @@ export default function AdminPage() {
         const isRefundNeeded = ticket.popcorn_order !== 'none' && ticket.payment_status === 'confirmed';
         fetch('/api/ticket', {
           method: 'POST',
-          body: JSON.stringify({ email: r.email, name: r.name, seat: ticket.seat_number, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: 'canceled', popcorn: ticket.popcorn_order, ticketId: ticket.id, baseUrl, isRefundNeeded })
+          body: JSON.stringify({ email: r.email, name: r.name, seat: ticket.seat_number, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, venue: movieInfo.venue, ageRating: movieInfo.age_rating, posterUrl: movieInfo.poster_cdn_url || movieInfo.poster_url, backgroundTemplateUrl: movieInfo.background_template_url, statusType: 'canceled', popcorn: ticket.popcorn_order, ticketId: ticket.id, baseUrl, isRefundNeeded })
         });
       }
       fetch('/api/blacklist', { method: 'POST', body: JSON.stringify({ email: r.email, name: r.name, action: 'added' }) });
