@@ -307,6 +307,12 @@ export default function Home() {
   const handleSeatClick = (seatId: string) => {
     if (isClosed) return;
 
+    // 🌟 [비로그인] 좌석 클릭 즉시 구글 로그인으로 이동 (예매하기 버튼까지 갈 필요 없음)
+    if (!profile) {
+      signInWithGoogle().catch(() => showAlert('로그인에 실패했습니다.'));
+      return;
+    }
+
     // 🌟 [단체 예매] Group Mode에서의 좌석 클릭
     if (isGroupMode) {
       if (seatStatuses[seatId]) return;
