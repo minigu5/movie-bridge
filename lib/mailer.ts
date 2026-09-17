@@ -68,7 +68,11 @@ export async function sendMail({ to, subject, html, attachments }: SendMailParam
         to,
         subject,
         html,
-        attachments,
+        // cid로 참조하는 이미지는 contentDisposition: 'inline'을 명시해야 한다.
+        // 기본값(attachment)이면 Content-ID로만 매칭하는 관대한 클라이언트(데스크톱 Gmail, iOS Mail)에서는
+        // 문제없이 보이지만, Content-Disposition을 그대로 따르는 Android Gmail 앱에서는
+        // 본문엔 이미지가 안 뜨고 별도 첨부파일 목록에만 나타난다.
+        attachments: attachments?.map((a) => ({ ...a, contentDisposition: 'inline' as const })),
       });
       return;
     } catch (error) {

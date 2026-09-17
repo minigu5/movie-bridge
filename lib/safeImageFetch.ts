@@ -4,7 +4,7 @@ import { lookup } from 'node:dns/promises';
 export const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const FETCH_TIMEOUT_MS = 10_000;
 const MAX_REDIRECTS = 5;
-const MAX_ATTEMPTS = 3;
+const MAX_ATTEMPTS = 5;
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));

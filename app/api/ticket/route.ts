@@ -94,8 +94,8 @@ export async function POST(req: Request) {
 
     const displayId = ticketId ? ticketId.split('-')[0].toUpperCase() : 'UNKNOWN';
 
-    const posterImage = posterUrl ? await fetchSafeImage(posterUrl) : null;
     const templateImage = backgroundTemplateUrl ? await fetchSafeImage(backgroundTemplateUrl) : null;
+    const posterImage = templateImage?.ok ? null : posterUrl ? await fetchSafeImage(posterUrl) : null;
 
     const cardBackground = templateImage?.ok
       ? { body: templateImage.body, contentType: templateImage.contentType, outer: true as const }
