@@ -23,6 +23,17 @@ export default function KioskPrintPage() {
   }, []);
 
   useEffect(() => {
+    const requestFullscreen = () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      }
+    };
+    requestFullscreen();
+    document.addEventListener('click', requestFullscreen, { once: true });
+    return () => document.removeEventListener('click', requestFullscreen);
+  }, []);
+
+  useEffect(() => {
     const fetchMovie = async () => {
       // 🌟 [수정됨] DB에서 age_rating(관람가)도 함께 불러옵니다.
       const { data } = await supabase.from('movie_settings').select('title, date_string, db_date, venue, age_rating').eq('is_active', true).single();
@@ -191,7 +202,7 @@ export default function KioskPrintPage() {
                 </div>
                 <div>
                   <label className="block text-neutral-300 mb-1 text-sm font-bold">이름</label>
-                  <input type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full p-4 rounded-xl bg-neutral-800 text-white border border-neutral-600 outline-none focus:border-orange-500 text-lg" placeholder="본명 입력" />
+                  <input type="text" name="name" value={formData.name} onChange={handleInputChange} onKeyDown={(e) => e.key === 'Enter' && handlePrintSubmit()} className="w-full p-4 rounded-xl bg-neutral-800 text-white border border-neutral-600 outline-none focus:border-orange-500 text-lg" placeholder="본명 입력" />
                 </div>
               </div>
 
