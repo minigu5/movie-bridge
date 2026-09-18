@@ -127,7 +127,7 @@ function PromoMailSection({ promo, movieTitle }: { promo: PromoProps; movieTitle
         </label>
       </div>
       <p className="text-neutral-500 text-xs mb-4">
-        학년별 발송은 각 학년 0001~0110번 학생 이메일(<code>ts{yy1}0001@ts.hs.kr</code> 형식)로 보냅니다. 학년도(3월 2일) 기준 자동 갱신.
+        학년별 발송은 각 학년 001~110번(25학번은 0001~0110번) 학생 이메일(<code>ts{yy1}{yy1 === 25 ? '0001' : '001'}@ts.hs.kr</code> 형식)로 보냅니다. 학년도(3월 2일) 기준 자동 갱신.
       </p>
 
       <div className="mb-4">

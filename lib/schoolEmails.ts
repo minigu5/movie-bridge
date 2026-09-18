@@ -1,9 +1,10 @@
 // 학교(@ts.hs.kr) 이메일 규칙 유틸.
 //
-// 학생 이메일 형식: ts{입학년도 2자리}{일련번호 4자리 zero-pad}@ts.hs.kr
-//   예) ts250024@ts.hs.kr  (2025년 입학, 24번)
+// 학생 이메일 형식: ts{입학년도 2자리}{일련번호 zero-pad}@ts.hs.kr
+//   - 25년 입학만 일련번호 4자리: ts250024@ts.hs.kr  (2025년 입학, 24번)
+//   - 24년/26년 이후는 일련번호 3자리: ts24010@ts.hs.kr, ts26010@ts.hs.kr
 //
-// 학년별 일련번호 범위는 예측하기 어려워 0001~0110 고정으로 발송한다.
+// 학년별 일련번호 범위는 예측하기 어려워 001~110(또는 0001~0110) 고정으로 발송한다.
 // "현재 재학 중인 3개 학년"은 학년도 경계(3월 2일)를 기준으로 자동 갱신된다.
 //   - 2026-09-04 기준  -> 입학년도 [24, 25, 26]
 //   - 2027-03-02 기준  -> 입학년도 [25, 26, 27]
@@ -53,12 +54,17 @@ export function admissionYearForGrade(grade: 'g1' | 'g2' | 'g3', now: Date = new
   return { g1, g2, g3 }[grade];
 }
 
-/** 입학년도 뒤 2자리(yy)에 해당하는 학년의 학생 이메일 0001~0110 전체를 만든다. */
+// 25년 입학 학번만 일련번호 4자리, 그 외(24/26/...)는 3자리.
+const SERIAL_DIGITS_25 = 4;
+const SERIAL_DIGITS_DEFAULT = 3;
+
+/** 입학년도 뒤 2자리(yy)에 해당하는 학년의 학생 이메일 전체를 만든다. */
 export function gradeEmails(yy: number): string[] {
   const prefix = `ts${String(yy).padStart(2, '0')}`;
+  const serialDigits = yy === 25 ? SERIAL_DIGITS_25 : SERIAL_DIGITS_DEFAULT;
   const emails: string[] = [];
   for (let n = SERIAL_START; n <= SERIAL_END; n++) {
-    emails.push(`${prefix}${String(n).padStart(4, '0')}${SCHOOL_DOMAIN}`);
+    emails.push(`${prefix}${String(n).padStart(serialDigits, '0')}${SCHOOL_DOMAIN}`);
   }
   return emails;
 }
