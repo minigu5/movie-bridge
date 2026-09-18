@@ -80,14 +80,19 @@ export default function KioskPrintPage() {
     setIsPrinting(true);
 
     try {
-      const { data: ticket } = await supabase.from('reservations')
-        .select('*')
-        .eq('student_id', cleanId)
-        .eq('student_name', formData.name)
-        .eq('movie_date', movieInfo.db_date)
-        .single();
+      const lookupRes = await fetch('/api/kiosk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'LOOKUP_TICKET',
+          payload: { studentId: cleanId, studentName: formData.name, movieDate: movieInfo.db_date }
+        })
+      });
+      const lookupData = await lookupRes.json();
 
-      if (!ticket) return alert("예매 내역이 존재하지 않습니다. 학번/이름을 다시 확인해주세요.");
+      if (!lookupData.success) return alert(lookupData.error || "예매 내역이 존재하지 않습니다. 학번/이름을 다시 확인해주세요.");
+
+      const ticket = lookupData.ticket;
 
       if (ticket.is_printed) {
         return alert("이미 현장에서 발권이 완료된 티켓입니다! (1인 1매 원칙)\n오류인 경우 관리자에게 문의하세요.");

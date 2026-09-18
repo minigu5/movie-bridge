@@ -18,6 +18,23 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true });
     }
 
+    if (action === 'LOOKUP_TICKET') {
+      const { studentId, studentName, movieDate } = payload;
+
+      const { data: ticket, error: fetchError } = await supabaseAdmin.from('reservations')
+        .select('id, student_id, student_name, seat_number, popcorn_order, is_printed')
+        .eq('student_id', studentId)
+        .eq('student_name', studentName)
+        .eq('movie_date', movieDate)
+        .single();
+
+      if (fetchError || !ticket) {
+        return NextResponse.json({ success: false, error: '예매 내역이 존재하지 않습니다. 학번/이름을 다시 확인해주세요.' }, { status: 404 });
+      }
+
+      return NextResponse.json({ success: true, ticket });
+    }
+
     if (action === 'PRINT_TICKET') {
       const { ticketId, studentId, studentName, seatNumber } = payload;
 
