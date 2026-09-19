@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
-import { CircleX, Printer, Popcorn } from 'lucide-react';
+import { Printer, Popcorn, Clapperboard } from 'lucide-react';
 
 
 export default function KioskPrintPage() {
@@ -124,13 +124,6 @@ export default function KioskPrintPage() {
   };
 
   const getPopcornReceiptText = (popcornString: string): React.ReactNode => {
-    if (!popcornString || popcornString === 'none') return (
-      <span className="flex items-center gap-1.5">
-        <CircleX className="w-4 h-4" />
-        팝콘 배부 대상 아님 (무료 관람권 예매자)
-      </span>
-    );
-
     const popcornArray = popcornString.split(',');
     const POPCORN_NAMES: Record<string, string> = { original: '오리지널', consomme: '콘소메', caramel: '카라멜' };
     const counts: Record<string, number> = {};
@@ -185,6 +178,10 @@ export default function KioskPrintPage() {
           <>
             <div className="w-full max-w-md bg-neutral-900 p-8 rounded-2xl shadow-2xl border border-neutral-600 print:hidden">
               <div className="text-center mb-8">
+                <div className="flex items-center justify-center gap-1.5 mb-3">
+                  <Clapperboard className="w-4 h-4 text-neutral-400" strokeWidth={2.5} />
+                  <span className="text-xs font-black text-neutral-400 tracking-[0.3em]">영화대교</span>
+                </div>
                 <h1 className="text-3xl font-bold text-orange-500 tracking-wider mb-2">현장 발권기</h1>
                 <p className="text-neutral-400 text-sm">현장에서 예매 티켓을 스티커/영수증으로 출력합니다.</p>
               </div>
@@ -211,23 +208,23 @@ export default function KioskPrintPage() {
             </div>
           </>
         ) : (
-          <div className="w-[80mm] mx-auto bg-white text-black font-mono print:w-full print:m-0 print:px-4">
+          <div className="w-[72mm] mx-auto bg-white text-black font-mono print:w-full print:m-0 print:px-4">
 
             <div className="text-center text-2xl font-black mb-0.5 tracking-widest pt-1">영화대교 입장권</div>
             <div className="text-[11px] text-center text-gray-700 mb-1">{new Date().toLocaleString()} (현장_KIOSK_1)</div>
 
             <div className="border-b-2 border-dashed border-black my-1.5"></div>
 
-            {/* 🌟 [수정됨] 관람가를 영화 제목 옆 인라인 뱃지로, 상영일시 박스 제거해 좌석 정보 열에 편입 */}
-            <div className="flex items-baseline gap-2 mb-1">
-              <div className="text-3xl font-black leading-tight tracking-tighter">{movieInfo?.title}</div>
-              <div className="text-[11px] font-bold border-[2px] border-black px-1 py-0.5">{movieInfo?.age_rating || '전체관람가'}</div>
-            </div>
+            {/* 🌟 [수정됨] 좁은 80mm 폭에서 제목이 세로로 쪼개지지 않도록 뱃지 제거, 제목 아래 텍스트로 배치 */}
+            <div className="text-3xl font-black leading-tight tracking-tighter mb-0.5">{movieInfo?.title}</div>
+            <div className="text-sm font-bold text-gray-800 mb-1.5">{movieInfo?.age_rating || '전체관람가'}</div>
 
-            <div className="flex justify-between items-end mt-1.5 mb-1.5">
+            {/* 🌟 [수정됨] 상영일시를 전체 폭 한 줄로 (기존엔 좁은 컬럼에 갇혀 여러 줄로 쪼개짐) */}
+            <div className="text-[13px] font-black tracking-tight border-b-[3px] border-black inline-block pb-0.5 mb-1.5">상영일시: {movieInfo?.date_string}</div>
+
+            <div className="flex justify-between items-end mb-1.5">
               <div className="leading-tight">
-                <div className="text-[17px] font-black border-b-[3px] border-black inline-block pb-0.5 mb-0.5">상영일시: {movieInfo?.date_string}</div>
-                <div className="text-sm font-bold mt-1">{movieInfo?.venue}</div>
+                <div className="text-sm font-bold">{movieInfo?.venue}</div>
                 <div className="text-sm font-bold mt-0.5">예매자: {ticketData.student_name} ({ticketData.student_id})</div>
               </div>
               <div className="text-right">
@@ -238,13 +235,17 @@ export default function KioskPrintPage() {
 
             <div className="border-b-2 border-dashed border-black my-1.5"></div>
 
-            <div className="text-lg font-black mb-1 flex items-center gap-1.5">
-              <Popcorn className="w-4 h-4" />
-              팝콘 수령 정보
-            </div>
-            <div className="text-sm font-bold leading-tight">
-              {getPopcornReceiptText(ticketData.popcorn_order)}
-            </div>
+            {ticketData.popcorn_order && ticketData.popcorn_order !== 'none' && (
+              <>
+                <div className="text-lg font-black mb-1 flex items-center gap-1.5">
+                  <Popcorn className="w-4 h-4" />
+                  팝콘 수령 정보
+                </div>
+                <div className="text-sm font-bold leading-tight">
+                  {getPopcornReceiptText(ticketData.popcorn_order)}
+                </div>
+              </>
+            )}
 
             {/* 🌟 [수정됨] 팝콘/footer 사이 구분선 제거해 구분선 3개→2개로 압축 */}
             <div className="text-center font-bold text-sm mt-2 mb-1">대구과학고등학교 영화대교</div>
