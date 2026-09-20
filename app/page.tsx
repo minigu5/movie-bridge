@@ -10,6 +10,10 @@ import AccountInfo from '@/components/AccountInfo';
 import MovieReviews from '@/components/MovieReviews';
 import { getGridRows, getGridCols, computeSeatId, computeVipSeats } from '@/lib/seatGrid';
 
+// 🌟 [로그인 리다이렉트 복원] 비로그인 좌석 클릭 -> 구글 로그인 -> 복귀 사이에 풀 페이지
+// 리다이렉트로 예매 진행 state가 초기화되는 것을 막기 위한 임시 저장 키
+const PENDING_SEAT_KEY = 'pending_seat_selection';
+
 interface SeatData {
   status: string;
   name: string;
@@ -184,6 +188,23 @@ export default function Home() {
     fetchInitialData();
   }, [profile]);
 
+  // 🌟 [로그인 리다이렉트 복원] 좌석 클릭 -> 구글 로그인 -> 복귀 직후, 남겨둔 좌석을
+  // seatStatuses(로그인 후 fetchInitialData 완료분)로 재검증하고 팝콘 선택 모달을 바로 연다.
+  useEffect(() => {
+    if (!profile || isLoading) return;
+    let pending: string | null = null;
+    try { pending = sessionStorage.getItem(PENDING_SEAT_KEY); } catch { /* sessionStorage unavailable: skip */ }
+    if (!pending) return;
+    try { sessionStorage.removeItem(PENDING_SEAT_KEY); } catch { /* sessionStorage unavailable: skip */ }
+
+    if (isClosed || myReservation || seatStatuses[pending]) {
+      showAlert('선택하신 좌석은 로그인하는 동안 마감되었거나 이미 예약되었습니다.');
+      return;
+    }
+    setSelectedSeat(pending);
+    setIsModalOpen(true);
+  }, [profile, isLoading]);
+
   useEffect(() => {
     if (!profile) { setIsAdmin(false); return; }
     let active = true;
@@ -308,7 +329,10 @@ export default function Home() {
     if (isClosed) return;
 
     // 🌟 [비로그인] 좌석 클릭 즉시 구글 로그인으로 이동 (예매하기 버튼까지 갈 필요 없음)
+    // 구글 로그인은 풀 페이지 리다이렉트라 복귀 시 컴포넌트가 리마운트되어 selectedSeat가
+    // 초기화된다. 어느 좌석을 고르려 했는지 sessionStorage에 남겨 복귀 후 복원한다.
     if (!profile) {
+      try { sessionStorage.setItem(PENDING_SEAT_KEY, seatId); } catch { /* sessionStorage unavailable: skip */ }
       signInWithGoogle().catch(() => showAlert('로그인에 실패했습니다.'));
       return;
     }
