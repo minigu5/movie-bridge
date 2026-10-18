@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { extractSchoolEmails } from '../../lib/parseEmails';
 import { renderTicketBackground, renderTicketBackgroundFromFile, blobToDataUri, fetchPosterDataUri } from '../../lib/ticketBackgroundCanvas';
 import AdminTabs, { type TabKey } from './_components/AdminTabs';
+import { buildDerivedFields, validateMovieForm } from './_components/screeningSchedule';
 import ReservationsTab from './_components/ReservationsTab';
 import SettingsTab from './_components/SettingsTab';
 import MembersTab from './_components/MembersTab';
@@ -202,7 +203,16 @@ export default function AdminPage() {
     }
   };
 
+  // 저장 전 검증: 하드 오류는 막고, 경고는 확인을 받는다. 계속 진행해도 되면 true.
+  const checkMovieForm = (form: any): boolean => {
+    const result = validateMovieForm(form);
+    if (result?.error) { alert(result.error); return false; }
+    if (result?.warn && !confirm(result.warn)) return false;
+    return true;
+  };
+
   const handleSaveSettingsClick = async () => {
+    if (!checkMovieForm(editForm)) return;
     const payload = {
       title: editForm.title, date_string: editForm.date_string, db_date: editForm.db_date,
       venue: editForm.venue, poster_url: editForm.poster_url, deadline_date: editForm.deadline_date, age_rating: editForm.age_rating,
@@ -228,11 +238,13 @@ export default function AdminPage() {
     setNewMovieForm({
       ...movieInfo,
       title: '', poster_url: '',
+      ...buildDerivedFields({ start: '', end: '', deadline: '' }),
     });
     setIsStartingNewMovie(true);
   };
 
   const handleSubmitNewMovie = async () => {
+    if (!checkMovieForm(newMovieForm)) return;
     const payload = {
       title: newMovieForm.title, date_string: newMovieForm.date_string, db_date: newMovieForm.db_date,
       venue: newMovieForm.venue, poster_url: newMovieForm.poster_url, deadline_date: newMovieForm.deadline_date, age_rating: newMovieForm.age_rating,
@@ -593,7 +605,7 @@ export default function AdminPage() {
 
         <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
           <h1 className="text-2xl md:text-3xl font-bold text-orange-400 flex items-center gap-1.5"><Crown className="w-6 h-6" /> 영화대교 관리자 대시보드</h1>
-          <button onClick={() => { fetchAdminData(); alert("데이터가 새로고침 되었습니다."); }} className="bg-orange-600 hover:bg-orange-500 px-4 py-2 rounded-lg font-bold transition-colors whitespace-nowrap flex items-center gap-1.5">
+          <button onClick={() => { fetchAdminData(); }} className="bg-orange-600 hover:bg-orange-500 px-4 py-2 rounded-lg font-bold transition-colors whitespace-nowrap flex items-center gap-1.5">
             <RefreshCw className="w-4 h-4" /> 새로고침
           </button>
         </div>
@@ -642,6 +654,7 @@ export default function AdminPage() {
               showConfirm: showPromoConfirm,
               onResolveClick: handleResolvePromoClick,
               onConfirmSend: executeSendPromo,
+              onRemoveRecipient: (email: string) => setPromoRecipients((prev) => prev.filter((r) => r.email !== email)),
               onCancelConfirm: () => setShowPromoConfirm(false),
             }}
           />

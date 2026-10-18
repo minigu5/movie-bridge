@@ -48,7 +48,7 @@ export default function MembersTab(props: Props) {
         <div className="bg-neutral-800 rounded-xl border border-neutral-700 p-4 flex flex-col min-w-0">
           <h2 className="text-lg font-bold text-emerald-400 mb-3 flex items-center gap-1.5"><Crown className="w-5 h-5" /> 관리자 목록</h2>
           <div className="flex gap-2 mb-3">
-            <input type="text" value={p.newAdminEmail} onChange={e => p.setNewAdminEmail(e.target.value)} placeholder="xxxx@ts.hs.kr" className="flex-1 min-w-0 p-2 bg-neutral-700 rounded border border-neutral-600 outline-none text-white text-sm" />
+            <input type="text" value={p.newAdminEmail} onChange={e => p.setNewAdminEmail(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) p.onAddAdmin(); }} placeholder="xxxx@ts.hs.kr" className="flex-1 min-w-0 p-2 bg-neutral-700 rounded border border-neutral-600 outline-none text-white text-sm" />
             <button onClick={p.onAddAdmin} className="bg-emerald-600 hover:bg-emerald-500 px-3 py-2 rounded font-bold text-sm">추가</button>
           </div>
           <div className="space-y-1 max-h-40 overflow-y-auto">
@@ -100,7 +100,7 @@ export default function MembersTab(props: Props) {
           <h2 className="text-lg font-bold text-pink-400 mb-3 flex items-center gap-1.5"><Wrench className="w-5 h-5" /> 사용자 프로필 수정</h2>
           <p className="text-neutral-500 text-xs mb-2">구글 이름이 잘못 인식된 경우 여기서 고칩니다.</p>
           <div className="flex gap-2 mb-3">
-            <input type="text" value={p.profileSearchQuery} onChange={e => p.setProfileSearchQuery(e.target.value)} placeholder="이메일/이름/학번" className="flex-1 min-w-0 p-2 bg-neutral-700 rounded border border-neutral-600 outline-none text-white text-sm" />
+            <input type="text" value={p.profileSearchQuery} onChange={e => p.setProfileSearchQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) p.onSearchProfile(); }} placeholder="이메일/이름/학번" className="flex-1 min-w-0 p-2 bg-neutral-700 rounded border border-neutral-600 outline-none text-white text-sm" />
             <button onClick={p.onSearchProfile} className="bg-pink-600 hover:bg-pink-500 px-3 py-2 rounded font-bold text-sm">검색</button>
           </div>
           <div className="space-y-1 max-h-32 overflow-y-auto mb-3">

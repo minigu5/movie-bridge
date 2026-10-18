@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, type Dispatch, type SetStateAction } from 'react';
-import { Mail, Send, Settings, Ticket, Save, Clapperboard } from 'lucide-react';
+import { Mail, Send, Settings, Ticket, Save, Clapperboard, X } from 'lucide-react';
 import VipZonePicker, { type Zone } from './VipZonePicker';
 import { activeAdmissionYears } from '../../../lib/schoolEmails';
+import { getSchedule, buildDerivedFields, type Schedule } from './screeningSchedule';
 
 type PromoSources = { club: boolean; profilesAll: boolean; g1: boolean; g2: boolean; g3: boolean };
 
@@ -20,6 +21,7 @@ interface PromoProps {
   showConfirm: boolean;
   onResolveClick: () => void;
   onConfirmSend: () => void;
+  onRemoveRecipient: (email: string) => void;
   onCancelConfirm: () => void;
 }
 
@@ -63,11 +65,20 @@ const applyZone = (setForm: (u: any) => void, hall: 'mid' | 'grand', z: Zone) =>
 
 function MovieFormFields({ form, setForm }: { form: any; setForm: (u: any) => void }) {
   const set = (patch: any) => setForm((prev: any) => ({ ...prev, ...patch }));
+  const sched = getSchedule(form);
+  // 입력이 바뀌면 date_string / db_date / deadline_date 를 항상 같이 다시 만든다.
+  const setSched = (patch: Partial<Schedule>) => setForm((prev: any) => ({ ...prev, ...buildDerivedFields({ ...getSchedule(prev), ...patch }) }));
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div><label className="block text-sm text-neutral-400 mb-1">영화 제목</label><input type="text" value={form.title ?? ''} onChange={e => set({ title: e.target.value })} className="w-full p-2 bg-neutral-700 rounded border border-neutral-600 outline-none" /></div>
-      <div><label className="block text-sm text-neutral-400 mb-1">상영 일시 (화면 표시용)</label><input type="text" value={form.date_string ?? ''} onChange={e => set({ date_string: e.target.value })} className="w-full p-2 bg-neutral-700 rounded border border-neutral-600 outline-none" /></div>
-      <div><label className="block text-sm text-neutral-400 mb-1">DB 기준 날짜 (YYYY-MM-DD)</label><input type="text" value={form.db_date ?? ''} onChange={e => set({ db_date: e.target.value })} className="w-full p-2 bg-neutral-700 rounded border border-neutral-600 outline-none" /></div>
+      <div>
+        <label className="block text-sm text-neutral-400 mb-1">상영 시작 (날짜 + 시간)</label>
+        <input type="datetime-local" value={sched.start} onChange={e => setSched({ start: e.target.value })} style={{ colorScheme: 'dark' }} className="w-full p-2 bg-neutral-700 rounded border border-neutral-600 outline-none" />
+      </div>
+      <div>
+        <label className="block text-sm text-neutral-400 mb-1">상영 종료 (시간)</label>
+        <input type="time" value={sched.end} onChange={e => setSched({ end: e.target.value })} style={{ colorScheme: 'dark' }} className="w-full p-2 bg-neutral-700 rounded border border-neutral-600 outline-none" />
+      </div>
       <div>
         <label className="block text-sm text-neutral-400 mb-1">상영 장소</label>
         <select value={form.venue ?? ''} onChange={e => set({ venue: e.target.value })} className="w-full p-2 bg-neutral-700 rounded border border-neutral-600 focus:border-orange-500 outline-none">
@@ -85,7 +96,13 @@ function MovieFormFields({ form, setForm }: { form: any; setForm: (u: any) => vo
         </select>
       </div>
       <div className="md:col-span-2"><label className="block text-sm text-neutral-400 mb-1">포스터 주소</label><input type="text" value={form.poster_url ?? ''} onChange={e => set({ poster_url: e.target.value })} className="w-full p-2 bg-neutral-700 rounded border border-neutral-600 outline-none" /></div>
-      <div className="md:col-span-2"><label className="block text-sm text-red-400 font-bold mb-1">예매 마감 일시 (ISO 형식)</label><input type="text" value={form.deadline_date ?? ''} onChange={e => set({ deadline_date: e.target.value })} className="w-full p-2 bg-neutral-700 rounded border border-red-800 outline-none" /></div>
+      <div className="md:col-span-2">
+        <label className="block text-sm text-red-400 font-bold mb-1">예매 마감 (날짜 + 시간)</label>
+        <input type="datetime-local" value={sched.deadline} onChange={e => setSched({ deadline: e.target.value })} style={{ colorScheme: 'dark' }} className="w-full p-2 bg-neutral-700 rounded border border-red-800 outline-none" />
+        <p className="text-xs text-neutral-500 mt-1">
+          화면에는 &quot;{form.date_string || '상영 일시 미입력'}&quot;로 표시됩니다. 날짜와 시간은 모두 한국 시간 기준입니다.
+        </p>
+      </div>
     </div>
   );
 }
@@ -173,8 +190,16 @@ function PromoMailSection({ promo, movieTitle }: { promo: PromoProps; movieTitle
               </p>
               <ul className="divide-y divide-neutral-800">
                 {p.recipients.map((r) => (
-                  <li key={r.email} className="px-4 py-1.5 text-sm text-neutral-200 truncate" title={r.email}>
-                    {r.name || r.email}
+                  <li key={r.email} className="flex items-center justify-between gap-2 px-4 py-1.5 text-sm text-neutral-200">
+                    <span className="truncate" title={r.email}>{r.name || r.email}</span>
+                    <button
+                      type="button"
+                      onClick={() => p.onRemoveRecipient(r.email)}
+                      aria-label={`${r.name || r.email} 발송 대상에서 제외`}
+                      className="shrink-0 p-1 rounded text-neutral-500 hover:text-red-400 hover:bg-neutral-800"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -182,7 +207,7 @@ function PromoMailSection({ promo, movieTitle }: { promo: PromoProps; movieTitle
             <p className="text-neutral-400 text-sm mb-6">발송 중에는 창을 닫거나 새로고침하지 마세요. 진행 바가 다 찰 때까지 기다려 주세요.</p>
             <div className="flex gap-3">
               <button onClick={p.onCancelConfirm} className="flex-1 py-3 bg-neutral-700 hover:bg-neutral-600 rounded-xl text-white font-bold">돌아가기</button>
-              <button onClick={p.onConfirmSend} className="flex-1 py-3 bg-orange-600 hover:bg-orange-500 rounded-xl text-white font-bold flex items-center justify-center gap-1.5"><Send className="w-4 h-4" /> 발송 시작</button>
+              <button onClick={p.onConfirmSend} disabled={p.recipients.length === 0} className="flex-1 py-3 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-white font-bold flex items-center justify-center gap-1.5"><Send className="w-4 h-4" /> 발송 시작</button>
             </div>
           </div>
         </div>
