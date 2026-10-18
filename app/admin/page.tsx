@@ -638,7 +638,7 @@ export default function AdminPage() {
               isResolving: isResolvingPromo,
               isSending: isSendingPromo,
               progress: promoProgress,
-              recipientCount: promoRecipients.length,
+              recipients: promoRecipients,
               showConfirm: showPromoConfirm,
               onResolveClick: handleResolvePromoClick,
               onConfirmSend: executeSendPromo,

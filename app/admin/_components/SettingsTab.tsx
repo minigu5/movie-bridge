@@ -16,7 +16,7 @@ interface PromoProps {
   isResolving: boolean;
   isSending: boolean;
   progress: { current: number; total: number };
-  recipientCount: number;
+  recipients: { email: string; name: string | null }[];
   showConfirm: boolean;
   onResolveClick: () => void;
   onConfirmSend: () => void;
@@ -165,7 +165,19 @@ function PromoMailSection({ promo, movieTitle }: { promo: PromoProps; movieTitle
             <h3 className="text-2xl font-black text-white mb-4 flex items-center justify-center gap-1.5"><Mail className="w-6 h-6" /> 대량 메일 발송 확인</h3>
             <div className="bg-orange-950 p-5 rounded-xl text-white border border-orange-800 mb-4">
               <p className="text-sm text-orange-300 mb-1">발송 예정 총 인원 (블랙리스트/중복 제외)</p>
-              <p className="text-5xl text-yellow-400 font-black">{p.recipientCount}<span className="text-xl text-white ml-2">명</span></p>
+              <p className="text-5xl text-yellow-400 font-black">{p.recipients.length}<span className="text-xl text-white ml-2">명</span></p>
+            </div>
+            <div className="bg-neutral-950 rounded-xl border border-neutral-700 mb-4 max-h-56 overflow-y-auto text-left">
+              <p className="sticky top-0 bg-neutral-950 px-4 py-2 text-xs text-neutral-400 border-b border-neutral-800">
+                수신자 목록 (로그인 이력 있으면 이름, 없으면 이메일)
+              </p>
+              <ul className="divide-y divide-neutral-800">
+                {p.recipients.map((r) => (
+                  <li key={r.email} className="px-4 py-1.5 text-sm text-neutral-200 truncate" title={r.email}>
+                    {r.name || r.email}
+                  </li>
+                ))}
+              </ul>
             </div>
             <p className="text-neutral-400 text-sm mb-6">발송 중에는 창을 닫거나 새로고침하지 마세요. 진행 바가 다 찰 때까지 기다려 주세요.</p>
             <div className="flex gap-3">
