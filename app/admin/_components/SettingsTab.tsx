@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, type Dispatch, type SetStateAction } from 'react';
-import { Mail, Send, Settings, Ticket, Save, Clapperboard, X } from 'lucide-react';
+import { Mail, Send, Settings, Ticket, Save, Clapperboard, X, TriangleAlert } from 'lucide-react';
 import VipZonePicker, { type Zone } from './VipZonePicker';
+import DefectiveSeatPicker from './DefectiveSeatPicker';
 import { activeAdmissionYears } from '../../../lib/schoolEmails';
 import { getSchedule, buildDerivedFields, type Schedule } from './screeningSchedule';
 
@@ -275,6 +276,17 @@ export default function SettingsTab(props: Props) {
             />
           </div>
 
+          <div className="mt-6">
+            <h3 className="text-red-400 font-bold border-b border-neutral-700 pb-2 mb-1 flex items-center gap-1.5"><TriangleAlert className="w-4 h-4" /> 하자 좌석</h3>
+            <p className="text-xs text-neutral-500 mb-3">좌석표에는 표시되지 않고, 예매자가 해당 좌석을 누르면 경고만 나타납니다.</p>
+            <DefectiveSeatPicker
+              hall={editHall}
+              onHallChange={setEditHall}
+              seats={editForm.defective_seats ?? []}
+              onSeatsChange={(seats) => setEditForm((prev: any) => ({ ...prev, defective_seats: seats }))}
+            />
+          </div>
+
           <div className="mt-6 text-right">
             <button onClick={onSaveSettings} className="bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-8 rounded-lg shadow-lg flex items-center justify-center gap-1.5"><Save className="w-4 h-4" /> 변경사항 저장</button>
           </div>
@@ -302,6 +314,17 @@ export default function SettingsTab(props: Props) {
                 zone={zoneFromForm(newMovieForm, newHall)}
                 onZoneChange={(z) => applyZone(setNewMovieForm, newHall, z)}
                 accent={newHall === 'grand' ? 'pink' : 'amber'}
+              />
+            </div>
+
+            <div className="mt-6">
+              <h3 className="text-red-400 font-bold border-b border-neutral-700 pb-2 mb-1 flex items-center gap-1.5"><TriangleAlert className="w-4 h-4" /> 하자 좌석</h3>
+              <p className="text-xs text-neutral-500 mb-3">좌석표에는 표시되지 않고, 예매자가 해당 좌석을 누르면 경고만 나타납니다.</p>
+              <DefectiveSeatPicker
+                hall={newHall}
+                onHallChange={setNewHall}
+                seats={newMovieForm.defective_seats ?? []}
+                onSeatsChange={(seats) => setNewMovieForm((prev: any) => ({ ...prev, defective_seats: seats }))}
               />
             </div>
             <div className="mt-6 text-right flex justify-end gap-2">

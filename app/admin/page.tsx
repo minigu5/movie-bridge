@@ -134,6 +134,7 @@ export default function AdminPage() {
           grand_vip_end_row: movieData.grand_vip_end_row || 'C',
           grand_vip_start_col: movieData.grand_vip_start_col || 10,
           grand_vip_end_col: movieData.grand_vip_end_col || 18,
+          defective_seats: movieData.defective_seats ?? [],
         });
       }
       if (resData) setReservations(resData);
@@ -219,7 +220,8 @@ export default function AdminPage() {
       mid_vip_start_row: editForm.mid_vip_start_row, mid_vip_end_row: editForm.mid_vip_end_row,
       mid_vip_start_col: editForm.mid_vip_start_col, mid_vip_end_col: editForm.mid_vip_end_col,
       grand_vip_start_row: editForm.grand_vip_start_row, grand_vip_end_row: editForm.grand_vip_end_row,
-      grand_vip_start_col: editForm.grand_vip_start_col, grand_vip_end_col: editForm.grand_vip_end_col
+      grand_vip_start_col: editForm.grand_vip_start_col, grand_vip_end_col: editForm.grand_vip_end_col,
+      defective_seats: editForm.defective_seats ?? []
     };
 
     const res = await authFetch('/api/admin/action', { action: 'UPDATE_SETTINGS', payload });
@@ -251,7 +253,8 @@ export default function AdminPage() {
       mid_vip_start_row: newMovieForm.mid_vip_start_row, mid_vip_end_row: newMovieForm.mid_vip_end_row,
       mid_vip_start_col: newMovieForm.mid_vip_start_col, mid_vip_end_col: newMovieForm.mid_vip_end_col,
       grand_vip_start_row: newMovieForm.grand_vip_start_row, grand_vip_end_row: newMovieForm.grand_vip_end_row,
-      grand_vip_start_col: newMovieForm.grand_vip_start_col, grand_vip_end_col: newMovieForm.grand_vip_end_col
+      grand_vip_start_col: newMovieForm.grand_vip_start_col, grand_vip_end_col: newMovieForm.grand_vip_end_col,
+      defective_seats: newMovieForm.defective_seats ?? []
     };
 
     const res = await authFetch('/api/admin/action', { action: 'START_NEW_MOVIE', payload });

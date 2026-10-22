@@ -32,6 +32,7 @@ interface PastMovie {
   poster_url: string;
   mid_vip_start_row?: string; mid_vip_end_row?: string; mid_vip_start_col?: number; mid_vip_end_col?: number;
   grand_vip_start_row?: string; grand_vip_end_row?: string; grand_vip_start_col?: number; grand_vip_end_col?: number;
+  defective_seats?: string[];
 }
 
 export default function Home() {
@@ -51,7 +52,8 @@ export default function Home() {
     age_rating: "전체관람가", // 🌟 [추가됨]
     poster_url: "/poster.jpg", deadline_date: "2099-12-31T23:59:00+09:00",
     mid_vip_start_row: "A", mid_vip_end_row: "C", mid_vip_start_col: 5, mid_vip_end_col: 10,
-    grand_vip_start_row: "A", grand_vip_end_row: "C", grand_vip_start_col: 10, grand_vip_end_col: 18
+    grand_vip_start_row: "A", grand_vip_end_row: "C", grand_vip_start_col: 10, grand_vip_end_col: 18,
+    defective_seats: [] as string[]
   });
   
   const [profile, setProfile] = useState<AppProfile | null>(null);
@@ -89,6 +91,13 @@ export default function Home() {
     () => computeVipSeats(isGrandHall, rows, cols, movieInfo),
     [movieInfo, isGrandHall, rows, cols]
   );
+
+  // 하자 좌석은 좌석표에 표시하지 않고, 클릭 시점에만 경고한다.
+  const defectiveSeats = useMemo(() => new Set(movieInfo.defective_seats ?? []), [movieInfo]);
+  const warnIfDefective = (seatId: string, proceed: () => void) => {
+    if (!defectiveSeats.has(seatId)) return proceed();
+    showConfirm(`⚠️ ${seatId}번 좌석은 의자에 하자가 있습니다.\n그래도 이 좌석을 선택하시겠습니까?`, proceed);
+  };
 
   // 🌟 [과거 상영 회차 열람] 과거 회차 목록/현재 보고 있는 인덱스(null=현재 상영작)/좌석 점유(익명) 상태
   const [pastMovies, setPastMovies] = useState<PastMovie[]>([]);
@@ -201,8 +210,10 @@ export default function Home() {
       showAlert('선택하신 좌석은 로그인하는 동안 마감되었거나 이미 예약되었습니다.');
       return;
     }
-    setSelectedSeat(pending);
-    setIsModalOpen(true);
+    warnIfDefective(pending, () => {
+      setSelectedSeat(pending);
+      setIsModalOpen(true);
+    });
   }, [profile, isLoading]);
 
   useEffect(() => {
@@ -350,11 +361,13 @@ export default function Home() {
       if (vipSeats.has(seatId) && groupLeader && !clubMemberIds.includes(groupLeader.email)) {
         return showAlert("선택하신 좌석은 '영화대교' 동아리 전용석입니다.");
       }
-      setSelectedSeat(seatId);
-      setMemberSearchQuery('');
-      setMemberSearchResults([]);
-      setSelectedMember(null);
-      setIsGroupMemberModal(true);
+      warnIfDefective(seatId, () => {
+        setSelectedSeat(seatId);
+        setMemberSearchQuery('');
+        setMemberSearchResults([]);
+        setSelectedMember(null);
+        setIsGroupMemberModal(true);
+      });
       return;
     }
 
@@ -364,7 +377,7 @@ export default function Home() {
     // 🌟 [예매 후 UI] 이미 예매한 사람은 "자리 이동" 버튼을 눌러야만 새 좌석을 고를 수 있음
     if (myReservation && !isMovingSeat) return;
 
-    setSelectedSeat(seatId);
+    warnIfDefective(seatId, () => setSelectedSeat(seatId));
   };
 
   const handlePopcornChange = (index: number, value: string) => {
