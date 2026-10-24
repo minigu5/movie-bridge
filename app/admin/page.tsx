@@ -44,6 +44,8 @@ export default function AdminPage() {
   const [newAdminEmail, setNewAdminEmail] = useState('');
   const [clubMembers, setClubMembers] = useState<{email: string, added_by: string | null, created_at: string}[]>([]);
   const [newClubMembersText, setNewClubMembersText] = useState('');
+  const [invitedEmails, setInvitedEmails] = useState<{email: string, added_by: string | null, source: string, created_at: string}[]>([]);
+  const [newInvitedText, setNewInvitedText] = useState('');
   const [kioskPasswordInput, setKioskPasswordInput] = useState('');
   const [profileSearchQuery, setProfileSearchQuery] = useState('');
   const [profileSearchResults, setProfileSearchResults] = useState<{id: string, email: string, student_id: string | null, name: string, role: string}[]>([]);
@@ -77,6 +79,7 @@ export default function AdminPage() {
   }, [reservations]);
 
   const clubEmailPreviewCount = useMemo(() => extractSchoolEmails(newClubMembersText).length, [newClubMembersText]);
+  const invitedEmailPreviewCount = useMemo(() => extractSchoolEmails(newInvitedText).length, [newInvitedText]);
   const blacklistEmailPreviewCount = useMemo(() => extractSchoolEmails(newBlacklistText).length, [newBlacklistText]);
   const promoManualPreviewCount = useMemo(() => extractSchoolEmails(promoManualText).length, [promoManualText]);
 
@@ -120,7 +123,7 @@ export default function AdminPage() {
         return true;
       }
 
-      const { movieData, resData, blData, logData, adminData, clubData, kioskPassword } = data;
+      const { movieData, resData, blData, logData, adminData, clubData, kioskPassword, invitedData } = data;
       if (movieData) {
         setMovieInfo(movieData);
         setEditForm({
@@ -142,6 +145,7 @@ export default function AdminPage() {
       if (logData) setLogs(logData);
       if (adminData) setAdmins(adminData);
       if (clubData) setClubMembers(clubData);
+      if (invitedData) setInvitedEmails(invitedData);
       if (typeof kioskPassword === 'string') setKioskPasswordInput(kioskPassword);
       return true;
     } catch (err) {
@@ -434,6 +438,25 @@ export default function AdminPage() {
     fetchAdminData();
   };
 
+  const handleAddInvitedEmails = async () => {
+    const emails = extractSchoolEmails(newInvitedText);
+    if (emails.length === 0) return alert("추가할 @ts.hs.kr 이메일이 없습니다.");
+    const res = await authFetch('/api/admin/action', { action: 'ADD_INVITED_EMAILS', payload: { emails } });
+    const data = await res.json();
+    if (!data.success) return alert("추가 실패: " + data.error);
+    setNewInvitedText('');
+    fetchAdminData();
+    alert(`${emails.length}명이 초대 명단에 추가되었습니다.`);
+  };
+
+  const handleRemoveInvitedEmail = async (email: string) => {
+    if (!confirm(`${email}을(를) 초대 명단에서 제거하시겠습니까?\n(이미 한 예매는 유지되고, 새 예매만 막힙니다.)`)) return;
+    const res = await authFetch('/api/admin/action', { action: 'REMOVE_INVITED_EMAIL', payload: { email } });
+    const data = await res.json();
+    if (!data.success) return alert("제거 실패: " + data.error);
+    fetchAdminData();
+  };
+
   const handleUpdateKioskPassword = async () => {
     if (!kioskPasswordInput.trim()) return alert("키오스크 비밀번호를 입력해주세요.");
     const res = await authFetch('/api/admin/action', { action: 'UPDATE_KIOSK_PASSWORD', payload: { password: kioskPasswordInput.trim() } });
@@ -676,6 +699,12 @@ export default function AdminPage() {
             clubEmailPreviewCount={clubEmailPreviewCount}
             onAddClubMembers={handleAddClubMembers}
             onRemoveClubMember={handleRemoveClubMember}
+            invitedEmails={invitedEmails}
+            newInvitedText={newInvitedText}
+            setNewInvitedText={setNewInvitedText}
+            invitedEmailPreviewCount={invitedEmailPreviewCount}
+            onAddInvitedEmails={handleAddInvitedEmails}
+            onRemoveInvitedEmail={handleRemoveInvitedEmail}
             kioskPasswordInput={kioskPasswordInput}
             setKioskPasswordInput={setKioskPasswordInput}
             onUpdateKioskPassword={handleUpdateKioskPassword}

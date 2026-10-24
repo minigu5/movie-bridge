@@ -33,7 +33,7 @@ export async function POST(req: Request) {
         const { data: movieData, error: e1 } = await supabaseAdmin.from('movie_settings').select('*').eq('is_active', true).single();
         if (e1) throw e1;
 
-        const [resQ, blQ, logQ, adminQ, clubQ, kioskQ] = await Promise.all([
+        const [resQ, blQ, logQ, adminQ, clubQ, kioskQ, invitedQ] = await Promise.all([
           supabaseAdmin.from('reservations')
             .select('id, seat_number, payment_status, student_name, student_id, email, popcorn_order, is_printed, is_group_leader')
             .eq('movie_date', movieData?.db_date)
@@ -42,7 +42,8 @@ export async function POST(req: Request) {
           supabaseAdmin.from('activity_logs').select('id, created_at, student_id, student_name, description').order('created_at', { ascending: false }).limit(100),
           supabaseAdmin.from('admins').select('email, added_by, created_at').order('created_at', { ascending: false }),
           supabaseAdmin.from('club_members').select('email, added_by, created_at').order('created_at', { ascending: false }),
-          supabaseAdmin.from('kiosk_settings').select('password').eq('id', 1).single()
+          supabaseAdmin.from('kiosk_settings').select('password').eq('id', 1).single(),
+          supabaseAdmin.from('invited_emails').select('email, added_by, source, created_at').order('created_at', { ascending: false })
         ]);
 
         if (resQ.error) throw resQ.error;
@@ -51,12 +52,14 @@ export async function POST(req: Request) {
         if (adminQ.error) throw adminQ.error;
         if (clubQ.error) throw clubQ.error;
         if (kioskQ.error) throw kioskQ.error;
+        if (invitedQ.error) throw invitedQ.error;
 
         return NextResponse.json({
           success: true,
           data: {
             movieData, resData: resQ.data, blData: blQ.data, logData: logQ.data,
-            adminData: adminQ.data, clubData: clubQ.data, kioskPassword: kioskQ.data?.password ?? ''
+            adminData: adminQ.data, clubData: clubQ.data, kioskPassword: kioskQ.data?.password ?? '',
+            invitedData: invitedQ.data
           }
         });
       }
@@ -311,6 +314,31 @@ export async function POST(req: Request) {
       case 'REMOVE_CLUB_MEMBER': {
         const { email } = payload;
         const { error } = await supabaseAdmin.from('club_members').delete().eq('email', email);
+        if (error) throw error;
+        return NextResponse.json({ success: true });
+      }
+
+      // 초대 명단: 예매 자격(동아리원/관리자는 항상 포함). 홍보 메일 발송과는 독립적으로 관리한다.
+      case 'ADD_INVITED_EMAILS': {
+        const { emails } = payload;
+        const cleanEmails = Array.from(new Set((emails as string[] || [])
+          .map(e => String(e).trim().toLowerCase())
+          .filter(e => e.endsWith('@ts.hs.kr'))));
+
+        if (cleanEmails.length === 0) {
+          return NextResponse.json({ success: false, error: '@ts.hs.kr 이메일이 없습니다.' }, { status: 400 });
+        }
+
+        const { error } = await supabaseAdmin
+          .from('invited_emails')
+          .upsert(cleanEmails.map(email => ({ email, added_by: adminEmail, source: 'manual' })), { onConflict: 'email', ignoreDuplicates: true });
+        if (error) throw error;
+        return NextResponse.json({ success: true, added: cleanEmails.length });
+      }
+
+      case 'REMOVE_INVITED_EMAIL': {
+        const { email } = payload;
+        const { error } = await supabaseAdmin.from('invited_emails').delete().eq('email', String(email).toLowerCase());
         if (error) throw error;
         return NextResponse.json({ success: true });
       }

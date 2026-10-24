@@ -65,6 +65,8 @@ export default function Home() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [clubMemberIds, setClubMemberIds] = useState<string[]>([]);
+  // 예매 자격(초대 명단/동아리원/관리자). null = 아직 확인 전. DB의 can_book()과 같은 기준.
+  const [canBook, setCanBook] = useState<boolean | null>(null);
 
   // 🌟 [예매 후 UI] 내 예매 정보 + 자리 이동 모드
   const [myReservation, setMyReservation] = useState<{id: string, seat: string, status: string, popcorn?: string} | null>(null);
@@ -76,6 +78,7 @@ export default function Home() {
   const [successInfo, setSuccessInfo] = useState<{title: string, message: string} | null>(null);
 
   const showAlert = (message: string, isError = true) => setAlertInfo({ message, isError });
+  const NOT_INVITED_MESSAGE = "초대받은 분만 예매할 수 있습니다.\n초대가 필요하면 '영화대교' 동아리에 문의해주세요.";
   const showConfirm = (message: string, onConfirm: () => void) => setConfirmInfo({ message, onConfirm });
   const showSuccess = (title: string, message: string) => setSuccessInfo({ title, message });
 
@@ -200,12 +203,16 @@ export default function Home() {
   // 🌟 [로그인 리다이렉트 복원] 좌석 클릭 -> 구글 로그인 -> 복귀 직후, 남겨둔 좌석을
   // seatStatuses(로그인 후 fetchInitialData 완료분)로 재검증하고 팝콘 선택 모달을 바로 연다.
   useEffect(() => {
-    if (!profile || isLoading) return;
+    if (!profile || isLoading || canBook === null) return;
     let pending: string | null = null;
     try { pending = sessionStorage.getItem(PENDING_SEAT_KEY); } catch { /* sessionStorage unavailable: skip */ }
     if (!pending) return;
     try { sessionStorage.removeItem(PENDING_SEAT_KEY); } catch { /* sessionStorage unavailable: skip */ }
 
+    if (!canBook) {
+      showAlert(NOT_INVITED_MESSAGE);
+      return;
+    }
     if (isClosed || myReservation || seatStatuses[pending]) {
       showAlert('선택하신 좌석은 로그인하는 동안 마감되었거나 이미 예약되었습니다.');
       return;
@@ -214,7 +221,23 @@ export default function Home() {
       setSelectedSeat(pending);
       setIsModalOpen(true);
     });
-  }, [profile, isLoading]);
+  }, [profile, isLoading, canBook]);
+
+  useEffect(() => {
+    if (!profile) { setCanBook(null); return; }
+    let active = true;
+    supabase.rpc('can_book').then(({ data, error }) => {
+      if (!active) return;
+      if (error) {
+        // 확인 실패 시 UI는 막지 않는다. 실제 차단은 reservations insert RLS가 담당한다.
+        console.error('can_book 확인 실패:', error);
+        setCanBook(true);
+        return;
+      }
+      setCanBook(!!data);
+    });
+    return () => { active = false; };
+  }, [profile]);
 
   useEffect(() => {
     if (!profile) { setIsAdmin(false); return; }
@@ -348,6 +371,9 @@ export default function Home() {
       return;
     }
 
+    // 초대 명단/동아리원/관리자가 아니면 새 예매 불가 (이미 예매한 사람의 자리 이동은 허용)
+    if (canBook === false && !myReservation) return showAlert(NOT_INVITED_MESSAGE);
+
     // 🌟 [단체 예매] Group Mode에서의 좌석 클릭
     if (isGroupMode) {
       if (seatStatuses[seatId]) return;
@@ -440,6 +466,7 @@ export default function Home() {
     if (!profile) return showAlert("로그인이 필요합니다.");
 
     if (blacklistedUsers.includes(profile.email)) return showAlert("블랙리스트에 등록되어 예매가 제한되었습니다.");
+    if (canBook === false && !myReservation) return showAlert(NOT_INVITED_MESSAGE);
 
     if (selectedSeat && vipSeats.has(selectedSeat)) {
       if (!clubMemberIds.includes(profile.email)) {
@@ -500,6 +527,8 @@ export default function Home() {
           .select('id').single();
 
         if (insertError) {
+          // 42501 = RLS 위반 (예매 도중 초대 명단에서 빠진 경우 등)
+          if (insertError.code === '42501') return showAlert(NOT_INVITED_MESSAGE);
           showAlert("앗! 다른 분이 먼저 예매했습니다.\n다른 좌석을 선택해주세요.");
           fetchInitialData(); return;
         }
@@ -579,6 +608,7 @@ export default function Home() {
     if (!profile) return showAlert("로그인이 필요합니다.");
 
     if (blacklistedUsers.includes(profile.email)) return showAlert("블랙리스트에 등록되어 예매가 제한되었습니다.");
+    if (canBook === false) return showAlert(NOT_INVITED_MESSAGE);
     if (selectedSeat && vipSeats.has(selectedSeat) && !clubMemberIds.includes(profile.email)) {
       return showAlert("선택하신 좌석은 '영화대교' 동아리 전용석입니다.\n일반 학생은 다른 좌석을 선택해주세요.");
     }

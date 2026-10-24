@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { getUserFromRequest } from '@/lib/api-auth';
+import { bookableEmails } from '@/lib/bookingAccess';
 
 export async function GET(req: Request) {
   const supabaseAdmin = getSupabaseAdmin();
@@ -19,8 +20,12 @@ export async function GET(req: Request) {
     .select('id, student_id, name, email')
     .neq('id', user.id)
     .or(`name.ilike.%${q}%,student_id.eq.${q}`)
-    .limit(10);
+    .limit(50);
 
   if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-  return NextResponse.json({ success: true, results: data });
+
+  // 단체 예매 멤버는 예매 자격이 있는 사람(초대 명단/동아리원/관리자)만 검색 결과에 노출한다.
+  const bookable = await bookableEmails((data ?? []).map(p => p.email));
+  const results = (data ?? []).filter(p => bookable.has(p.email.toLowerCase())).slice(0, 10);
+  return NextResponse.json({ success: true, results });
 }

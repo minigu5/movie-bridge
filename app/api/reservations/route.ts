@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { getUserFromRequest } from '@/lib/api-auth';
+import { bookableEmails } from '@/lib/bookingAccess';
 
 export async function POST(req: Request) {
   try {
@@ -25,6 +26,21 @@ export async function POST(req: Request) {
           return NextResponse.json({ success: false, error: '프로필을 찾을 수 없습니다.' }, { status: 400 });
         }
 
+        // 초대 명단(동아리원/관리자 포함)에 있는 사람만 예매할 수 있다. 리더와 모든 멤버를 확인한다.
+        const memberProfileIds = memberSeats.map(m => m.profileId);
+        const { data: memberProfiles, error: memberProfileError } = await supabaseAdmin
+          .from('profiles').select('*').in('id', memberProfileIds);
+        if (memberProfileError) throw memberProfileError;
+
+        const bookable = await bookableEmails([leaderProfile.email, ...(memberProfiles || []).map(p => p.email)]);
+        if (!bookable.has(leaderProfile.email.toLowerCase())) {
+          return NextResponse.json({ success: false, error: '초대받은 분만 예매할 수 있습니다.' }, { status: 403 });
+        }
+        const notInvited = (memberProfiles || []).filter(p => !bookable.has(p.email.toLowerCase()));
+        if (notInvited.length > 0) {
+          return NextResponse.json({ success: false, error: `초대받지 않은 멤버가 있어 예매할 수 없습니다.\n(${notInvited.map(p => p.name).join(', ')})` }, { status: 403 });
+        }
+
         const { data: leaderTicket, error: leaderError } = await supabaseAdmin.from('reservations').insert([{
           movie_date: movieDate, movie_settings_id: movieSettingsId, user_id: leaderProfile.id, student_id: leaderProfile.student_id,
           student_name: leaderProfile.name, email: leaderProfile.email, seat_number: leaderSeat,
@@ -34,11 +50,6 @@ export async function POST(req: Request) {
         if (leaderError) {
           return NextResponse.json({ success: false, error: '리더 좌석 예매 중 오류가 발생했습니다.\n(이미 선점된 좌석일 수 있습니다.)' }, { status: 400 });
         }
-
-        const memberProfileIds = memberSeats.map(m => m.profileId);
-        const { data: memberProfiles, error: memberProfileError } = await supabaseAdmin
-          .from('profiles').select('*').in('id', memberProfileIds);
-        if (memberProfileError) throw memberProfileError;
 
         const profileById = new Map((memberProfiles || []).map(p => [p.id, p]));
         const memberInserts = memberSeats.map(m => {

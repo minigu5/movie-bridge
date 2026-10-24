@@ -1,6 +1,6 @@
 "use client";
 
-import { Crown, Ticket, Printer, Wrench, Ban } from 'lucide-react';
+import { Crown, Ticket, Printer, Wrench, Ban, UserCheck } from 'lucide-react';
 
 interface ProfileRow { id: string; email: string; student_id: string | null; name: string; role: string }
 interface EditingProfile { id: string; email: string; student_id: string; name: string; role: string }
@@ -18,6 +18,13 @@ interface Props {
   clubEmailPreviewCount: number;
   onAddClubMembers: () => void;
   onRemoveClubMember: (email: string) => void;
+
+  invitedEmails: { email: string; added_by: string | null; source: string; created_at: string }[];
+  newInvitedText: string;
+  setNewInvitedText: (v: string) => void;
+  invitedEmailPreviewCount: number;
+  onAddInvitedEmails: () => void;
+  onRemoveInvitedEmail: (email: string) => void;
 
   kioskPasswordInput: string;
   setKioskPasswordInput: (v: string) => void;
@@ -131,6 +138,34 @@ export default function MembersTab(props: Props) {
               </div>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* 초대 명단: 예매 자격. 동아리원/관리자는 항상 포함되므로 여기에 넣지 않아도 된다. */}
+      <div className="bg-neutral-800 p-6 rounded-xl border border-sky-700">
+        <h2 className="text-xl font-bold text-sky-400 mb-1 flex items-center gap-1.5"><UserCheck className="w-5 h-5" /> 초대 명단 ({p.invitedEmails.length}명)</h2>
+        <p className="text-neutral-500 text-xs mb-4">이 명단, 동아리원, 관리자만 예매할 수 있습니다. 홍보 메일 발송과는 별개로 관리되며, 메일을 보내도 자동으로 추가되지 않습니다.</p>
+        <div className="flex flex-col md:flex-row gap-2 mb-6">
+          <textarea
+            value={p.newInvitedText}
+            onChange={(e) => p.setNewInvitedText(e.target.value)}
+            placeholder={"이름과 이메일을 붙여넣으면 이메일만 자동 인식됩니다.\n예) 2208 신민규 <ts250024@ts.hs.kr>"}
+            rows={2}
+            className="flex-1 p-2 bg-neutral-700 rounded border border-neutral-600 outline-none text-white text-sm resize-none"
+          />
+          <div className="flex md:flex-col justify-between md:justify-center items-center gap-2">
+            <span className="text-neutral-500 text-xs whitespace-nowrap">{p.invitedEmailPreviewCount}개 인식됨</span>
+            <button onClick={p.onAddInvitedEmails} className="bg-sky-600 hover:bg-sky-500 px-4 py-2 rounded font-bold transition-colors whitespace-nowrap">일괄 추가</button>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2 max-h-64 overflow-y-auto">
+          {p.invitedEmails.length === 0 && <p className="text-neutral-500 text-sm">초대 명단이 비어 있습니다.</p>}
+          {p.invitedEmails.map((user) => (
+            <div key={user.email} className="bg-sky-900/40 border border-sky-800 rounded-full px-4 py-1 flex items-center gap-2">
+              <span className="text-sky-200 text-sm">{user.email}</span>
+              <button onClick={() => p.onRemoveInvitedEmail(user.email)} className="text-sky-400 hover:text-white font-bold ml-2">×</button>
+            </div>
+          ))}
         </div>
       </div>
 
