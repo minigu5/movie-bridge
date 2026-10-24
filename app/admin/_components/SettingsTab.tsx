@@ -205,6 +205,7 @@ function PromoMailSection({ promo, movieTitle }: { promo: PromoProps; movieTitle
                 ))}
               </ul>
             </div>
+            <p className="text-orange-300 text-sm mb-2">발송에 성공한 수신자는 초대 명단에 자동으로 추가되어 예매할 수 있게 됩니다.</p>
             <p className="text-neutral-400 text-sm mb-6">발송 중에는 창을 닫거나 새로고침하지 마세요. 진행 바가 다 찰 때까지 기다려 주세요.</p>
             <div className="flex gap-3">
               <button onClick={p.onCancelConfirm} className="flex-1 py-3 bg-neutral-700 hover:bg-neutral-600 rounded-xl text-white font-bold">돌아가기</button>

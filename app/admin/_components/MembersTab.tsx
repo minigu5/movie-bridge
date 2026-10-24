@@ -5,7 +5,26 @@ import { Crown, Ticket, Printer, Wrench, Ban, UserCheck } from 'lucide-react';
 interface ProfileRow { id: string; email: string; student_id: string | null; name: string; role: string }
 interface EditingProfile { id: string; email: string; student_id: string; name: string; role: string }
 
+// 로그인 이력(profiles)이 있으면 이름 + 작은 이메일, 없으면 이메일만 표시한다.
+function PersonLabel({ email, nameByEmail, nameClass, emailClass }: {
+  email: string;
+  nameByEmail: Record<string, string>;
+  nameClass: string;
+  emailClass: string;
+}) {
+  const name = nameByEmail[email.toLowerCase()];
+  if (!name) return <span className={`min-w-0 truncate ${nameClass}`}>{email}</span>;
+  return (
+    <span className="min-w-0 truncate" title={email}>
+      <span className={nameClass}>{name}</span>
+      <span className={`ml-1.5 text-[10px] ${emailClass}`}>{email}</span>
+    </span>
+  );
+}
+
 interface Props {
+  nameByEmail: Record<string, string>;
+
   admins: { email: string; added_by: string | null; created_at: string }[];
   newAdminEmail: string;
   setNewAdminEmail: (v: string) => void;
@@ -61,7 +80,7 @@ export default function MembersTab(props: Props) {
           <div className="space-y-1 max-h-40 overflow-y-auto">
             {p.admins.map(a => (
               <div key={a.email} className="flex items-center justify-between gap-2 bg-neutral-700/50 rounded px-2 py-1 text-xs">
-                <span className="text-neutral-200 truncate">{a.email}</span>
+                <PersonLabel email={a.email} nameByEmail={p.nameByEmail} nameClass="text-neutral-200" emailClass="text-neutral-500" />
                 <button onClick={() => p.onRemoveAdmin(a.email)} className="shrink-0 text-red-400 hover:text-red-300 font-bold">×</button>
               </div>
             ))}
@@ -85,7 +104,7 @@ export default function MembersTab(props: Props) {
           <div className="space-y-1 max-h-40 overflow-y-auto">
             {p.clubMembers.map(c => (
               <div key={c.email} className="flex items-center justify-between gap-2 bg-neutral-700/50 rounded px-2 py-1 text-xs">
-                <span className="text-neutral-200 truncate">{c.email}</span>
+                <PersonLabel email={c.email} nameByEmail={p.nameByEmail} nameClass="text-neutral-200" emailClass="text-neutral-500" />
                 <button onClick={() => p.onRemoveClubMember(c.email)} className="shrink-0 text-red-400 hover:text-red-300 font-bold">×</button>
               </div>
             ))}
@@ -144,7 +163,7 @@ export default function MembersTab(props: Props) {
       {/* 초대 명단: 예매 자격. 동아리원/관리자는 항상 포함되므로 여기에 넣지 않아도 된다. */}
       <div className="bg-neutral-800 p-6 rounded-xl border border-sky-700">
         <h2 className="text-xl font-bold text-sky-400 mb-1 flex items-center gap-1.5"><UserCheck className="w-5 h-5" /> 초대 명단 ({p.invitedEmails.length}명)</h2>
-        <p className="text-neutral-500 text-xs mb-4">이 명단, 동아리원, 관리자만 예매할 수 있습니다. 홍보 메일 발송과는 별개로 관리되며, 메일을 보내도 자동으로 추가되지 않습니다.</p>
+        <p className="text-neutral-500 text-xs mb-4">이 명단, 동아리원, 관리자만 예매할 수 있습니다. 홍보 메일을 발송하면 성공한 수신자가 자동으로 추가되고, 여기서 직접 추가·삭제도 할 수 있습니다.</p>
         <div className="flex flex-col md:flex-row gap-2 mb-6">
           <textarea
             value={p.newInvitedText}
@@ -162,7 +181,7 @@ export default function MembersTab(props: Props) {
           {p.invitedEmails.length === 0 && <p className="text-neutral-500 text-sm">초대 명단이 비어 있습니다.</p>}
           {p.invitedEmails.map((user) => (
             <div key={user.email} className="bg-sky-900/40 border border-sky-800 rounded-full px-4 py-1 flex items-center gap-2">
-              <span className="text-sky-200 text-sm">{user.email}</span>
+              <span className="text-sm"><PersonLabel email={user.email} nameByEmail={p.nameByEmail} nameClass="text-sky-200" emailClass="text-sky-400/60" /></span>
               <button onClick={() => p.onRemoveInvitedEmail(user.email)} className="text-sky-400 hover:text-white font-bold ml-2">×</button>
             </div>
           ))}
@@ -189,7 +208,7 @@ export default function MembersTab(props: Props) {
           {p.blacklist.length === 0 && <p className="text-neutral-500 text-sm">등록된 블랙리스트가 없습니다.</p>}
           {p.blacklist.map((user) => (
             <div key={user.email} className="bg-red-900/40 border border-red-800 rounded-full px-4 py-1 flex items-center gap-2">
-              <span className="text-red-200 text-sm">{user.email}</span>
+              <span className="text-sm"><PersonLabel email={user.email} nameByEmail={p.nameByEmail} nameClass="text-red-200" emailClass="text-red-400/60" /></span>
               <button onClick={() => p.onRemoveBlacklist(user.email)} className="text-red-400 hover:text-white font-bold ml-2">×</button>
             </div>
           ))}

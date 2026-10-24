@@ -33,7 +33,7 @@ export async function POST(req: Request) {
         const { data: movieData, error: e1 } = await supabaseAdmin.from('movie_settings').select('*').eq('is_active', true).single();
         if (e1) throw e1;
 
-        const [resQ, blQ, logQ, adminQ, clubQ, kioskQ, invitedQ] = await Promise.all([
+        const [resQ, blQ, logQ, adminQ, clubQ, kioskQ, invitedQ, profileQ] = await Promise.all([
           supabaseAdmin.from('reservations')
             .select('id, seat_number, payment_status, student_name, student_id, email, popcorn_order, is_printed, is_group_leader')
             .eq('movie_date', movieData?.db_date)
@@ -43,7 +43,9 @@ export async function POST(req: Request) {
           supabaseAdmin.from('admins').select('email, added_by, created_at').order('created_at', { ascending: false }),
           supabaseAdmin.from('club_members').select('email, added_by, created_at').order('created_at', { ascending: false }),
           supabaseAdmin.from('kiosk_settings').select('password').eq('id', 1).single(),
-          supabaseAdmin.from('invited_emails').select('email, added_by, source, created_at').order('created_at', { ascending: false })
+          supabaseAdmin.from('invited_emails').select('email, added_by, source, created_at').order('created_at', { ascending: false }),
+          // 로그인 이력이 있는 사람의 이름 표시용 (회원/권한 탭)
+          supabaseAdmin.from('profiles').select('email, name')
         ]);
 
         if (resQ.error) throw resQ.error;
@@ -53,13 +55,14 @@ export async function POST(req: Request) {
         if (clubQ.error) throw clubQ.error;
         if (kioskQ.error) throw kioskQ.error;
         if (invitedQ.error) throw invitedQ.error;
+        if (profileQ.error) throw profileQ.error;
 
         return NextResponse.json({
           success: true,
           data: {
             movieData, resData: resQ.data, blData: blQ.data, logData: logQ.data,
             adminData: adminQ.data, clubData: clubQ.data, kioskPassword: kioskQ.data?.password ?? '',
-            invitedData: invitedQ.data
+            invitedData: invitedQ.data, profileNames: profileQ.data
           }
         });
       }
@@ -318,9 +321,11 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: true });
       }
 
-      // 초대 명단: 예매 자격(동아리원/관리자는 항상 포함). 홍보 메일 발송과는 독립적으로 관리한다.
+      // 초대 명단: 예매 자격(동아리원/관리자는 항상 포함). 관리자 수동 추가(manual)와
+      // 홍보 메일 발송 성공자 자동 추가(promo_mail)가 같은 액션을 쓰되, 메일 발송 API와는 분리된 호출이다.
       case 'ADD_INVITED_EMAILS': {
         const { emails } = payload;
+        const source = payload?.source === 'promo_mail' ? 'promo_mail' : 'manual';
         const cleanEmails = Array.from(new Set((emails as string[] || [])
           .map(e => String(e).trim().toLowerCase())
           .filter(e => e.endsWith('@ts.hs.kr'))));
@@ -331,7 +336,7 @@ export async function POST(req: Request) {
 
         const { error } = await supabaseAdmin
           .from('invited_emails')
-          .upsert(cleanEmails.map(email => ({ email, added_by: adminEmail, source: 'manual' })), { onConflict: 'email', ignoreDuplicates: true });
+          .upsert(cleanEmails.map(email => ({ email, added_by: adminEmail, source })), { onConflict: 'email', ignoreDuplicates: true });
         if (error) throw error;
         return NextResponse.json({ success: true, added: cleanEmails.length });
       }

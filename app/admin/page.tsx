@@ -46,6 +46,7 @@ export default function AdminPage() {
   const [newClubMembersText, setNewClubMembersText] = useState('');
   const [invitedEmails, setInvitedEmails] = useState<{email: string, added_by: string | null, source: string, created_at: string}[]>([]);
   const [newInvitedText, setNewInvitedText] = useState('');
+  const [nameByEmail, setNameByEmail] = useState<Record<string, string>>({});
   const [kioskPasswordInput, setKioskPasswordInput] = useState('');
   const [profileSearchQuery, setProfileSearchQuery] = useState('');
   const [profileSearchResults, setProfileSearchResults] = useState<{id: string, email: string, student_id: string | null, name: string, role: string}[]>([]);
@@ -123,7 +124,7 @@ export default function AdminPage() {
         return true;
       }
 
-      const { movieData, resData, blData, logData, adminData, clubData, kioskPassword, invitedData } = data;
+      const { movieData, resData, blData, logData, adminData, clubData, kioskPassword, invitedData, profileNames } = data;
       if (movieData) {
         setMovieInfo(movieData);
         setEditForm({
@@ -146,6 +147,13 @@ export default function AdminPage() {
       if (adminData) setAdmins(adminData);
       if (clubData) setClubMembers(clubData);
       if (invitedData) setInvitedEmails(invitedData);
+      if (profileNames) {
+        setNameByEmail(Object.fromEntries(
+          (profileNames as { email: string; name: string }[])
+            .filter(p => p.name)
+            .map(p => [p.email.toLowerCase(), p.name])
+        ));
+      }
       if (typeof kioskPassword === 'string') setKioskPasswordInput(kioskPassword);
       return true;
     } catch (err) {
@@ -537,8 +545,11 @@ export default function AdminPage() {
     const CHUNK_SIZE = 15;
     let sent = 0;
     let failed = 0;
+    let invited = 0;
+    let inviteFailed = 0;
     for (let i = 0; i < recipients.length; i += CHUNK_SIZE) {
       const chunk = recipients.slice(i, i + CHUNK_SIZE);
+      let delivered: string[] = [];
       try {
         const r = await fetch('/api/promo', {
           method: 'POST',
@@ -548,12 +559,27 @@ export default function AdminPage() {
         if (d.success) {
           sent += d.sent;
           failed += d.failed;
+          const failedSet = new Set<string>((d.failedEmails ?? []).map((e: string) => e.toLowerCase()));
+          delivered = chunk.map((c) => c.email).filter((e) => !failedSet.has(e.toLowerCase()));
         } else {
           failed += chunk.length;
         }
       } catch (err) {
         console.error(err);
         failed += chunk.length;
+      }
+
+      // 메일 발송과는 별도 단계: 발송에 성공한 수신자만 초대 명단에 추가한다. 여기서 실패해도 메일 결과에는 영향 없다.
+      if (delivered.length > 0) {
+        try {
+          const res = await authFetch('/api/admin/action', { action: 'ADD_INVITED_EMAILS', payload: { emails: delivered, source: 'promo_mail' } });
+          const addData = await res.json();
+          if (addData.success) invited += delivered.length;
+          else inviteFailed += delivered.length;
+        } catch (err) {
+          console.error(err);
+          inviteFailed += delivered.length;
+        }
       }
       setPromoProgress({ current: Math.min(i + CHUNK_SIZE, recipients.length), total: recipients.length });
       await new Promise((res) => setTimeout(res, 1000));
@@ -566,7 +592,10 @@ export default function AdminPage() {
     }
 
     setIsSendingPromo(false);
-    alert(`홍보 메일 발송 완료!\n성공 ${sent}명 / 실패 ${failed}명`);
+    alert(
+      `홍보 메일 발송 완료!\n성공 ${sent}명 / 실패 ${failed}명\n초대 명단 추가 ${invited}명` +
+      (inviteFailed > 0 ? `\n⚠️ 초대 명단 추가 실패 ${inviteFailed}명 — 회원/권한 탭에서 직접 추가해주세요.` : '')
+    );
     fetchAdminData();
   };
 
@@ -699,6 +728,7 @@ export default function AdminPage() {
             clubEmailPreviewCount={clubEmailPreviewCount}
             onAddClubMembers={handleAddClubMembers}
             onRemoveClubMember={handleRemoveClubMember}
+            nameByEmail={nameByEmail}
             invitedEmails={invitedEmails}
             newInvitedText={newInvitedText}
             setNewInvitedText={setNewInvitedText}

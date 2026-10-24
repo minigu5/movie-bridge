@@ -1,7 +1,7 @@
 -- supabase/migrations/0013_invited_emails.sql
 -- 예매는 "초대 명단"에 있는 사람만 가능하다. 동아리원(club_members)과 관리자(admins)는
 -- 명단에 복사하지 않고 항상 허용 대상에 포함시킨다(추가/삭제가 즉시 반영되도록).
--- 초대 메일 발송과 명단 추가는 서로 독립이다: 메일을 보내도 명단에는 자동으로 들어가지 않는다.
+-- 명단 추가는 메일 발송 코드 안이 아니라 별도 단계(ADD_INVITED_EMAILS)로 처리한다.
 
 create table if not exists public.invited_emails (
   email text primary key,
