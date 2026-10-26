@@ -14,6 +14,7 @@ const LOGO_BLOCK_HEIGHT = 170;
 const BOTTOM_MARGIN = 90;
 const OUTER_WIDTH = CARD_WIDTH + SIDE_MARGIN * 2;
 const OUTER_HEIGHT = TOP_MARGIN + LOGO_BLOCK_HEIGHT + CARD_HEIGHT + BOTTOM_MARGIN;
+const LOGO_LINES = ['영화', '대교'] as const;
 const SCALLOP_COUNT = 13;
 const CARD_RADIUS = 28;
 const SCALE = 2;
@@ -42,7 +43,9 @@ async function ensureSongMyungFont(): Promise<void> {
     link.href = 'https://fonts.googleapis.com/css2?family=Song+Myung&display=swap';
     document.head.appendChild(link);
   }
-  await document.fonts.load('700 34px "Song Myung"');
+  // text를 생략하면 기본값 " "이라 공백이 든 슬라이스만 받고 한글 슬라이스는 받지 않는다.
+  // 그 상태로 canvas에 그리면 로고가 기본 산세리프로 구워지므로 실제로 그릴 글자를 넘긴다.
+  await document.fonts.load('700 34px "Song Myung"', LOGO_LINES.join(''));
   await document.fonts.ready;
 }
 
@@ -113,8 +116,8 @@ function drawLogo(ctx: CanvasRenderingContext2D): void {
   ctx.shadowBlur = 18;
   const cx = OUTER_WIDTH / 2;
   const cy = TOP_MARGIN + LOGO_BLOCK_HEIGHT / 2;
-  ctx.fillText('영화', cx, cy - 24);
-  ctx.fillText('대교', cx, cy + 24);
+  ctx.fillText(LOGO_LINES[0], cx, cy - 24);
+  ctx.fillText(LOGO_LINES[1], cx, cy + 24);
   ctx.restore();
 }
 
