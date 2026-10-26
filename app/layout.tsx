@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { Noto_Sans_KR, Song_Myung } from "next/font/google";
+import { Noto_Sans_KR } from "next/font/google";
+import localFont from "next/font/local";
 import { preconnect } from "react-dom";
 import "./globals.css";
 
@@ -11,10 +12,16 @@ const notoSansKr = Noto_Sans_KR({
   display: "swap",
 });
 
-const songMyung = Song_Myung({
+// 로고 "영화대교" 4글자만 담은 Song Myung subset(5KB). 전체 폰트를 next/font/google로 받으면
+// 슬라이스 89개 @font-face가 렌더 차단 CSS 130KB를 차지하고 폰트가 늦게 도착해 스플래시가
+// 기본 serif로 먼저 그려진다. 로고 문구를 바꾸면 이 파일도 새 글자로 다시 만들어야 한다:
+// https://fonts.googleapis.com/css2?family=Song+Myung&text=<새 문구>
+const songMyung = localFont({
+  src: "./fonts/SongMyung-logo.woff2",
   variable: "--font-song-myung",
   weight: "400",
   display: "swap",
+  adjustFontFallback: "Times New Roman",
 });
 
 export const metadata: Metadata = {
