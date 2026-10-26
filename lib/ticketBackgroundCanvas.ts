@@ -35,14 +35,32 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-async function ensureSongMyungFont(): Promise<void> {
-  if (!document.getElementById('song-myung-font-link')) {
-    const link = document.createElement('link');
+const FONT_STYLESHEET_TIMEOUT_MS = 8000;
+
+// <link>를 붙인 직후에는 스타일시트가 아직 로드되기 전이라 @font-face가 없다. 그 상태에서
+// document.fonts.load()를 부르면 매칭되는 폰트가 없어 즉시 끝나 버리므로, 스타일시트가
+// 로드될 때까지 기다린다. 이미 실패한 링크가 남아 있어도 영원히 멈추지 않게 타임아웃을 둔다.
+function ensureSongMyungStylesheet(): Promise<void> {
+  let link = document.getElementById('song-myung-font-link') as HTMLLinkElement | null;
+  if (!link) {
+    link = document.createElement('link');
     link.id = 'song-myung-font-link';
     link.rel = 'stylesheet';
     link.href = 'https://fonts.googleapis.com/css2?family=Song+Myung&display=swap';
     document.head.appendChild(link);
   }
+  if (link.sheet) return Promise.resolve();
+  const pending = link;
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, FONT_STYLESHEET_TIMEOUT_MS);
+    const done = () => { clearTimeout(timer); resolve(); };
+    pending.addEventListener('load', done, { once: true });
+    pending.addEventListener('error', done, { once: true });
+  });
+}
+
+async function ensureSongMyungFont(): Promise<void> {
+  await ensureSongMyungStylesheet();
   // text를 생략하면 기본값 " "이라 공백이 든 슬라이스만 받고 한글 슬라이스는 받지 않는다.
   // 그 상태로 canvas에 그리면 로고가 기본 산세리프로 구워지므로 실제로 그릴 글자를 넘긴다.
   await document.fonts.load('700 34px "Song Myung"', LOGO_LINES.join(''));
