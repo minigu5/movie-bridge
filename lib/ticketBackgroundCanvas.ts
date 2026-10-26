@@ -18,6 +18,13 @@ const SCALLOP_COUNT = 13;
 const CARD_RADIUS = 28;
 const SCALE = 2;
 
+// 카드 영역은 700px 폭(SCALE 적용 시 1400px)이라 이보다 훨씬 작은 포스터는
+// 확대되면서 눈에 띄게 뭉개진다. 나무위키는 Cloudflare Workers 발신 요청에
+// 200x285 썸네일만 돌려줘서 "포스터 주소로 배경 생성"이 이 함정에 걸린다.
+export const MIN_POSTER_WIDTH = 400;
+
+export type TicketBackgroundResult = { blob: Blob; posterWidth: number; posterHeight: number };
+
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -194,7 +201,7 @@ function drawScallops(
  * 만들어 Blob으로 반환한다. same-origin 프록시(/api/poster-image)를 거치므로
  * CORS로 canvas가 오염되지 않는다.
  */
-export async function renderTicketBackground(posterUrl: string): Promise<Blob> {
+export async function renderTicketBackground(posterUrl: string): Promise<TicketBackgroundResult> {
   const poster = await loadImage(`/api/poster-image?src=${encodeURIComponent(posterUrl)}`);
   return renderTicketBackgroundFromImage(poster);
 }
@@ -205,7 +212,7 @@ export async function renderTicketBackground(posterUrl: string): Promise<Blob> {
  * 올려 같은 결과물을 만들 수 있게 한다. File은 브라우저에서 바로 디코딩하므로
  * 프록시/네트워크를 거치지 않는다.
  */
-export async function renderTicketBackgroundFromFile(file: File): Promise<Blob> {
+export async function renderTicketBackgroundFromFile(file: File): Promise<TicketBackgroundResult> {
   const objectUrl = URL.createObjectURL(file);
   try {
     const poster = await loadImage(objectUrl);
@@ -215,7 +222,7 @@ export async function renderTicketBackgroundFromFile(file: File): Promise<Blob> 
   }
 }
 
-async function renderTicketBackgroundFromImage(poster: HTMLImageElement): Promise<Blob> {
+async function renderTicketBackgroundFromImage(poster: HTMLImageElement): Promise<TicketBackgroundResult> {
   await ensureSongMyungFont();
 
   const canvas = document.createElement('canvas');
@@ -257,12 +264,13 @@ async function renderTicketBackgroundFromImage(poster: HTMLImageElement): Promis
   // 칠한다) 카드는 전체가 불투명하다 — 무손실 PNG 대신 JPEG로 인코딩하면
   // 이메일 첨부 용량이 크게 줄어 수신자 메일 클라이언트에서 이미지가 더
   // 빨리 뜬다.
-  return new Promise((resolve, reject) => {
-    canvas.toBlob((blob) => {
-      if (!blob) reject(new Error('이미지 생성에 실패했습니다.'));
-      else resolve(blob);
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((result) => {
+      if (!result) reject(new Error('이미지 생성에 실패했습니다.'));
+      else resolve(result);
     }, 'image/jpeg', 0.87);
   });
+  return { blob, posterWidth: poster.naturalWidth, posterHeight: poster.naturalHeight };
 }
 
 /**

@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { ensureProfile, signInWithGoogle, signOutAndClear, authFetch, DomainNotAllowedError, type AppProfile } from '../../lib/supabase-auth';
 import Link from 'next/link';
 import { extractSchoolEmails } from '../../lib/parseEmails';
-import { renderTicketBackground, renderTicketBackgroundFromFile, blobToDataUri, fetchPosterDataUri } from '../../lib/ticketBackgroundCanvas';
+import { renderTicketBackground, renderTicketBackgroundFromFile, blobToDataUri, fetchPosterDataUri, MIN_POSTER_WIDTH } from '../../lib/ticketBackgroundCanvas';
 import AdminTabs, { type TabKey } from './_components/AdminTabs';
 import { buildDerivedFields, validateMovieForm } from './_components/screeningSchedule';
 import ReservationsTab from './_components/ReservationsTab';
@@ -164,21 +164,27 @@ export default function AdminPage() {
     }
   };
 
-  const handleGenerateTicketBackground = async (posterFile?: File) => {
-    const posterSource = editForm.poster_url || editForm.poster_cdn_url;
+  // target은 저장/새 회차 직후 자동 생성처럼 editForm 상태가 아직 갱신되기 전에
+  // 호출할 때 쓴다. 생략하면 현재 editForm 기준으로 생성한다.
+  const handleGenerateTicketBackground = async (posterFile?: File, target?: { id: number; posterSource: string }) => {
+    const movieId = target?.id ?? editForm.id;
+    const posterSource = target?.posterSource ?? (editForm.poster_url || editForm.poster_cdn_url);
     if (!posterFile && !posterSource) { alert('포스터 주소를 먼저 입력하세요.'); return; }
-    if (!editForm.id) { alert('영화 정보를 먼저 불러와야 합니다.'); return; }
+    if (!movieId) { alert('영화 정보를 먼저 불러와야 합니다.'); return; }
 
     setBgGenerating(true);
     setBgStatus(null);
     try {
-      const blob = posterFile
+      const { blob, posterWidth, posterHeight } = posterFile
         ? await renderTicketBackgroundFromFile(posterFile)
         : await renderTicketBackground(posterSource);
+      const lowResNote = posterWidth < MIN_POSTER_WIDTH
+        ? ` — 포스터 해상도가 낮음(${posterWidth}x${posterHeight}). 원본 이미지를 받아 "파일 직접 업로드"로 다시 생성하세요.`
+        : '';
       const dataUri = await blobToDataUri(blob);
       const res = await authFetch('/api/admin/action', {
         action: 'UPLOAD_TICKET_BACKGROUND',
-        payload: { movieId: editForm.id, imageBase64: dataUri },
+        payload: { movieId, imageBase64: dataUri },
       });
       const data = await res.json();
       if (!data.success) {
@@ -196,18 +202,18 @@ export default function AdminPage() {
         const posterDataUri = posterFile ? await blobToDataUri(posterFile) : await fetchPosterDataUri(posterSource);
         const posterRes = await authFetch('/api/admin/action', {
           action: 'UPLOAD_POSTER_CDN',
-          payload: { movieId: editForm.id, imageBase64: posterDataUri },
+          payload: { movieId, imageBase64: posterDataUri },
         });
         const posterData = await posterRes.json();
         if (posterData.success) {
           setEditForm((prev: any) => ({ ...prev, poster_cdn_url: posterData.url }));
           setMovieInfo((prev: any) => ({ ...prev, poster_cdn_url: posterData.url }));
-          setBgStatus('생성 완료 (배경 + 포스터 CDN)');
+          setBgStatus('생성 완료 (배경 + 포스터 CDN)' + lowResNote);
         } else {
-          setBgStatus('배경 생성 완료 (포스터 CDN 저장 실패 — 다시 시도해보세요)');
+          setBgStatus('배경 생성 완료 (포스터 CDN 저장 실패 — 다시 시도해보세요)' + lowResNote);
         }
       } catch {
-        setBgStatus('배경 생성 완료 (포스터 CDN 저장 실패 — 다시 시도해보세요)');
+        setBgStatus('배경 생성 완료 (포스터 CDN 저장 실패 — 다시 시도해보세요)' + lowResNote);
       }
     } catch (err: any) {
       setBgStatus(`실패: ${err.message || '알 수 없는 오류'}`);
@@ -236,14 +242,18 @@ export default function AdminPage() {
       defective_seats: editForm.defective_seats ?? []
     };
 
+    const posterChanged = Boolean(editForm.poster_url) && editForm.poster_url !== movieInfo?.poster_url;
     const res = await authFetch('/api/admin/action', { action: 'UPDATE_SETTINGS', payload });
 
     const data = await res.json();
     if (!data.success) {
       alert("설정 저장 실패: " + data.error);
     } else {
-      alert("설정이 성공적으로 저장되었습니다!");
-      fetchAdminData();
+      alert(posterChanged ? "설정이 저장되었습니다! 새 포스터로 티켓 배경을 자동 생성합니다." : "설정이 성공적으로 저장되었습니다!");
+      await fetchAdminData();
+      // 포스터가 바뀌면 서버가 옛 배경 템플릿을 비운다. 수동 버튼을 깜빡하면
+      // 메일 티켓이 블러 없는 포스터 단독 카드로 나가므로 바로 다시 만든다.
+      if (posterChanged) handleGenerateTicketBackground(undefined, { id: editForm.id, posterSource: editForm.poster_url });
     }
   };
 
@@ -275,9 +285,12 @@ export default function AdminPage() {
     if (!data.success) {
       alert("새 회차 시작 실패: " + data.error);
     } else {
-      alert("새 회차가 시작되었습니다!");
+      alert(newMovieForm.poster_url ? "새 회차가 시작되었습니다! 티켓 배경을 자동 생성합니다." : "새 회차가 시작되었습니다!");
       setIsStartingNewMovie(false);
-      fetchAdminData();
+      await fetchAdminData();
+      if (data.data?.id && newMovieForm.poster_url) {
+        handleGenerateTicketBackground(undefined, { id: data.data.id, posterSource: newMovieForm.poster_url });
+      }
     }
   };
 

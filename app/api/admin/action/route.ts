@@ -74,6 +74,9 @@ export async function POST(req: Request) {
             .select('poster_url').eq('is_active', true).single();
           if (current?.poster_url !== updatePayload.poster_url) {
             updatePayload.poster_cdn_url = await rehostPosterUrl(updatePayload.poster_url);
+            // 옛 포스터로 합성된 배경이 남아 있으면 메일에 엉뚱한 포스터가 나간다.
+            // 비워 두면 관리자 페이지가 저장 직후 새 포스터로 다시 생성한다.
+            updatePayload.background_template_url = null;
           }
         }
 

@@ -255,8 +255,10 @@ export default function SettingsTab(props: Props) {
               />
             </label>
             {bgStatus && <span className="text-sm text-neutral-400">{bgStatus}</span>}
-            {editForm.background_template_url && (
-              <span className="text-xs text-green-400">배경 템플릿 있음 — 포스터를 바꿨으면 다시 생성하세요.</span>
+            {editForm.background_template_url ? (
+              <span className="text-xs text-green-400">배경 템플릿 있음 — 포스터 주소를 바꿔 저장하면 자동으로 다시 생성됩니다.</span>
+            ) : !bgGenerating && (
+              <span className="text-xs font-bold text-red-400">배경 템플릿 없음 — 메일 티켓이 블러 없는 포스터 카드로 나갑니다. 배경을 생성하세요.</span>
             )}
             {editForm.poster_cdn_url && (
               <span className="text-xs text-green-400">포스터 CDN 저장됨 (메일용)</span>
