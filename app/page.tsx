@@ -196,9 +196,12 @@ export default function Home() {
     return () => { active = false; sub.subscription.unsubscribe(); };
   }, []);
 
+  // 로그인 확인이 끝난 뒤에 불러온다. 확인 전에 익명으로 먼저 불러오면 로그인 사용자는
+  // 쓸모없는 /api/current-seats 호출(Worker + 쿼리 2번)을 하고 그 결과는 seq 가드에 버려진다.
   useEffect(() => {
+    if (authLoading) return;
     fetchInitialData();
-  }, [profile]);
+  }, [profile, authLoading]);
 
   // 🌟 [로그인 리다이렉트 복원] 좌석 클릭 -> 구글 로그인 -> 복귀 직후, 남겨둔 좌석을
   // seatStatuses(로그인 후 fetchInitialData 완료분)로 재검증하고 팝콘 선택 모달을 바로 연다.
@@ -285,6 +288,10 @@ export default function Home() {
   const fetchInitialData = async () => {
     const seq = ++fetchSeqRef.current;
     try {
+      // 비로그인 열람은 /api/current-seats가 활성 회차(db_date)를 스스로 조회하므로 설정 쿼리 결과를
+      // 기다릴 필요가 없다. 4개 쿼리 뒤에 직렬로 부르던 것을 같이 출발시킨다.
+      const anonSeatsReq = profile ? null : fetch('/api/current-seats').then((res) => res.json());
+      anonSeatsReq?.catch(() => {}); // 쿼리가 먼저 throw해도 unhandled rejection이 나지 않게 한다
       const [{ data: settingsData }, { data: bgData }, { data: clubData }, { data: pastData }] = await Promise.all([
         supabase.from('movie_settings').select('*').eq('is_active', true).single(),
         supabase.from('blacklist').select('email'),
@@ -313,9 +320,8 @@ export default function Home() {
           .select('id, seat_number, payment_status, student_name, student_id, group_expires_at, popcorn_order, user_id')
           .eq('movie_date', currentDbDate);
         resData = data;
-      } else {
-        const res = await fetch('/api/current-seats');
-        const { success, data } = await res.json();
+      } else if (anonSeatsReq) {
+        const { success, data } = await anonSeatsReq;
         resData = success ? data : [];
       }
 
@@ -839,7 +845,7 @@ export default function Home() {
           key={viewingPast ? `past-${pastIndex}` : 'current'}
           className={`flex flex-col md:flex-row items-center gap-6 bg-white/5 backdrop-blur-xl p-6 rounded-2xl w-full shadow-2xl border border-white/10 transition-colors duration-500 hover:border-white/20 hover:bg-white/10 ${navDirection === 'older' ? 'movie-card-enter-from-left' : 'movie-card-enter-from-right'}`}
         >
-          <img src={(displayMovie as any).poster_cdn_url || displayMovie.poster_url} alt="영화 포스터" loading="lazy" decoding="async" className="w-40 h-56 md:w-44 md:h-64 object-cover rounded-xl shadow-[0_0_25px_rgba(0,0,0,0.6)] border border-white/10 bg-neutral-800" />
+          <img src={(displayMovie as any).poster_cdn_url || displayMovie.poster_url} alt="영화 포스터" fetchPriority="high" decoding="async" className="w-40 h-56 md:w-44 md:h-64 object-cover rounded-xl shadow-[0_0_25px_rgba(0,0,0,0.6)] border border-white/10 bg-neutral-800" />
           <div className="flex flex-col text-center md:text-left w-full">
             {viewingPast ? (
               <span className="text-neutral-400 font-bold mb-1 text-sm tracking-wide bg-neutral-700/40 border border-neutral-600/50 px-2 py-0.5 rounded-sm w-fit mx-auto md:mx-0 flex items-center gap-1"><History className="w-3.5 h-3.5" /> 지난 상영작</span>
