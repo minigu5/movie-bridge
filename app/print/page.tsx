@@ -11,6 +11,8 @@ export default function KioskPrintPage() {
   const [adminPasswordInput, setAdminPasswordInput] = useState('');
 
   const [formData, setFormData] = useState({ studentId: '', name: '' });
+  // 교직원은 학번이 없다(student_id null). 교직원을 고르면 학번 칸을 숨기고 이름으로만 조회한다.
+  const [isStaff, setIsStaff] = useState(false);
   const [movieInfo, setMovieInfo] = useState<any>(null);
 
   const [ticketData, setTicketData] = useState<any>(null);
@@ -44,6 +46,7 @@ export default function KioskPrintPage() {
     const handleAfterPrint = () => {
       setTicketData(null);
       setFormData({ studentId: '', name: '' });
+      setIsStaff(false);
     };
     window.addEventListener('afterprint', handleAfterPrint);
     return () => window.removeEventListener('afterprint', handleAfterPrint);
@@ -73,8 +76,9 @@ export default function KioskPrintPage() {
   };
 
   const handlePrintSubmit = async () => {
-    if (!formData.name) return alert("이름을 입력해주세요.\n(교직원은 학번을 비워두세요)");
-    const cleanId = formData.studentId.replace(/['"]/g, '').trim();
+    const cleanId = isStaff ? '' : formData.studentId.replace(/['"]/g, '').trim();
+    if (!isStaff && !cleanId) return alert("학번을 입력해주세요.\n(교직원은 위에서 '교직원'을 선택해주세요)");
+    if (!formData.name) return alert("이름을 입력해주세요.");
 
     if (isPrinting) return;
     setIsPrinting(true);
@@ -187,10 +191,24 @@ export default function KioskPrintPage() {
               </div>
 
               <div className="space-y-4">
-                <div>
-                  <label className="block text-neutral-300 mb-1 text-sm font-bold">학번</label>
-                  <input type="text" name="studentId" value={formData.studentId} onChange={handleInputChange} className="w-full p-4 rounded-xl bg-neutral-800 text-white border border-neutral-600 outline-none focus:border-orange-500 text-lg" placeholder="예: 2703 (교직원은 비워두세요)" />
+                <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-neutral-800 border border-neutral-600">
+                  {([['학생', false], ['교직원', true]] as const).map(([label, staff]) => (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => setIsStaff(staff)}
+                      className={`py-3 rounded-lg text-lg font-bold transition-colors ${isStaff === staff ? 'bg-orange-600 text-black' : 'text-neutral-400 hover:text-white'}`}
+                    >
+                      {label}
+                    </button>
+                  ))}
                 </div>
+                {!isStaff && (
+                  <div>
+                    <label className="block text-neutral-300 mb-1 text-sm font-bold">학번</label>
+                    <input type="text" name="studentId" value={formData.studentId} onChange={handleInputChange} className="w-full p-4 rounded-xl bg-neutral-800 text-white border border-neutral-600 outline-none focus:border-orange-500 text-lg" placeholder="예: 2703" />
+                  </div>
+                )}
                 <div>
                   <label className="block text-neutral-300 mb-1 text-sm font-bold">이름</label>
                   <input type="text" name="name" value={formData.name} onChange={handleInputChange} onKeyDown={(e) => e.key === 'Enter' && handlePrintSubmit()} className="w-full p-4 rounded-xl bg-neutral-800 text-white border border-neutral-600 outline-none focus:border-orange-500 text-lg" placeholder="본명 입력" />

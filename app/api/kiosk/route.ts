@@ -21,14 +21,19 @@ export async function POST(req: Request) {
     if (action === 'LOOKUP_TICKET') {
       const { studentId, studentName, movieDate } = payload;
 
-      // 교직원은 학번이 없다(student_id null). 학번 칸을 비우면 이름으로만 교직원 예매를 찾는다.
+      // 교직원은 학번이 없다(student_id null). 발권기에서 교직원을 고르면 학번 없이 이름으로만 찾는다.
       let lookup = supabaseAdmin.from('reservations')
         .select('id, student_id, student_name, seat_number, popcorn_order, is_printed')
         .eq('student_name', studentName)
         .eq('movie_date', movieDate);
       lookup = studentId ? lookup.eq('student_id', studentId) : lookup.is('student_id', null);
-      const { data: ticket, error: fetchError } = await lookup.single();
+      const { data: tickets, error: fetchError } = await lookup.limit(2);
 
+      // 학번이 없는 교직원끼리 이름이 같으면 이름만으로는 누구 티켓인지 알 수 없다.
+      if (!fetchError && tickets && tickets.length > 1) {
+        return NextResponse.json({ success: false, error: '같은 이름의 예매가 여러 건 있어 발권기에서 구분할 수 없습니다.\n관리자에게 문의해주세요.' }, { status: 409 });
+      }
+      const ticket = tickets?.[0];
       if (fetchError || !ticket) {
         return NextResponse.json({ success: false, error: '예매 내역이 존재하지 않습니다. 학번/이름을 다시 확인해주세요.' }, { status: 404 });
       }
