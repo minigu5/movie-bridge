@@ -68,7 +68,7 @@ export default function HistoryTab(props: Props) {
                         {ticket.is_group_leader && <span className="ml-1 text-emerald-400 text-xs font-bold inline-flex items-center"><Crown className="w-3.5 h-3.5" /></span>}
                       </td>
                       <td className="p-4 font-bold text-lg">{ticket.seat_number}</td>
-                      <td className="p-4">{ticket.student_id} <span className="text-orange-300 font-bold">{ticket.student_name}</span></td>
+                      <td className="p-4">{ticket.student_id ?? '교직원'} <span className="text-orange-300 font-bold">{ticket.student_name}</span></td>
                       <td className="p-4">
                         {arr.length > 0 ? (
                           <div className="flex flex-col">
@@ -133,7 +133,7 @@ export default function HistoryTab(props: Props) {
             return (
               <div key={log.id} className="text-neutral-300 border-b border-neutral-800 py-2 hover:bg-neutral-800 flex flex-wrap gap-2">
                 <span className="text-neutral-500 min-w-[150px]">{dateStr}</span>
-                <span className="text-yellow-400 w-[45px] font-bold">{log.student_id}</span>
+                <span className="text-yellow-400 w-[45px] font-bold">{log.student_id ?? '교직원'}</span>
                 <span className="text-orange-300 w-[60px]">{log.student_name}</span>
                 <span className="text-white font-bold">{log.description}</span>
               </div>

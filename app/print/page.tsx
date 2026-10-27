@@ -73,7 +73,7 @@ export default function KioskPrintPage() {
   };
 
   const handlePrintSubmit = async () => {
-    if (!formData.studentId || !formData.name) return alert("학번과 이름을 모두 입력해주세요.");
+    if (!formData.name) return alert("이름을 입력해주세요.\n(교직원은 학번을 비워두세요)");
     const cleanId = formData.studentId.replace(/['"]/g, '').trim();
 
     if (isPrinting) return;
@@ -189,7 +189,7 @@ export default function KioskPrintPage() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-neutral-300 mb-1 text-sm font-bold">학번</label>
-                  <input type="text" name="studentId" value={formData.studentId} onChange={handleInputChange} className="w-full p-4 rounded-xl bg-neutral-800 text-white border border-neutral-600 outline-none focus:border-orange-500 text-lg" placeholder="예: 2703" />
+                  <input type="text" name="studentId" value={formData.studentId} onChange={handleInputChange} className="w-full p-4 rounded-xl bg-neutral-800 text-white border border-neutral-600 outline-none focus:border-orange-500 text-lg" placeholder="예: 2703 (교직원은 비워두세요)" />
                 </div>
                 <div>
                   <label className="block text-neutral-300 mb-1 text-sm font-bold">이름</label>
@@ -225,7 +225,7 @@ export default function KioskPrintPage() {
             <div className="flex justify-between items-end mb-1.5">
               <div className="leading-tight">
                 <div className="text-sm font-bold">{movieInfo?.venue}</div>
-                <div className="text-sm font-bold mt-0.5">예매자: {ticketData.student_name} ({ticketData.student_id})</div>
+                <div className="text-sm font-bold mt-0.5">예매자: {ticketData.student_name} ({ticketData.student_id ?? '교직원'})</div>
               </div>
               <div className="text-right">
                 <div className="text-[12px] font-bold">관람석</div>

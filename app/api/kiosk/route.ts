@@ -21,12 +21,13 @@ export async function POST(req: Request) {
     if (action === 'LOOKUP_TICKET') {
       const { studentId, studentName, movieDate } = payload;
 
-      const { data: ticket, error: fetchError } = await supabaseAdmin.from('reservations')
+      // 교직원은 학번이 없다(student_id null). 학번 칸을 비우면 이름으로만 교직원 예매를 찾는다.
+      let lookup = supabaseAdmin.from('reservations')
         .select('id, student_id, student_name, seat_number, popcorn_order, is_printed')
-        .eq('student_id', studentId)
         .eq('student_name', studentName)
-        .eq('movie_date', movieDate)
-        .single();
+        .eq('movie_date', movieDate);
+      lookup = studentId ? lookup.eq('student_id', studentId) : lookup.is('student_id', null);
+      const { data: ticket, error: fetchError } = await lookup.single();
 
       if (fetchError || !ticket) {
         return NextResponse.json({ success: false, error: '예매 내역이 존재하지 않습니다. 학번/이름을 다시 확인해주세요.' }, { status: 404 });
@@ -43,7 +44,7 @@ export async function POST(req: Request) {
         .eq('id', ticketId)
         .single();
 
-      if (fetchError || !ticket || ticket.student_id !== studentId || ticket.student_name !== studentName) {
+      if (fetchError || !ticket || (ticket.student_id ?? '') !== (studentId ?? '') || ticket.student_name !== studentName) {
         return NextResponse.json({ success: false, error: 'Unauthorized: 학번/이름이 예약 내역과 일치하지 않습니다.' }, { status: 401 });
       }
 
@@ -51,7 +52,7 @@ export async function POST(req: Request) {
       if (e1) throw e1;
 
       const { error: e2 } = await supabaseAdmin.from('activity_logs').insert([{
-        student_id: studentId,
+        student_id: studentId || null,
         student_name: studentName,
         description: `현장 KIOSK 티켓 발권 완료 (${seatNumber})`
       }]);

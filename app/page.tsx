@@ -1444,7 +1444,7 @@ export default function Home() {
                 <Crown className="w-5 h-5 text-emerald-400 shrink-0" />
                 <div>
                   <p className="text-emerald-300 font-bold">{groupLeader.name} <span className="text-emerald-500 text-xs">(리더)</span></p>
-                  <p className="text-neutral-400 text-sm">좌석: {groupLeader.seat} · {groupLeader.studentId}</p>
+                  <p className="text-neutral-400 text-sm">좌석: {groupLeader.seat} · {groupLeader.studentId ?? '교직원'}</p>
                 </div>
               </div>
               {groupMembers.map((m, i) => (
@@ -1453,7 +1453,7 @@ export default function Home() {
                     <span className="text-sky-400 font-bold text-lg">{i + 1}</span>
                     <div>
                       <p className="text-sky-300 font-bold">{m.name}</p>
-                      <p className="text-neutral-400 text-sm">좌석: {m.seat} · {m.studentId}</p>
+                      <p className="text-neutral-400 text-sm">좌석: {m.seat} · {m.studentId ?? '교직원'}</p>
                     </div>
                   </div>
                   <button onClick={() => setGroupMembers(prev => prev.filter(member => member.seat !== m.seat))} className="w-8 h-8 flex items-center justify-center rounded-full bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white transition-colors" title="멤버 제거">

@@ -136,7 +136,7 @@ export default function ReservationsTab({ reservations, popcornStats, onApprove,
                     {ticket.is_group_leader && <span className="ml-1 inline-flex items-center text-emerald-400 text-xs font-bold"><Crown className="w-3.5 h-3.5" /></span>}
                   </td>
                   <td className="p-4 font-bold text-lg">{ticket.seat_number}</td>
-                  <td className="p-4">{ticket.student_id} <span className="text-orange-300 font-bold">{ticket.student_name}</span></td>
+                  <td className="p-4">{ticket.student_id ?? '교직원'} <span className="text-orange-300 font-bold">{ticket.student_name}</span></td>
                   <td className="p-4">
                     {arr.length > 0 ? (
                       <div className="flex flex-col">
