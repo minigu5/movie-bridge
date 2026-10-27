@@ -122,7 +122,7 @@ function GroupConfirmForm() {
       const ticket = data.ticket;
 
       if (ticket.email) {
-        const { data: movieSettings } = await supabase.from('movie_settings').select('*').eq('id', 1).single();
+        const { data: movieSettings } = await supabase.from('movie_settings').select('*').eq('id', ticket.movie_settings_id).single();
         if (movieSettings) {
           fetch('/api/ticket', {
             method: 'POST',

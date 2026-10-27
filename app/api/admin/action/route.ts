@@ -69,6 +69,8 @@ export async function POST(req: Request) {
 
       case 'UPDATE_SETTINGS': {
         const updatePayload = { ...payload };
+        // deadline_date는 timestamptz라 폼의 빈 문자열을 그대로 넣으면 캐스팅 오류가 난다(미정 = null).
+        if (updatePayload.deadline_date === '') updatePayload.deadline_date = null;
         if (typeof updatePayload.poster_url === 'string' && updatePayload.poster_url) {
           const { data: current } = await supabaseAdmin.from('movie_settings')
             .select('poster_url').eq('is_active', true).single();
@@ -137,6 +139,7 @@ export async function POST(req: Request) {
         if (deactivateError) throw deactivateError;
 
         const insertPayload = { ...payload };
+        if (insertPayload.deadline_date === '') insertPayload.deadline_date = null;
         if (typeof insertPayload.poster_url === 'string' && insertPayload.poster_url) {
           insertPayload.poster_cdn_url = await rehostPosterUrl(insertPayload.poster_url);
         }

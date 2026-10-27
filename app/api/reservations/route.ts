@@ -20,6 +20,10 @@ export async function POST(req: Request) {
           groupId: string; expiresAt: string;
         };
 
+        if (!Array.isArray(memberSeats) || memberSeats.length === 0 || memberSeats.length > 9) {
+          return NextResponse.json({ success: false, error: '단체 예매는 리더를 포함하여 2~10명까지 가능합니다.' }, { status: 400 });
+        }
+
         const { data: leaderProfile, error: leaderProfileError } = await supabaseAdmin
           .from('profiles').select('*').eq('id', user.id).single();
         if (leaderProfileError || !leaderProfile) {
@@ -48,7 +52,9 @@ export async function POST(req: Request) {
           is_group_leader: true, group_expires_at: expiresAt
         }]).select('*').single();
         if (leaderError) {
-          return NextResponse.json({ success: false, error: '리더 좌석 예매 중 오류가 발생했습니다.\n(이미 선점된 좌석일 수 있습니다.)' }, { status: 400 });
+          // P0001: reservations 가드 트리거(마감/블랙리스트/동아리석 등)가 던진 사용자용 사유
+          const error = leaderError.code === 'P0001' ? leaderError.message : '리더 좌석 예매 중 오류가 발생했습니다.\n(이미 선점된 좌석이거나 이미 예매한 상태일 수 있습니다.)';
+          return NextResponse.json({ success: false, error }, { status: 400 });
         }
 
         const profileById = new Map((memberProfiles || []).map(p => [p.id, p]));
@@ -66,7 +72,8 @@ export async function POST(req: Request) {
           .insert(memberInserts).select('id, student_id, student_name, seat_number');
         if (memberError) {
           await supabaseAdmin.from('reservations').delete().eq('id', leaderTicket.id);
-          return NextResponse.json({ success: false, error: '멤버 좌석 예매 중 오류가 발생했습니다.\n(이미 선점된 좌석이 포함되어 있을 수 있습니다.)' }, { status: 400 });
+          const error = memberError.code === 'P0001' ? memberError.message : '멤버 좌석 예매 중 오류가 발생했습니다.\n(이미 선점된 좌석이나 이미 예매한 멤버가 포함되어 있을 수 있습니다.)';
+          return NextResponse.json({ success: false, error }, { status: 400 });
         }
 
         await supabaseAdmin.from('activity_logs').insert([{

@@ -63,7 +63,7 @@ function CancelForm() {
       const canceledTicket = data.ticket;
 
       if (canceledTicket.email) {
-        const { data: movieSettings } = await supabase.from('movie_settings').select('*').eq('id', 1).single();
+        const { data: movieSettings } = await supabase.from('movie_settings').select('*').eq('id', canceledTicket.movie_settings_id).single();
         const isRefundNeeded = canceledTicket.popcorn_order !== 'none' && canceledTicket.payment_status === 'confirmed';
         await fetch('/api/ticket', {
           method: 'POST',

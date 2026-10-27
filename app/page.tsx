@@ -14,6 +14,12 @@ import { getGridRows, getGridCols, computeSeatId, computeVipSeats } from '@/lib/
 // 리다이렉트로 예매 진행 state가 초기화되는 것을 막기 위한 임시 저장 키
 const PENDING_SEAT_KEY = 'pending_seat_selection';
 
+// reservations 가드 트리거(0016)는 사용자에게 보여줄 수 있는 사유를 P0001로 던진다.
+// 그 외 오류(중복 좌석 등)는 화면별 기본 문구를 쓴다.
+function dbErrorMessage(error: { code?: string; message: string }, fallback: string) {
+  return error.code === 'P0001' ? error.message : fallback;
+}
+
 interface SeatData {
   status: string;
   name: string;
@@ -302,23 +308,20 @@ export default function Home() {
       if (clubData) setClubMemberIds(clubData.map(c => c.email));
       if (pastData) setPastMovies(pastData);
 
-      let currentDbDate = "2026-04-18";
-
       if (settingsData) {
         setMovieInfo(settingsData);
-        currentDbDate = settingsData.db_date;
-        if (new Date() > new Date(settingsData.deadline_date)) setIsClosed(true);
+        if (settingsData.deadline_date && new Date() > new Date(settingsData.deadline_date)) setIsClosed(true);
       }
       if (bgData) setBlacklistedUsers(bgData.map(b => b.email));
 
       // 🌟 [비로그인 열람] reservations는 RLS로 anon select가 막혀있어(개인정보 보호),
       // 로그인 전에는 이름/학번 없이 좌석 점유 현황만 주는 /api/current-seats로 대신 조회한다.
+      // 로그인 후에도 reservations select는 본인 행뿐이라 active_seat_map RPC로 좌석표를 받는다
+      // (다른 사람 행은 좌석/상태/이름만, 내 행만 id/팝콘/user_id 포함. 이메일·학번은 안 내려옴).
       type ResRow = { id?: string; seat_number: string; payment_status: string; student_name?: string; group_expires_at?: string | null; popcorn_order?: string; user_id?: string };
       let resData: ResRow[] | null = null;
       if (profile) {
-        const { data } = await supabase.from('reservations')
-          .select('id, seat_number, payment_status, student_name, student_id, group_expires_at, popcorn_order, user_id')
-          .eq('movie_date', currentDbDate);
+        const { data } = await supabase.rpc('active_seat_map');
         resData = data;
       } else if (anonSeatsReq) {
         const { success, data } = await anonSeatsReq;
@@ -447,7 +450,7 @@ export default function Home() {
       const { error } = await supabase.from('reservations')
         .update({ popcorn_order: finalPopcornString, payment_status: newStatus })
         .eq('id', myReservation.id);
-      if (error) return showAlert("팝콘 추가 중 오류가 발생했습니다.");
+      if (error) return showAlert(dbErrorMessage(error, "팝콘 추가 중 오류가 발생했습니다."));
 
       await supabase.from('activity_logs').insert([{ student_id: profile.student_id, student_name: profile.name, description: `팝콘 추가 주문 (${myReservation.seat})` }]);
 
@@ -514,7 +517,7 @@ export default function Home() {
               .select('id')
               .single();
 
-            if (updateError) return showAlert("변경 중 오류 발생 (이미 선점된 좌석일 수 있습니다).");
+            if (updateError) return showAlert(dbErrorMessage(updateError, "변경 중 오류 발생 (이미 선점된 좌석일 수 있습니다)."));
 
             await supabase.from('activity_logs').insert([{ student_id: profile.student_id, student_name: profile.name, description: `좌석 변경 (${myOldTicket.seat_number} → ${selectedSeat}) 및 팝콘 갱신` }]);
 
@@ -535,6 +538,7 @@ export default function Home() {
         if (insertError) {
           // 42501 = RLS 위반 (예매 도중 초대 명단에서 빠진 경우 등)
           if (insertError.code === '42501') return showAlert(NOT_INVITED_MESSAGE);
+          if (insertError.code === 'P0001') return showAlert(insertError.message);
           showAlert("앗! 다른 분이 먼저 예매했습니다.\n다른 좌석을 선택해주세요.");
           fetchInitialData(); return;
         }
@@ -646,19 +650,14 @@ export default function Home() {
 
   const handleAddGroupMember = async (andFinalize: boolean) => {
     if (!selectedMember) return showAlert("추가할 사람을 검색해서 선택해주세요!");
-    if (blacklistedUsers.includes(selectedMember.email)) return showAlert("블랙리스트에 등록되어 추가할 수 없습니다.");
     if (groupLeader?.profileId === selectedMember.id) return showAlert("리더 본인은 추가할 수 없습니다.");
     if (groupMembers.some(m => m.profileId === selectedMember.id)) return showAlert("이미 단체에 추가된 사람입니다.");
 
-    const { data: existing } = await supabase.from('reservations')
-      .select('id').eq('movie_date', movieInfo.db_date).eq('user_id', selectedMember.id);
-    if (existing && existing.length > 0) return showAlert("이미 예매가 완료된 학생입니다.");
-
-    if (selectedSeat && vipSeats.has(selectedSeat)) {
-      if (!clubMemberIds.includes(selectedMember.email)) {
-        return showAlert("선택하신 좌석은 '영화대교' 동아리 전용석입니다.\n이 좌석에는 동아리 부원만 추가할 수 있습니다.");
-      }
-    }
+    // 다른 사람의 예매/블랙리스트/동아리 여부는 RLS로 직접 읽을 수 없어 DB 함수가 판정한다.
+    // 반환값은 추가할 수 없는 이유(가능하면 null).
+    const { data: blockReason, error: checkError } = await supabase.rpc('group_member_check', { p_user_id: selectedMember.id, p_seat: selectedSeat });
+    if (checkError) return showAlert("멤버 확인 중 오류가 발생했습니다.");
+    if (blockReason) return showAlert(blockReason);
 
     const newMembers = [...groupMembers, { profileId: selectedMember.id, studentId: selectedMember.student_id, name: selectedMember.name, seat: selectedSeat! }];
     setGroupMembers(newMembers);
@@ -867,7 +866,7 @@ export default function Home() {
                 </span>
               ) : (
                 <span className="text-rose-400 font-bold text-xs md:text-sm bg-rose-500/10 px-2 py-1 rounded-md flex items-center gap-1">
-                  <Siren className="w-3.5 h-3.5" /> 마감: {new Date(movieInfo.deadline_date).toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  <Siren className="w-3.5 h-3.5" /> 마감: {movieInfo.deadline_date ? new Date(movieInfo.deadline_date).toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '미정'}
                 </span>
               )}
             </div>
