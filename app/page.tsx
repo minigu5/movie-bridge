@@ -8,6 +8,7 @@ import { Crown, Check, Ban, Siren, Popcorn, CircleCheck, Sparkles, PartyPopper, 
 
 import AccountInfo from '@/components/AccountInfo';
 import MovieReviews from '@/components/MovieReviews';
+import PrivacyConsentGate, { type ConsentStatus } from '@/components/PrivacyConsentGate';
 import { getGridRows, getGridCols, computeSeatId, computeVipSeats } from '@/lib/seatGrid';
 
 // 🌟 [로그인 리다이렉트 복원] 비로그인 좌석 클릭 -> 구글 로그인 -> 복귀 사이에 풀 페이지
@@ -63,6 +64,7 @@ export default function Home() {
   });
   
   const [profile, setProfile] = useState<AppProfile | null>(null);
+  const [consentStatus, setConsentStatus] = useState<ConsentStatus>('checking');
   // 🌟 [버그 수정] 비로그인(anon) 첫 fetch와 로그인 확인 후 fetch가 겹칠 때, 늦게 끝난
   // anon 응답(이름 없음)이 나중 setState로 덮어써서 로그인해도 예매자 이름이 안 보이는
   // race condition을 막기 위한 순번 가드.
@@ -211,8 +213,9 @@ export default function Home() {
 
   // 🌟 [로그인 리다이렉트 복원] 좌석 클릭 -> 구글 로그인 -> 복귀 직후, 남겨둔 좌석을
   // seatStatuses(로그인 후 fetchInitialData 완료분)로 재검증하고 팝콘 선택 모달을 바로 연다.
+  // 개인정보 동의 전에는 복원하지 않는다(동의 모달 뒤에서 팝콘 모달이 열리지 않게).
   useEffect(() => {
-    if (!profile || isLoading || canBook === null) return;
+    if (!profile || isLoading || canBook === null || consentStatus !== 'valid') return;
     let pending: string | null = null;
     try { pending = sessionStorage.getItem(PENDING_SEAT_KEY); } catch { /* sessionStorage unavailable: skip */ }
     if (!pending) return;
@@ -230,7 +233,7 @@ export default function Home() {
       setSelectedSeat(pending);
       setIsModalOpen(true);
     });
-  }, [profile, isLoading, canBook]);
+  }, [profile, isLoading, canBook, consentStatus]);
 
   useEffect(() => {
     if (!profile) { setCanBook(null); return; }
@@ -1540,6 +1543,8 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      <PrivacyConsentGate profile={profile} onStatusChange={setConsentStatus} />
 
       <footer className="w-full mt-16 border-t border-neutral-800">
         <div className="bg-neutral-900/50 -mx-4 md:-mx-8 px-4 md:px-8">

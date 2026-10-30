@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { ensureProfile, signInWithGoogle, authFetch, DomainNotAllowedError, type AppProfile } from '@/lib/supabase-auth';
 import AccountInfo from '@/components/AccountInfo';
+import PrivacyConsentGate from '@/components/PrivacyConsentGate';
 import { Ban, CircleCheck, Hourglass, Popcorn, Clapperboard, ClipboardList, Crown, Ticket, Home } from 'lucide-react';
 
 function GroupConfirmForm() {
@@ -343,6 +344,7 @@ function GroupConfirmForm() {
           <Home className="w-4 h-4" /> 메인 페이지로 돌아가기
         </button>
       </div>
+      <PrivacyConsentGate profile={profile} />
     </div>
   );
 }
