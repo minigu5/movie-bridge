@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requireAdmin } from '@/lib/api-auth';
 import { sendMail } from '@/lib/mailer';
 import { escapeHtml } from '@/lib/escapeHtml';
 import { fetchSafeImage } from '@/lib/safeImageFetch';
@@ -29,7 +30,7 @@ function formatDeadlineKst(deadline: string): string | null {
   return `${month}월 ${day}일 ${hour}시 ${minute}분`;
 }
 
-// 예매 완료(app/api/ticket) 메일과 동일한 디자인 언어:
+// 예매 완료(lib/ticketMail.ts) 메일과 동일한 디자인 언어:
 //   body #0a0a0a / 카드 #161616 / 강조 #ff5a1f / 흐린 텍스트 #a3a3a3 / 경계 #2a2a2a
 function buildHtml(params: {
   name?: string | null;
@@ -109,11 +110,15 @@ function buildHtml(params: {
 
 export async function POST(req: Request) {
   try {
-    const { chunk, movieInfo, baseUrl } = (await req.json()) as {
+    // 받는 사람 목록을 요청이 정하는 대량 발송이라 관리자만 쓸 수 있다.
+    const auth = await requireAdmin(req);
+    if (!auth.ok) return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
+
+    const { chunk, movieInfo } = (await req.json()) as {
       chunk: Recipient[];
       movieInfo: MovieInfo;
-      baseUrl: string;
     };
+    const baseUrl = new URL(req.url).origin;
 
     if (!Array.isArray(chunk) || chunk.length === 0) {
       return NextResponse.json({ success: false, error: '수신자가 없습니다.' }, { status: 400 });

@@ -462,13 +462,7 @@ export default function Home() {
       setIsModalOpen(false);
       setIsAddPopcornMode(false);
 
-      const baseUrl = window.location.origin;
-      fetch('/api/ticket', { method: 'POST', body: JSON.stringify({
-        email: profile.email, name: profile.name, seat: myReservation.seat,
-        movieTitle: movieInfo.title, movieDate: movieInfo.date_string,
-        venue: movieInfo.venue, ageRating: movieInfo.age_rating, posterUrl: (movieInfo as any).poster_cdn_url || movieInfo.poster_url, backgroundTemplateUrl: (movieInfo as any).background_template_url,
-        statusType: 'pending', popcorn: finalPopcornString, ticketId: myReservation.id, baseUrl
-      }) });
+      authFetch('/api/ticket', { ticketId: myReservation.id });
 
       showSuccess("팝콘 주문이 갱신되었습니다!", "QR코드로 갱신된 금액을 입금해주세요.");
     });
@@ -493,7 +487,6 @@ export default function Home() {
           .eq('movie_date', movieInfo.db_date)
           .eq('user_id', profile.id);
 
-        const baseUrl = window.location.origin;
         const userEmail = profile.email;
         const finalPopcornString = popcornList.filter(p => p !== 'none').join(',') || 'none';
 
@@ -525,7 +518,7 @@ export default function Home() {
             await supabase.from('activity_logs').insert([{ student_id: profile.student_id, student_name: profile.name, description: `좌석 변경 (${myOldTicket.seat_number} → ${selectedSeat}) 및 팝콘 갱신` }]);
 
             if (userEmail && updatedTicket) {
-              fetch('/api/ticket', { method: 'POST', body: JSON.stringify({ email: userEmail, name: profile.name, seat: selectedSeat, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, venue: movieInfo.venue, ageRating: movieInfo.age_rating, posterUrl: (movieInfo as any).poster_cdn_url || movieInfo.poster_url, backgroundTemplateUrl: (movieInfo as any).background_template_url, statusType: 'changed', popcorn: finalPopcornString, ticketId: updatedTicket.id, baseUrl }) });
+              authFetch('/api/ticket', { ticketId: updatedTicket.id, changed: true });
             }
             showSuccess("예매 변경 완료!", "좌석이 성공적으로 변경되었습니다.\n새로운 티켓이 학교 메일로 발송되었습니다.");
             fetchInitialData(); setIsModalOpen(false); setSelectedSeat(null); setIsMovingSeat(false);
@@ -554,7 +547,7 @@ export default function Home() {
         setIsModalOpen(false);
 
         if (userEmail && newTicket) {
-          fetch('/api/ticket', { method: 'POST', body: JSON.stringify({ email: userEmail, name: profile.name, seat: selectedSeat, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, venue: movieInfo.venue, ageRating: movieInfo.age_rating, posterUrl: (movieInfo as any).poster_cdn_url || movieInfo.poster_url, backgroundTemplateUrl: (movieInfo as any).background_template_url, statusType: finalStatus, popcorn: finalPopcornString, ticketId: newTicket.id, baseUrl }) });
+          authFetch('/api/ticket', { ticketId: newTicket.id });
         }
 
         if (finalStatus === 'confirmed') {
@@ -584,21 +577,7 @@ export default function Home() {
         const data = await res.json();
         if (!data.success) return showAlert(data.error || "취소 중 오류가 발생했습니다.");
 
-        const canceledTicket = data.ticket;
-        if (canceledTicket.email) {
-          const isRefundNeeded = canceledTicket.popcorn_order !== 'none' && canceledTicket.payment_status === 'confirmed';
-          fetch('/api/ticket', {
-            method: 'POST',
-            body: JSON.stringify({
-              email: canceledTicket.email, name: canceledTicket.student_name, seat: canceledTicket.seat_number,
-              movieTitle: movieInfo.title, movieDate: movieInfo.date_string,
-              venue: movieInfo.venue, ageRating: movieInfo.age_rating, posterUrl: (movieInfo as any).poster_cdn_url || movieInfo.poster_url, backgroundTemplateUrl: (movieInfo as any).background_template_url,
-              statusType: 'canceled',
-              popcorn: canceledTicket.popcorn_order, ticketId: canceledTicket.id, baseUrl: window.location.origin, isRefundNeeded
-            })
-          });
-        }
-
+        // 취소 메일은 /api/reservations(CANCEL_OWN)가 취소 직후 서버에서 보낸다.
         showAlert("예매가 정상적으로 취소되었습니다.", false);
         setMyReservation(null);
         setIsMovingSeat(false);
@@ -682,7 +661,6 @@ export default function Home() {
     const memberCount = groupMembers.length;
     const groupId = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-    const baseUrl = window.location.origin;
 
     const res = await authFetch('/api/reservations', {
       action: 'CREATE_GROUP',
@@ -699,28 +677,15 @@ export default function Home() {
 
     const { leaderTicket, memberTickets } = data;
 
-    fetch('/api/ticket', {
-      method: 'POST',
-      body: JSON.stringify({
-        email: profile.email, name: leaderName, seat: leaderSeat,
-        movieTitle: movieInfo.title, movieDate: movieInfo.date_string,
-        venue: movieInfo.venue, ageRating: movieInfo.age_rating, posterUrl: (movieInfo as any).poster_cdn_url || movieInfo.poster_url, backgroundTemplateUrl: (movieInfo as any).background_template_url,
-        statusType: 'confirmed', popcorn: 'none', ticketId: leaderTicket.id, baseUrl
-      })
-    });
+    authFetch('/api/ticket', { ticketId: leaderTicket.id });
 
     setGroupSendingProgress({ current: 0, total: memberTickets.length, sending: true });
-    const emailPayloads = memberTickets.map((t: any) => ({
-      memberId: t.id, name: t.student_name, seat: t.seat_number, studentId: t.student_id
-    }));
+    const emailPayloads: string[] = memberTickets.map((t: any) => t.id);
     const CHUNK_SIZE = 5;
     for (let i = 0; i < emailPayloads.length; i += CHUNK_SIZE) {
       const chunk = emailPayloads.slice(i, i + CHUNK_SIZE);
       try {
-        await fetch('/api/group-invite', {
-          method: 'POST',
-          body: JSON.stringify({ members: chunk, leaderName, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, venue: movieInfo.venue, posterUrl: (movieInfo as any).poster_cdn_url || movieInfo.poster_url, groupId, baseUrl })
-        });
+        await authFetch('/api/group-invite', { groupId, memberIds: chunk });
       } catch (err) { console.error(err); }
       setGroupSendingProgress({ current: Math.min(i + CHUNK_SIZE, emailPayloads.length), total: emailPayloads.length, sending: true });
       if (i + CHUNK_SIZE < emailPayloads.length) await new Promise(r => setTimeout(r, 1000));

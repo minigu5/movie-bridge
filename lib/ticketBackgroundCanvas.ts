@@ -3,7 +3,7 @@
 // 프레임 + 절취선, 텍스트는 없음)을 미리 JPEG로 합성한다. 이 무거운 합성을
 // 이메일 발송 시점(Cloudflare Workers, CPU 예산 있음)이 아니라 관리자가 포스터를
 // 등록할 때 브라우저(CPU 무제한)에서 한 번만 처리해서, 발송 시엔 이 JPEG 위에
-// app/api/ticket/route.ts가 순수 이메일 HTML로 텍스트만 오버레이하면 되게 한다.
+// lib/ticketMail.ts가 순수 이메일 HTML로 텍스트만 오버레이하면 되게 한다.
 // 레이아웃 상수는 route.ts의 DISPLAY_* 좌표 계산과 반드시 일치해야 한다.
 
 const CARD_WIDTH = 700;

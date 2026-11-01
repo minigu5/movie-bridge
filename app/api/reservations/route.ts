@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { getUserFromRequest } from '@/lib/api-auth';
 import { bookableEmails } from '@/lib/bookingAccess';
+import { sendTicketMail } from '@/lib/ticketMail';
 
 export async function POST(req: Request) {
   try {
@@ -97,6 +98,13 @@ export async function POST(req: Request) {
           student_id: ticket.student_id, student_name: ticket.student_name,
           description: `본인 예매 취소 (${ticket.seat_number})`
         }]);
+
+        // 행을 지운 뒤에는 /api/ticket이 본인 예매인지 확인할 수 없어 취소 메일은 여기서 보낸다.
+        try {
+          await sendTicketMail({ reservation: ticket, statusType: 'canceled', baseUrl: new URL(req.url).origin });
+        } catch (e) {
+          console.error('Cancel mail error:', e);
+        }
 
         return NextResponse.json({ success: true, ticket });
       }

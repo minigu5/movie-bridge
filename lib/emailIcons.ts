@@ -1,6 +1,6 @@
 // 이메일 클라이언트(특히 Outlook)는 인라인 SVG와 data: URI 이미지를 대부분 차단하므로,
 // lucide 아이콘을 미리 PNG로 래스터화해 base64로 박아두고 CID 첨부로 삽입한다.
-// (포스터/티켓 배경 이미지와 동일한 CID 첨부 패턴 — app/api/ticket/route.ts 참고)
+// (포스터/티켓 배경 이미지와 동일한 CID 첨부 패턴 — lib/ticketMail.ts 참고)
 // 생성 스크립트: scratchpad/gen-email-icons.mjs (24x24 lucide path → 64x64 PNG, sharp)
 
 const ICONS_B64: Record<string, string> = {

@@ -52,9 +52,6 @@ export default function AdminPage() {
   const [profileSearchResults, setProfileSearchResults] = useState<{id: string, email: string, student_id: string | null, name: string, role: string}[]>([]);
   const [editingProfile, setEditingProfile] = useState<{id: string, email: string, student_id: string, name: string, role: string} | null>(null);
 
-  const [baseUrl, setBaseUrl] = useState('');
-  useEffect(() => setBaseUrl(window.location.origin), []);
-
   // 상영작 홍보 메일
   const [promoSources, setPromoSources] = useState({ club: true, profilesAll: false, g1: false, g2: false, g3: false });
   const [promoManualText, setPromoManualText] = useState('');
@@ -335,12 +332,10 @@ export default function AdminPage() {
     const data = await res.json();
     if (!data.success) return alert("승인 실패: " + data.error);
 
-    if (ticket.email) {
-      fetch('/api/ticket', { method: 'POST', body: JSON.stringify({ email: ticket.email, name: ticket.student_name, seat: ticket.seat_number, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, venue: movieInfo.venue, ageRating: movieInfo.age_rating, posterUrl: movieInfo.poster_cdn_url || movieInfo.poster_url, backgroundTemplateUrl: movieInfo.background_template_url, statusType: 'confirmed', popcorn: ticket.popcorn_order, ticketId: ticket.id, baseUrl }) });
-    }
+    // 확정 메일은 /api/admin/action이 승인 직후 서버에서 보낸다.
     setReservations(prev => prev.map(r => r.id === ticket.id ? { ...r, payment_status: 'confirmed' } : r));
     fetchAdminData();
-    alert("승인 완료 및 이메일 발송됨!");
+    alert(data.mailSent ? "승인 완료 및 이메일 발송됨!" : "승인 완료 (이메일은 발송되지 않았습니다)");
   };
 
   const handleCancel = async (ticket: any) => {
@@ -354,16 +349,10 @@ export default function AdminPage() {
     const data = await res.json();
     if (!data.success) return alert("취소 실패: " + data.error);
 
-    if (ticket.email) {
-      const isRefundNeeded = ticket.popcorn_order !== 'none' && ticket.payment_status === 'confirmed';
-      fetch('/api/ticket', {
-        method: 'POST',
-        body: JSON.stringify({ email: ticket.email, name: ticket.student_name, seat: ticket.seat_number, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, venue: movieInfo.venue, ageRating: movieInfo.age_rating, posterUrl: movieInfo.poster_cdn_url || movieInfo.poster_url, backgroundTemplateUrl: movieInfo.background_template_url, statusType: 'canceled', popcorn: ticket.popcorn_order, ticketId: ticket.id, baseUrl, isRefundNeeded })
-      });
-    }
+    // 취소 메일은 /api/admin/action이 취소 직후 서버에서 보낸다.
     setReservations(prev => prev.filter(r => r.id !== ticket.id));
     fetchAdminData();
-    alert("취소 완료 및 이메일 발송됨!");
+    alert(data.mailSent ? "취소 완료 및 이메일 발송됨!" : "취소 완료 (이메일은 발송되지 않았습니다)");
   };
 
   const handleResetPrint = async (ticket: any) => {
@@ -394,18 +383,7 @@ export default function AdminPage() {
     const data = await res.json();
     if (!data.success) return alert("추가 실패: " + (data.error || ''));
 
-    data.results.forEach((r: any) => {
-      if (r.canceledTicket) {
-        const ticket = r.canceledTicket;
-        const isRefundNeeded = ticket.popcorn_order !== 'none' && ticket.payment_status === 'confirmed';
-        fetch('/api/ticket', {
-          method: 'POST',
-          body: JSON.stringify({ email: r.email, name: r.name, seat: ticket.seat_number, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, venue: movieInfo.venue, ageRating: movieInfo.age_rating, posterUrl: movieInfo.poster_cdn_url || movieInfo.poster_url, backgroundTemplateUrl: movieInfo.background_template_url, statusType: 'canceled', popcorn: ticket.popcorn_order, ticketId: ticket.id, baseUrl, isRefundNeeded })
-        });
-      }
-      fetch('/api/blacklist', { method: 'POST', body: JSON.stringify({ email: r.email, name: r.name, action: 'added' }) });
-    });
-
+    // 예매 취소 메일과 블랙리스트 안내 메일은 /api/admin/action이 서버에서 보낸다.
     setNewBlacklistText('');
     fetchAdminData();
     alert(`${emails.length}명 블랙리스트 추가 및 예매 자동 취소 처리가 완료되었습니다!`);
@@ -416,7 +394,6 @@ export default function AdminPage() {
     const res = await authFetch('/api/admin/action', { action: 'REMOVE_BLACKLIST', payload: { email } });
     const data = await res.json();
     if (!data.success) return alert("해제 실패");
-    fetch('/api/blacklist', { method: 'POST', body: JSON.stringify({ email, name: data.name, action: 'removed' }) });
     fetchAdminData();
     alert("해제 완료 및 안내 메일 발송!");
   };
@@ -564,10 +541,7 @@ export default function AdminPage() {
       const chunk = recipients.slice(i, i + CHUNK_SIZE);
       let delivered: string[] = [];
       try {
-        const r = await fetch('/api/promo', {
-          method: 'POST',
-          body: JSON.stringify({ chunk, movieInfo: movieInfoPayload, baseUrl }),
-        });
+        const r = await authFetch('/api/promo', { chunk, movieInfo: movieInfoPayload });
         const d = await r.json();
         if (d.success) {
           sent += d.sent;

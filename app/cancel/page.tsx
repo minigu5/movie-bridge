@@ -60,22 +60,7 @@ function CancelForm() {
       const data = await res.json();
       if (!data.success) { alert(`${data.error || '취소 중 오류가 발생했습니다.'}`); return; }
 
-      const canceledTicket = data.ticket;
-
-      if (canceledTicket.email) {
-        const { data: movieSettings } = await supabase.from('movie_settings').select('*').eq('id', canceledTicket.movie_settings_id).single();
-        const isRefundNeeded = canceledTicket.popcorn_order !== 'none' && canceledTicket.payment_status === 'confirmed';
-        await fetch('/api/ticket', {
-          method: 'POST',
-          body: JSON.stringify({
-            email: canceledTicket.email, name: canceledTicket.student_name, seat: canceledTicket.seat_number,
-            movieTitle: movieSettings?.title, movieDate: movieSettings?.date_string,
-            statusType: 'canceled', popcorn: canceledTicket.popcorn_order, ticketId: canceledTicket.id,
-            baseUrl: window.location.origin, isRefundNeeded
-          })
-        });
-      }
-
+      // 취소 메일은 /api/reservations(CANCEL_OWN)가 취소 직후 서버에서 보낸다.
       alert("예매가 정상적으로 취소되었습니다.");
       router.push('/');
     } finally {

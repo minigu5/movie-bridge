@@ -6,6 +6,19 @@ import { uploadImageDataUri } from '@/lib/cloudinary';
 import { fetchSafeImage } from '@/lib/safeImageFetch';
 import { extractSchoolEmails } from '@/lib/parseEmails';
 import { admissionYearForGrade, gradeEmails } from '@/lib/schoolEmails';
+import { loadTicketMailMovie, sendTicketMail, type TicketMailReservation } from '@/lib/ticketMail';
+import { sendBlacklistMail } from '@/lib/blacklistMail';
+
+// 처리 결과 메일. 메일이 실패해도 이미 끝난 DB 작업은 되돌리지 않고 로그만 남긴다.
+async function sendMailSafely(label: string, send: () => Promise<void>): Promise<boolean> {
+  try {
+    await send();
+    return true;
+  } catch (e) {
+    console.error(`${label} mail error:`, e);
+    return false;
+  }
+}
 
 // 원본 포스터 링크(나무위키 등)는 며칠 뒤 만료되는 경우가 있어, 링크를
 // 저장하는 시점에 바이트를 받아 Cloudinary에 영구 복사해 둔다. 실패하면
@@ -25,6 +38,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
     }
     const adminEmail = auth.user.email as string;
+    // 메일 속 링크는 클라이언트 값이 아니라 요청이 실제로 들어온 도메인으로 만든다.
+    const baseUrl = new URL(req.url).origin;
 
     const { action, payload } = await req.json();
 
@@ -174,7 +189,8 @@ export async function POST(req: Request) {
 
       case 'APPROVE_RESERVATION': {
         const { id, studentId, studentName, seatNumber } = payload;
-        const { error: updateError } = await supabaseAdmin.from('reservations').update({ payment_status: 'confirmed' }).eq('id', id);
+        const { data: approved, error: updateError } = await supabaseAdmin.from('reservations')
+          .update({ payment_status: 'confirmed' }).eq('id', id).select('*').single();
         if (updateError) throw updateError;
 
         await supabaseAdmin.from('activity_logs').insert([{
@@ -182,12 +198,15 @@ export async function POST(req: Request) {
           description: `관리자 승인 (${seatNumber})`
         }]);
 
-        return NextResponse.json({ success: true });
+        const mailSent = await sendMailSafely('Approve', () =>
+          sendTicketMail({ reservation: approved as TicketMailReservation, statusType: 'confirmed', baseUrl }));
+        return NextResponse.json({ success: true, mailSent });
       }
 
       case 'CANCEL_RESERVATION': {
         const { id, studentId, studentName, seatNumber, description } = payload;
-        const { error: deleteError } = await supabaseAdmin.from('reservations').delete().eq('id', id);
+        const { data: canceled, error: deleteError } = await supabaseAdmin.from('reservations')
+          .delete().eq('id', id).select('*').maybeSingle();
         if (deleteError) throw deleteError;
 
         await supabaseAdmin.from('activity_logs').insert([{
@@ -195,7 +214,9 @@ export async function POST(req: Request) {
           description: description || `관리자 강제 취소 (${seatNumber})`
         }]);
 
-        return NextResponse.json({ success: true });
+        const mailSent = canceled ? await sendMailSafely('Cancel', () =>
+          sendTicketMail({ reservation: canceled as TicketMailReservation, statusType: 'canceled', baseUrl })) : false;
+        return NextResponse.json({ success: true, mailSent });
       }
 
       case 'RESET_PRINT': {
@@ -221,10 +242,7 @@ export async function POST(req: Request) {
           return NextResponse.json({ success: false, error: '@ts.hs.kr 이메일이 없습니다.' }, { status: 400 });
         }
 
-        type ReservationRow = {
-          id: string; seat_number: string; student_id: string | null; student_name: string;
-          email: string; popcorn_order: string; payment_status: string;
-        };
+        type ReservationRow = TicketMailReservation & { student_id: string | null };
         const results: { email: string; name: string; canceledTicket: ReservationRow | null }[] = [];
 
         for (const email of cleanEmails) {
@@ -258,6 +276,18 @@ export async function POST(req: Request) {
           .upsert(cleanEmails.map(email => ({ email })), { onConflict: 'email', ignoreDuplicates: true });
         if (blError) throw blError;
 
+        // 취소된 예매는 모두 같은 활성 회차라 회차 정보는 한 번만 읽는다.
+        const firstCanceled = results.find(r => r.canceledTicket)?.canceledTicket;
+        const movie = firstCanceled ? await loadTicketMailMovie(firstCanceled.movie_settings_id) : null;
+        for (const r of results) {
+          const ticket = r.canceledTicket;
+          if (ticket) {
+            await sendMailSafely('Blacklist cancel', () =>
+              sendTicketMail({ reservation: { ...ticket, email: r.email }, statusType: 'canceled', baseUrl, movie }));
+          }
+          await sendMailSafely('Blacklist added', () => sendBlacklistMail({ email: r.email, name: r.name, added: true }));
+        }
+
         return NextResponse.json({ success: true, results });
       }
 
@@ -267,7 +297,9 @@ export async function POST(req: Request) {
         if (error) throw error;
 
         const { data: prof } = await supabaseAdmin.from('profiles').select('name').eq('email', email).maybeSingle();
-        return NextResponse.json({ success: true, name: prof?.name ?? email });
+        const name = prof?.name ?? email;
+        await sendMailSafely('Blacklist removed', () => sendBlacklistMail({ email, name, added: false }));
+        return NextResponse.json({ success: true, name });
       }
 
       case 'LIST_ADMINS': {

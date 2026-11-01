@@ -120,22 +120,7 @@ function GroupConfirmForm() {
       const data = await res.json();
       if (!data.success) { alert(`${data.error || '확정 중 오류가 발생했습니다.'}`); return; }
 
-      const ticket = data.ticket;
-
-      if (ticket.email) {
-        const { data: movieSettings } = await supabase.from('movie_settings').select('*').eq('id', ticket.movie_settings_id).single();
-        if (movieSettings) {
-          fetch('/api/ticket', {
-            method: 'POST',
-            body: JSON.stringify({
-              email: ticket.email, name: ticket.student_name, seat: ticket.seat_number,
-              movieTitle: movieSettings.title, movieDate: movieSettings.date_string,
-              statusType: ticket.payment_status, popcorn: popcornOrder, ticketId: memberId,
-              baseUrl: window.location.origin
-            })
-          });
-        }
-      }
+      authFetch('/api/ticket', { ticketId: memberId });
 
       if (showQR) {
         setShowPaymentQR(true);

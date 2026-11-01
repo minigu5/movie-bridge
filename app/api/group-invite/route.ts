@@ -1,14 +1,45 @@
+// app/api/group-invite/route.ts
+// 단체 예매 리더가 멤버들에게 초대 메일을 보낸다. 요청은 groupId와 멤버 예매 id만 받고,
+// 리더 본인 확인 후 멤버 이름·좌석·이메일과 회차 정보는 DB에서 읽는다.
 import { NextResponse } from 'next/server';
 import { sendMail } from '@/lib/mailer';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { getUserFromRequest } from '@/lib/api-auth';
 import { escapeHtml } from '@/lib/escapeHtml';
 import { fetchSafeImage } from '@/lib/safeImageFetch';
 import { emailIconImg, emailIconAttachment } from '@/lib/emailIcons';
+import { loadTicketMailMovie } from '@/lib/ticketMail';
 
 export async function POST(req: Request) {
   try {
     const supabaseAdmin = getSupabaseAdmin();
-    const { members, leaderName, movieTitle, movieDate, venue, posterUrl, groupId, baseUrl } = await req.json();
+    const user = await getUserFromRequest(req);
+    if (!user) return NextResponse.json({ success: false, error: '로그인이 필요합니다.' }, { status: 401 });
+
+    const { groupId, memberIds } = await req.json() as { groupId?: string; memberIds?: string[] };
+    if (!groupId || !Array.isArray(memberIds) || memberIds.length === 0) {
+      return NextResponse.json({ success: false, error: 'groupId와 memberIds가 필요합니다.' }, { status: 400 });
+    }
+
+    const { data: leader } = await supabaseAdmin.from('reservations')
+      .select('student_name, movie_settings_id')
+      .eq('group_id', groupId).eq('is_group_leader', true).eq('user_id', user.id)
+      .maybeSingle();
+    if (!leader) return NextResponse.json({ success: false, error: '단체 예매 리더만 초대 메일을 보낼 수 있습니다.' }, { status: 403 });
+
+    // 이 단체에 속한, 아직 확정하지 않은 멤버에게만 보낸다.
+    const { data: memberRows } = await supabaseAdmin.from('reservations')
+      .select('id, email, student_name, seat_number')
+      .eq('group_id', groupId).eq('payment_status', 'group_pending').in('id', memberIds);
+    const members = (memberRows || []).map(r => ({ memberId: r.id as string, email: r.email as string | null, name: r.student_name as string, seat: r.seat_number as string }));
+
+    const movie = await loadTicketMailMovie(leader.movie_settings_id);
+    const leaderName = leader.student_name;
+    const movieTitle = movie?.title ?? '';
+    const movieDate = movie?.date_string ?? '';
+    const venue = movie?.venue ?? '';
+    const posterUrl = movie?.poster_cdn_url || movie?.poster_url || null;
+    const baseUrl = new URL(req.url).origin;
     const posterImage = posterUrl ? await fetchSafeImage(posterUrl) : null;
     const posterAttachment = posterImage?.ok
       ? { filename: 'poster.jpg', content: Buffer.from(posterImage.body), cid: 'posterImage', contentType: posterImage.contentType }
@@ -19,12 +50,8 @@ export async function POST(req: Request) {
     const safeVenue = escapeHtml(venue);
     const safeLeaderName = escapeHtml(leaderName);
 
-    const memberIds = members.map((m: { memberId: string }) => m.memberId);
-    const { data: rows } = await supabaseAdmin.from('reservations').select('id, email').in('id', memberIds);
-    const emailByMemberId = new Map((rows || []).map((r: any) => [r.id, r.email]));
-
-    const sendPromises = members.map((member: { name: string, seat: string, studentId: string, memberId: string }) => {
-      const email = emailByMemberId.get(member.memberId);
+    const sendPromises = members.map((member) => {
+      const email = member.email;
       if (!email) return Promise.resolve();
 
       const confirmUrl = `${baseUrl}/group-confirm?groupId=${groupId}&memberId=${member.memberId}`;
