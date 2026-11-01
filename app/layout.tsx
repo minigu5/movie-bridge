@@ -27,6 +27,8 @@ const songMyung = localFont({
 export const metadata: Metadata = {
   title: "영화대교",
   description: "대구과학고등학교 자율동아리 영화대교 영화 예매",
+  // app/icon.png로 두면 Next 메타데이터 라우트라 요청마다 Worker가 응답한다. public/에 두면 static assets가 바로 준다.
+  icons: { icon: "/icon.png" },
 };
 
 export default function RootLayout({

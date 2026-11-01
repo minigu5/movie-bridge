@@ -49,16 +49,13 @@ app/
   privacy/page.tsx         # 개인정보처리방침
   api/
     admin/action/          # 관리자 전용 API (admins 테이블로 권한 확인)
-    admin/check/           # 관리자 여부 확인
     reservations/          # 예매 생성
-    current-seats/         # 현재 좌석 현황 (비로그인용, service-role 경유)
-    past-seats/            # 지난 회차 좌석
     kiosk/                 # 발권기 로그인·티켓 조회
     ticket/                # 티켓/취소 메일 발송
     promo/                 # 홍보 메일 발송
     blacklist/             # 블랙리스트 알림 메일
     group-invite/          # 단체 예매 초대 메일
-    cron/group-check/      # 만료된 단체 예매 정리 (메인 페이지 접속 시 호출)
+    cron/group-check/      # 만료된 단체 예매 정리 (has_due_group_reports RPC가 true일 때만 호출)
     poster-image/          # 포스터 이미지 프록시
     profiles/search/       # 프로필 검색
 components/

@@ -205,7 +205,7 @@ export default function Home() {
   }, []);
 
   // 로그인 확인이 끝난 뒤에 불러온다. 확인 전에 익명으로 먼저 불러오면 로그인 사용자는
-  // 쓸모없는 /api/current-seats 호출(Worker + 쿼리 2번)을 하고 그 결과는 seq 가드에 버려진다.
+  // 쓸모없는 current_seat_status RPC 호출을 하고 그 결과는 seq 가드에 버려진다.
   useEffect(() => {
     if (authLoading) return;
     fetchInitialData();
@@ -254,10 +254,8 @@ export default function Home() {
   useEffect(() => {
     if (!profile) { setIsAdmin(false); return; }
     let active = true;
-    authFetchGet('/api/admin/check')
-      .then(res => res.json())
-      .then(data => { if (active && data.success) setIsAdmin(data.isAdmin); })
-      .catch(() => {});
+    // 버튼 노출용 확인만 브라우저에서 RPC로 한다. 관리자 작업 자체는 /api/admin/action이 다시 검사한다.
+    supabase.rpc('is_admin').then(({ data, error }) => { if (active && !error) setIsAdmin(!!data); });
     return () => { active = false; };
   }, [profile]);
 
@@ -271,16 +269,16 @@ export default function Home() {
   }, [groupSendingProgress.sending]);
 
   // 🌟 [과거 상영 회차 열람] 과거 회차를 보고 있을 때만 해당 회차의 좌석 점유 현황을 익명으로 조회
-  // (개인정보 보호: /api/past-seats가 service-role로 seat_number/payment_status만 반환 —
-  //  reservations는 anon RLS select가 막혀있어 비로그인도 이 API로만 열람 가능. student_name 등은 절대 노출 안 함)
+  // (개인정보 보호: past_seat_status RPC(security definer)가 seat_number/payment_status만 반환 —
+  //  reservations는 anon RLS select가 막혀있어 비로그인도 이 RPC로만 열람 가능. student_name 등은 절대 노출 안 함)
   useEffect(() => {
     if (!viewingPast || !pastMovie) { setPastSeatMap({}); setPastHasReservations(true); return; }
     let active = true;
     setIsPastSeatLoading(true);
-    fetch(`/api/past-seats?movieSettingsId=${pastMovie.id}`)
-      .then((res) => res.json())
-      .then(({ success, data }) => {
+    supabase.rpc('past_seat_status', { p_movie_settings_id: pastMovie.id })
+      .then(({ data, error }) => {
         if (!active) return;
+        const success = !error && !!data;
         const map: Record<string, string> = {};
         (success ? data : []).forEach((r: { seat_number: string; payment_status: string }) => {
           if (r.payment_status === 'confirmed' || r.payment_status === 'pending' || r.payment_status === 'group_pending') {
@@ -297,10 +295,9 @@ export default function Home() {
   const fetchInitialData = async () => {
     const seq = ++fetchSeqRef.current;
     try {
-      // 비로그인 열람은 /api/current-seats가 활성 회차(db_date)를 스스로 조회하므로 설정 쿼리 결과를
+      // 비로그인 열람은 current_seat_status RPC가 활성 회차(db_date)를 스스로 조회하므로 설정 쿼리 결과를
       // 기다릴 필요가 없다. 4개 쿼리 뒤에 직렬로 부르던 것을 같이 출발시킨다.
-      const anonSeatsReq = profile ? null : fetch('/api/current-seats').then((res) => res.json());
-      anonSeatsReq?.catch(() => {}); // 쿼리가 먼저 throw해도 unhandled rejection이 나지 않게 한다
+      const anonSeatsReq = profile ? null : supabase.rpc('current_seat_status');
       const [{ data: settingsData }, { data: bgData }, { data: clubData }, { data: pastData }] = await Promise.all([
         supabase.from('movie_settings').select('*').eq('is_active', true).single(),
         supabase.from('blacklist').select('email'),
@@ -318,7 +315,7 @@ export default function Home() {
       if (bgData) setBlacklistedUsers(bgData.map(b => b.email));
 
       // 🌟 [비로그인 열람] reservations는 RLS로 anon select가 막혀있어(개인정보 보호),
-      // 로그인 전에는 이름/학번 없이 좌석 점유 현황만 주는 /api/current-seats로 대신 조회한다.
+      // 로그인 전에는 이름/학번 없이 좌석 점유 현황만 주는 current_seat_status RPC로 대신 조회한다.
       // 로그인 후에도 reservations select는 본인 행뿐이라 active_seat_map RPC로 좌석표를 받는다
       // (다른 사람 행은 좌석/상태/이름만, 내 행만 id/팝콘/user_id 포함. 이메일·학번은 안 내려옴).
       type ResRow = { id?: string; seat_number: string; payment_status: string; student_name?: string; group_expires_at?: string | null; popcorn_order?: string; user_id?: string };
@@ -327,8 +324,8 @@ export default function Home() {
         const { data } = await supabase.rpc('active_seat_map');
         resData = data;
       } else if (anonSeatsReq) {
-        const { success, data } = await anonSeatsReq;
-        resData = success ? data : [];
+        const { data, error } = await anonSeatsReq;
+        resData = error ? [] : data;
       }
 
       // 늦게 끝난 낡은 fetch(예: 로그인 확인 전 anon 요청)는 최신 fetch 결과를 덮어쓰지 못하게 무시
@@ -355,13 +352,16 @@ export default function Home() {
         setMyReservation(mine ? { id: mine.id!, seat: mine.seat_number, status: mine.payment_status, popcorn: mine.popcorn_order } : null);
       }
 
-      // 🌟 [단체 예매] 만료된 단체 예매 정리 — 세션당 최대 10분에 1회만 트리거
+      // 🌟 [단체 예매] 만료된 단체 예매 정리 — 세션당 최대 10분에 1회만 확인하고,
+      // 처리할 그룹이 있을 때만 Worker를 부른다(대부분의 방문은 Supabase RPC 1번으로 끝난다).
       try {
         const KEY = 'group_check_last_run';
         const last = Number(sessionStorage.getItem(KEY) || 0);
         if (Date.now() - last > 10 * 60 * 1000) {
           sessionStorage.setItem(KEY, String(Date.now()));
-          fetch('/api/cron/group-check').catch(() => {});
+          supabase.rpc('has_due_group_reports').then(({ data }) => {
+            if (data) fetch('/api/cron/group-check').catch(() => {});
+          });
         }
       } catch { /* sessionStorage unavailable: skip */ }
     } catch (err) {

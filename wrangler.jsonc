@@ -1,6 +1,6 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"main": ".open-next/worker.js",
+	"main": "custom-worker.ts",
 	"name": "movie-bridge",
 	"compatibility_date": "2026-08-07",
 	"compatibility_flags": [
