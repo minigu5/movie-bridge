@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from 'react';
-import { BarChart3, Popcorn, Banknote, Crown, Printer, CircleCheck, RefreshCw, CircleX, Hourglass } from 'lucide-react';
+import { BarChart3, Popcorn, Banknote, Crown, Printer, CircleCheck, RefreshCw, CircleX, Hourglass, UserX } from 'lucide-react';
 import { analyzePopcorn, parseSeat, STATUS_WEIGHT } from './reservationView';
 
 type SortKey = 'seat' | 'name' | 'status' | 'printed';
@@ -15,12 +15,14 @@ interface PopcornStats {
 interface Props {
   reservations: any[];
   popcornStats: PopcornStats;
+  clubMembers: { email: string }[];
+  nameByEmail: Record<string, string>;
   onApprove: (ticket: any) => void;
   onCancel: (ticket: any) => void;
   onResetPrint: (ticket: any) => void;
 }
 
-export default function ReservationsTab({ reservations, popcornStats, onApprove, onCancel, onResetPrint }: Props) {
+export default function ReservationsTab({ reservations, popcornStats, clubMembers, nameByEmail, onApprove, onCancel, onResetPrint }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>('seat');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [filter, setFilter] = useState<FilterKey | null>(null);
@@ -32,6 +34,16 @@ export default function ReservationsTab({ reservations, popcornStats, onApprove,
     groupPending: reservations.filter(r => r.payment_status === 'group_pending').length,
     unprinted: reservations.filter(r => r.payment_status === 'confirmed' && !r.is_printed).length,
   }), [reservations]);
+
+  // 이번 회차에 예매 행(대기/단체 대기 포함)이 하나도 없는 동아리원. 이름은 로그인 이력(profiles)이 있을 때만 알 수 있다.
+  const unbookedMembers = useMemo(() => {
+    const booked = new Set(reservations.map(r => String(r.email ?? '').toLowerCase()));
+    return clubMembers
+      .map(m => m.email.toLowerCase())
+      .filter(email => !booked.has(email))
+      .map(email => ({ email, name: nameByEmail[email] }))
+      .sort((a, b) => (a.name ? 0 : 1) - (b.name ? 0 : 1) || (a.name ?? a.email).localeCompare(b.name ?? b.email));
+  }, [reservations, clubMembers, nameByEmail]);
 
   const sorted = useMemo(() => {
     const dir = sortDir === 'asc' ? 1 : -1;
@@ -87,6 +99,22 @@ export default function ReservationsTab({ reservations, popcornStats, onApprove,
           <div className="bg-amber-900/30 p-4 rounded-lg border border-amber-700"><span className="flex items-center gap-1.5 text-amber-500 text-sm font-bold mb-1"><Popcorn className="w-4 h-4" /> 카라멜</span><span className="text-2xl font-black text-amber-500">{popcornStats.caramel}개</span></div>
           <div className="bg-green-900/30 p-4 rounded-lg border border-green-700"><span className="flex items-center gap-1.5 text-green-400 text-sm font-bold mb-1"><Banknote className="w-4 h-4" /> 현금 매출</span><span className="text-xl font-black text-green-400">{popcornStats.cash.toLocaleString()}원</span></div>
         </div>
+      </div>
+
+      {/* 미예매 동아리원 */}
+      <div className="bg-neutral-800 p-6 rounded-xl border border-neutral-700">
+        <h2 className="text-lg font-bold text-orange-400 mb-4 flex items-center gap-1.5"><UserX className="w-5 h-5" /> 아직 예매하지 않은 동아리원 ({unbookedMembers.length} / {clubMembers.length}명)</h2>
+        {unbookedMembers.length === 0 ? (
+          <p className="text-neutral-500 text-sm">{clubMembers.length === 0 ? '등록된 동아리원이 없습니다.' : '모든 동아리원이 예매했습니다.'}</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {unbookedMembers.map(m => (
+              <span key={m.email} title={m.email} className="bg-neutral-700 px-3 py-1.5 rounded-full text-sm border border-neutral-600">
+                {m.name ? <span className="font-bold text-white">{m.name}</span> : <span className="text-neutral-400">{m.email}</span>}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* 검색 / 필터 */}

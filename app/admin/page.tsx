@@ -662,6 +662,8 @@ export default function AdminPage() {
           <ReservationsTab
             reservations={reservations}
             popcornStats={popcornStats}
+            clubMembers={clubMembers}
+            nameByEmail={nameByEmail}
             onApprove={handleApprove}
             onCancel={handleCancel}
             onResetPrint={handleResetPrint}
