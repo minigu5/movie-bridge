@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, type Dispatch, type SetStateAction } from 'react';
-import { Mail, Send, Settings, Ticket, Save, Clapperboard, X, TriangleAlert } from 'lucide-react';
+import { useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
+import { Mail, Send, Settings, Ticket, Save, Clapperboard, X, TriangleAlert, ChevronRight } from 'lucide-react';
 import VipZonePicker, { type Zone } from './VipZonePicker';
 import DefectiveSeatPicker from './DefectiveSeatPicker';
 import { activeAdmissionYears } from '../../../lib/schoolEmails';
@@ -218,6 +218,19 @@ function PromoMailSection({ promo, movieTitle }: { promo: PromoProps; movieTitle
   );
 }
 
+// 좌석 지정 격자는 화면을 많이 차지하므로 평소엔 접어 둔다(기본 닫힘).
+function CollapsibleSection({ className, icon, title, children }: { className: string; icon: ReactNode; title: string; children: ReactNode }) {
+  return (
+    <details className="mt-6 group">
+      <summary className={`${className} font-bold border-b border-neutral-700 pb-2 flex items-center gap-1.5 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden`}>
+        <ChevronRight className="w-4 h-4 transition-transform group-open:rotate-90" />
+        {icon} {title}
+      </summary>
+      <div className="mt-3">{children}</div>
+    </details>
+  );
+}
+
 export default function SettingsTab(props: Props) {
   const {
     movieInfo, editForm, setEditForm, onSaveSettings, bgGenerating, bgStatus, onGenerateBg,
@@ -268,8 +281,7 @@ export default function SettingsTab(props: Props) {
             포스터 호스트(예: movist)가 서버 요청을 막아 "포스터 주소로 배경 생성"이 실패하면, 포스터 이미지를 직접 다운로드한 뒤 "파일 직접 업로드"를 쓰세요.
           </p>
 
-          <div className="mt-6">
-            <h3 className="text-amber-400 font-bold border-b border-neutral-700 pb-2 mb-3 flex items-center gap-1.5"><Ticket className="w-4 h-4" /> 동아리 전용(VIP) 좌석 영역</h3>
+          <CollapsibleSection className="text-amber-400" icon={<Ticket className="w-4 h-4" />} title="동아리 전용(VIP) 좌석 영역">
             <VipZonePicker
               hall={editHall}
               onHallChange={setEditHall}
@@ -277,10 +289,9 @@ export default function SettingsTab(props: Props) {
               onZoneChange={(z) => applyZone(setEditForm, editHall, z)}
               accent={editHall === 'grand' ? 'pink' : 'amber'}
             />
-          </div>
+          </CollapsibleSection>
 
-          <div className="mt-6">
-            <h3 className="text-red-400 font-bold border-b border-neutral-700 pb-2 mb-1 flex items-center gap-1.5"><TriangleAlert className="w-4 h-4" /> 하자 좌석</h3>
+          <CollapsibleSection className="text-red-400" icon={<TriangleAlert className="w-4 h-4" />} title="하자 좌석">
             <p className="text-xs text-neutral-500 mb-3">좌석표에는 표시되지 않고, 예매자가 해당 좌석을 누르면 경고만 나타납니다.</p>
             <DefectiveSeatPicker
               hall={editHall}
@@ -288,7 +299,7 @@ export default function SettingsTab(props: Props) {
               seats={editForm.defective_seats ?? []}
               onSeatsChange={(seats) => setEditForm((prev: any) => ({ ...prev, defective_seats: seats }))}
             />
-          </div>
+          </CollapsibleSection>
 
           <div className="mt-6 text-right">
             <button onClick={onSaveSettings} className="bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-8 rounded-lg shadow-lg flex items-center justify-center gap-1.5"><Save className="w-4 h-4" /> 변경사항 저장</button>
@@ -309,8 +320,7 @@ export default function SettingsTab(props: Props) {
           <>
             <h2 className="text-xl font-bold text-orange-400 mb-4 flex items-center gap-1.5"><Clapperboard className="w-5 h-5" /> 새 회차 시작 — 새 영화 정보 입력</h2>
             <MovieFormFields form={newMovieForm} setForm={setNewMovieForm} />
-            <div className="mt-6">
-              <h3 className="text-amber-400 font-bold border-b border-neutral-700 pb-2 mb-3 flex items-center gap-1.5"><Ticket className="w-4 h-4" /> 동아리 전용(VIP) 좌석 영역</h3>
+            <CollapsibleSection className="text-amber-400" icon={<Ticket className="w-4 h-4" />} title="동아리 전용(VIP) 좌석 영역">
               <VipZonePicker
                 hall={newHall}
                 onHallChange={setNewHall}
@@ -318,10 +328,9 @@ export default function SettingsTab(props: Props) {
                 onZoneChange={(z) => applyZone(setNewMovieForm, newHall, z)}
                 accent={newHall === 'grand' ? 'pink' : 'amber'}
               />
-            </div>
+            </CollapsibleSection>
 
-            <div className="mt-6">
-              <h3 className="text-red-400 font-bold border-b border-neutral-700 pb-2 mb-1 flex items-center gap-1.5"><TriangleAlert className="w-4 h-4" /> 하자 좌석</h3>
+            <CollapsibleSection className="text-red-400" icon={<TriangleAlert className="w-4 h-4" />} title="하자 좌석">
               <p className="text-xs text-neutral-500 mb-3">좌석표에는 표시되지 않고, 예매자가 해당 좌석을 누르면 경고만 나타납니다.</p>
               <DefectiveSeatPicker
                 hall={newHall}
@@ -329,7 +338,7 @@ export default function SettingsTab(props: Props) {
                 seats={newMovieForm.defective_seats ?? []}
                 onSeatsChange={(seats) => setNewMovieForm((prev: any) => ({ ...prev, defective_seats: seats }))}
               />
-            </div>
+            </CollapsibleSection>
             <div className="mt-6 text-right flex justify-end gap-2">
               <button onClick={onCancelNewMovie} className="bg-neutral-700 hover:bg-neutral-600 text-white font-bold py-3 px-8 rounded-lg shadow-lg">취소</button>
               <button onClick={onSubmitNewMovie} className="bg-orange-600 hover:bg-orange-500 text-white font-bold py-3 px-8 rounded-lg shadow-lg flex items-center justify-center gap-1.5"><Clapperboard className="w-4 h-4" /> 새 회차 시작</button>
