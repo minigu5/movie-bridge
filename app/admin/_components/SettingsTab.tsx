@@ -7,7 +7,7 @@ import DefectiveSeatPicker from './DefectiveSeatPicker';
 import { activeAdmissionYears } from '../../../lib/schoolEmails';
 import { getSchedule, buildDerivedFields, type Schedule } from './screeningSchedule';
 
-type PromoSources = { club: boolean; profilesAll: boolean; g1: boolean; g2: boolean; g3: boolean };
+type PromoSources = { club: boolean; invited: boolean; g1: boolean; g2: boolean; g3: boolean };
 
 interface PromoProps {
   sources: PromoSources;
@@ -128,8 +128,8 @@ function PromoMailSection({ promo, movieTitle }: { promo: PromoProps; movieTitle
           <span className="text-sm text-amber-300 font-bold">동아리원(VIP)</span>
         </label>
         <label className="flex items-center gap-2 cursor-pointer bg-neutral-700/40 rounded px-3 py-2">
-          <input type="checkbox" checked={p.sources.profilesAll} onChange={() => toggle('profilesAll')} className="w-4 h-4 accent-emerald-500" />
-          <span className="text-sm text-emerald-300 font-bold">로그인 이력 전체</span>
+          <input type="checkbox" checked={p.sources.invited} onChange={() => toggle('invited')} className="w-4 h-4 accent-sky-500" />
+          <span className="text-sm text-sky-300 font-bold">초대 명단</span>
         </label>
         <label className="flex items-center gap-2 cursor-pointer bg-neutral-700/40 rounded px-3 py-2">
           <input type="checkbox" checked={p.sources.g1} onChange={() => toggle('g1')} className="w-4 h-4 accent-orange-500" />

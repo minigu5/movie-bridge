@@ -59,8 +59,8 @@ export async function POST(req: Request) {
           supabaseAdmin.from('club_members').select('email, added_by, created_at').order('created_at', { ascending: false }),
           supabaseAdmin.from('kiosk_settings').select('password').eq('id', 1).single(),
           supabaseAdmin.from('invited_emails').select('email, added_by, source, created_at').order('created_at', { ascending: false }),
-          // 로그인 이력이 있는 사람의 이름 표시용 (회원/권한 탭)
-          supabaseAdmin.from('profiles').select('email, name')
+          // 로그인 이력이 있는 사람: 이름 표시 + 회원/권한 탭의 로그인 명단(조회 전용)
+          supabaseAdmin.from('profiles').select('email, name, student_id, role, created_at').order('created_at', { ascending: false })
         ]);
 
         if (resQ.error) throw resQ.error;
@@ -444,13 +444,13 @@ export async function POST(req: Request) {
       }
 
       // 홍보 메일 수신자 명단을 서버에서 조립한다.
-      //   club: club_members 전체 / profilesAll: profiles 전체
+      //   club: club_members 전체 / invited: invited_emails 전체
       //   grades: ['g1'|'g2'|'g3'] -> 학년도 경계 기준으로 입학년도 자동 매핑 후 0001~0110 생성
       //   manualText: 자유 텍스트에서 @ts.hs.kr 이메일만 추출
       // 최종 = 합집합 - 블랙리스트, profiles와 매칭되면 이름을 채워 반환.
       case 'RESOLVE_PROMO_RECIPIENTS': {
         const club: boolean = !!payload?.club;
-        const profilesAll: boolean = !!payload?.profilesAll;
+        const invited: boolean = !!payload?.invited;
         const grades: string[] = Array.isArray(payload?.grades) ? payload.grades : [];
         const manualText: string = typeof payload?.manualText === 'string' ? payload.manualText : '';
 
@@ -462,8 +462,8 @@ export async function POST(req: Request) {
           (data ?? []).forEach((r: { email: string }) => emailSet.add(r.email.toLowerCase()));
         }
 
-        if (profilesAll) {
-          const { data, error } = await supabaseAdmin.from('profiles').select('email');
+        if (invited) {
+          const { data, error } = await supabaseAdmin.from('invited_emails').select('email');
           if (error) throw error;
           (data ?? []).forEach((r: { email: string }) => emailSet.add(r.email.toLowerCase()));
         }

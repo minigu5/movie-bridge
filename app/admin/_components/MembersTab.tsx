@@ -1,6 +1,6 @@
 "use client";
 
-import { Crown, Ticket, Printer, Wrench, Ban, UserCheck } from 'lucide-react';
+import { Crown, Ticket, Printer, Wrench, Ban, UserCheck, LogIn } from 'lucide-react';
 
 interface ProfileRow { id: string; email: string; student_id: string | null; name: string; role: string }
 interface EditingProfile { id: string; email: string; student_id: string; name: string; role: string }
@@ -39,6 +39,7 @@ interface Props {
   onRemoveClubMember: (email: string) => void;
 
   invitedEmails: { email: string; added_by: string | null; source: string; created_at: string }[];
+  loginProfiles: { email: string; name: string; student_id: string | null; role: string; created_at: string }[];
   newInvitedText: string;
   setNewInvitedText: (v: string) => void;
   invitedEmailPreviewCount: number;
@@ -183,6 +184,21 @@ export default function MembersTab(props: Props) {
             <div key={user.email} className="bg-sky-900/40 border border-sky-800 rounded-full px-4 py-1 flex items-center gap-2">
               <span className="text-sm"><PersonLabel email={user.email} nameByEmail={p.nameByEmail} nameClass="text-sky-200" emailClass="text-sky-400/60" /></span>
               <button onClick={() => p.onRemoveInvitedEmail(user.email)} className="text-sky-400 hover:text-white font-bold ml-2">×</button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 로그인 명단: 한 번이라도 로그인한 사람(profiles). 조회 전용 */}
+      <div className="bg-neutral-800 p-6 rounded-xl border border-emerald-800">
+        <h2 className="text-xl font-bold text-emerald-400 mb-1 flex items-center gap-1.5"><LogIn className="w-5 h-5" /> 로그인 명단 ({p.loginProfiles.length}명)</h2>
+        <p className="text-neutral-500 text-xs mb-4">한 번이라도 로그인한 사람입니다. 확인용이며, 이 명단에 있다고 예매할 수 있는 것은 아닙니다.</p>
+        <div className="flex flex-wrap gap-2 max-h-64 overflow-y-auto">
+          {p.loginProfiles.length === 0 && <p className="text-neutral-500 text-sm">로그인 이력이 없습니다.</p>}
+          {p.loginProfiles.map((u) => (
+            <div key={u.email} title={u.email} className="bg-emerald-900/30 border border-emerald-900 rounded-full px-4 py-1 text-sm min-w-0 truncate">
+              <span className="text-emerald-200">{u.name}</span>
+              <span className="ml-1.5 text-[10px] text-emerald-400/60">{u.student_id ?? '교직원'} · {u.email}</span>
             </div>
           ))}
         </div>

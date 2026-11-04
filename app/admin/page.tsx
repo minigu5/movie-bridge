@@ -47,13 +47,14 @@ export default function AdminPage() {
   const [invitedEmails, setInvitedEmails] = useState<{email: string, added_by: string | null, source: string, created_at: string}[]>([]);
   const [newInvitedText, setNewInvitedText] = useState('');
   const [nameByEmail, setNameByEmail] = useState<Record<string, string>>({});
+  const [loginProfiles, setLoginProfiles] = useState<{email: string, name: string, student_id: string | null, role: string, created_at: string}[]>([]);
   const [kioskPasswordInput, setKioskPasswordInput] = useState('');
   const [profileSearchQuery, setProfileSearchQuery] = useState('');
   const [profileSearchResults, setProfileSearchResults] = useState<{id: string, email: string, student_id: string | null, name: string, role: string}[]>([]);
   const [editingProfile, setEditingProfile] = useState<{id: string, email: string, student_id: string, name: string, role: string} | null>(null);
 
   // 상영작 홍보 메일
-  const [promoSources, setPromoSources] = useState({ club: true, profilesAll: false, g1: false, g2: false, g3: false });
+  const [promoSources, setPromoSources] = useState({ club: true, invited: false, g1: false, g2: false, g3: false });
   const [promoManualText, setPromoManualText] = useState('');
   const [isResolvingPromo, setIsResolvingPromo] = useState(false);
   const [isSendingPromo, setIsSendingPromo] = useState(false);
@@ -145,6 +146,7 @@ export default function AdminPage() {
       if (clubData) setClubMembers(clubData);
       if (invitedData) setInvitedEmails(invitedData);
       if (profileNames) {
+        setLoginProfiles(profileNames);
         setNameByEmail(Object.fromEntries(
           (profileNames as { email: string; name: string }[])
             .filter(p => p.name)
@@ -489,7 +491,7 @@ export default function AdminPage() {
   const handleResolvePromoClick = async () => {
     const grades = (['g1', 'g2', 'g3'] as const).filter((g) => promoSources[g]);
     const hasTarget =
-      promoSources.club || promoSources.profilesAll || grades.length > 0 || promoManualPreviewCount > 0;
+      promoSources.club || promoSources.invited || grades.length > 0 || promoManualPreviewCount > 0;
     if (!hasTarget) return alert('발송 대상을 하나 이상 선택하세요.');
     if (!movieInfo?.title) return alert('현재 상영작 정보가 없습니다. 회차 설정을 먼저 저장하세요.');
 
@@ -499,7 +501,7 @@ export default function AdminPage() {
         action: 'RESOLVE_PROMO_RECIPIENTS',
         payload: {
           club: promoSources.club,
-          profilesAll: promoSources.profilesAll,
+          invited: promoSources.invited,
           grades,
           manualText: promoManualText,
         },
@@ -719,6 +721,7 @@ export default function AdminPage() {
             onRemoveClubMember={handleRemoveClubMember}
             nameByEmail={nameByEmail}
             invitedEmails={invitedEmails}
+            loginProfiles={loginProfiles}
             newInvitedText={newInvitedText}
             setNewInvitedText={setNewInvitedText}
             invitedEmailPreviewCount={invitedEmailPreviewCount}
