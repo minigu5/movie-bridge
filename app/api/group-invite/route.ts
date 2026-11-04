@@ -7,7 +7,7 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { getUserFromRequest } from '@/lib/api-auth';
 import { escapeHtml } from '@/lib/escapeHtml';
 import { fetchSafeImage } from '@/lib/safeImageFetch';
-import { emailIconImg, emailIconAttachment } from '@/lib/emailIcons';
+import { emailIconImg, emailIconAttachment, brandLogoImg } from '@/lib/emailIcons';
 import { loadTicketMailMovie } from '@/lib/ticketMail';
 
 export async function POST(req: Request) {
@@ -65,16 +65,13 @@ export async function POST(req: Request) {
           <meta name="color-scheme" content="light">
           <style>
             @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
-            @import url('https://fonts.googleapis.com/css2?family=Song+Myung&display=swap');
           </style>
         </head>
         <body style="margin:0; padding:0; -webkit-font-smoothing: antialiased; background-color:#0a0a0a;">
             <div style="padding: 40px 12px; font-family: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; text-align: center;">
 
-              <div style="margin-bottom: 26px;">
-                <div style="font-family: 'Song Myung', serif; color: #f5f5f5; font-size: 28px; line-height: 1.15; letter-spacing: 0.1em; text-shadow: 0 0 18px rgba(255,255,255,0.25);">
-                  영화<br/>대교
-                </div>
+              <div style="margin-bottom: 14px;">
+                ${brandLogoImg()}
               </div>
 
               <div style="margin: 0 auto; width: 100%; max-width: 380px; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 45px rgba(0,0,0,0.55); text-align: left; background-color:#161616;">
@@ -120,6 +117,7 @@ export async function POST(req: Request) {
         subject: `[영화대교] ${member.name}님, 단체 관람에 초대되었습니다 - ${member.seat} 좌석`,
         html: htmlContent,
         attachments: [
+          emailIconAttachment('brandLogo', 'brandLogo'),
           ...(posterAttachment ? [posterAttachment] : []),
           emailIconAttachment('clapperboardWhite', 'clapperboardWhite'),
           ...(venue ? [emailIconAttachment('mapPinGray', 'mapPinGray')] : []),

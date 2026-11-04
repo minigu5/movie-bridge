@@ -5,7 +5,7 @@ import { getSupabaseAdmin } from './supabase-admin';
 import { sendMail } from './mailer';
 import { escapeHtml } from './escapeHtml';
 import { fetchSafeImage } from './safeImageFetch';
-import { emailIconImg, emailIconAttachment } from './emailIcons';
+import { emailIconImg, emailIconAttachment, brandLogoImg } from './emailIcons';
 
 // lib/ticketBackgroundCanvas.ts가 만드는 템플릿의 레이아웃과 반드시 일치해야 한다.
 const DISPLAY_CARD_WIDTH = 380;
@@ -218,17 +218,14 @@ export async function sendTicketMail(params: {
       <meta name="color-scheme" content="light">
       <style>
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
-        @import url('https://fonts.googleapis.com/css2?family=Song+Myung&display=swap');
       </style>
     </head>
     <body style="margin:0; padding:0; -webkit-font-smoothing: antialiased; background-color:#0a0a0a;">
         <div style="padding: 40px 12px; font-family: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; text-align: center;">
 
         ${!templateUsed ? `
-        <div style="margin-bottom: 26px;">
-          <div style="font-family: 'Song Myung', serif; color: #f5f5f5; font-size: 28px; line-height: 1.15; letter-spacing: 0.1em; text-shadow: 0 0 18px rgba(255,255,255,0.25);">
-            영화<br/>대교
-          </div>
+        <div style="margin-bottom: 14px;">
+          ${brandLogoImg()}
         </div>
         ` : ''}
 
@@ -276,6 +273,7 @@ export async function sendTicketMail(params: {
     : 'circleCheckGreen';
 
   const attachments = [
+    ...(!templateUsed ? [emailIconAttachment('brandLogo', 'brandLogo')] : []),
     ...(cardBackground ? [{ filename: `card-bg.${attachmentExt}`, content: Buffer.from(cardBackground.body), cid: 'cardBg', contentType: cardBackground.contentType }] : []),
     ...(popcornArray.length > 0 ? [emailIconAttachment('popcornGray', 'popcornGray')] : []),
     emailIconAttachment(statusIconCid, statusIconCid),

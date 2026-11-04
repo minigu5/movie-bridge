@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { sendMail } from '@/lib/mailer';
 import { escapeHtml } from '@/lib/escapeHtml';
-import { emailIconImg, emailIconAttachment } from '@/lib/emailIcons';
+import { emailIconImg, emailIconAttachment, brandLogoImg } from '@/lib/emailIcons';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,6 +48,7 @@ export async function GET() {
       const recipients = confirmedMembers; // 리더도 confirmed 상태이므로 포함됨
       const reportHtml = buildResultEmail(leader.student_name, confirmedMembers, expiredMembers);
       const reportAttachments = [
+        emailIconAttachment('brandLogo', 'brandLogo'),
         emailIconAttachment(expiredMembers.length === 0 ? 'partyPopperWhite' : 'clipboardListWhite', expiredMembers.length === 0 ? 'partyPopperWhite' : 'clipboardListWhite'),
         ...(confirmedMembers.length > 0 ? [emailIconAttachment('sparklesGreen', 'sparklesGreen')] : []),
         ...(expiredMembers.length > 0 ? [emailIconAttachment('hourglassRed', 'hourglassRed')] : []),
@@ -77,7 +78,7 @@ export async function GET() {
               to: email,
               subject: `[영화대교] ${expired.student_name}님의 단체 예매가 시간 초과로 취소되었습니다`,
               html: buildCancelEmail(expired.student_name, expired.seat_number, leader.student_name),
-              attachments: [emailIconAttachment('hourglassRed', 'hourglassRed')]
+              attachments: [emailIconAttachment('brandLogo', 'brandLogo'), emailIconAttachment('hourglassRed', 'hourglassRed')]
             });
           } catch (e) { console.error('Cancel email error:', e); }
         }
@@ -117,16 +118,13 @@ function buildCancelEmail(name: string, seat: string, leaderName: string): strin
     <!DOCTYPE html><html><head><meta name="color-scheme" content="light">
       <style>
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
-        @import url('https://fonts.googleapis.com/css2?family=Song+Myung&display=swap');
       </style>
     </head>
     <body style="margin:0;padding:0; -webkit-font-smoothing: antialiased;">
       <div style="background-color:#0a0a0a;padding:40px 12px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;text-align:center;">
 
-        <div style="margin-bottom: 26px;">
-          <div style="font-family: 'Song Myung', serif; color: #f5f5f5; font-size: 28px; line-height: 1.15; letter-spacing: 0.1em; text-shadow: 0 0 18px rgba(255,255,255,0.25);">
-            영화<br/>대교
-          </div>
+        <div style="margin-bottom: 14px;">
+          ${brandLogoImg()}
         </div>
 
         <div style="max-width:380px;margin:0 auto;background-color:#161616;border:1px solid #2a2a2a;border-radius:20px;overflow:hidden;box-shadow:0 20px 45px rgba(0,0,0,0.55);text-align:left;">
@@ -170,16 +168,13 @@ function buildResultEmail(leaderName: string, confirmed: any[], expired: any[]):
     <!DOCTYPE html><html><head><meta name="color-scheme" content="light">
       <style>
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
-        @import url('https://fonts.googleapis.com/css2?family=Song+Myung&display=swap');
       </style>
     </head>
     <body style="margin:0;padding:0; -webkit-font-smoothing: antialiased;">
       <div style="background-color:#0a0a0a;padding:40px 12px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;text-align:center;">
 
-        <div style="margin-bottom: 26px;">
-          <div style="font-family: 'Song Myung', serif; color: #f5f5f5; font-size: 28px; line-height: 1.15; letter-spacing: 0.1em; text-shadow: 0 0 18px rgba(255,255,255,0.25);">
-            영화<br/>대교
-          </div>
+        <div style="margin-bottom: 14px;">
+          ${brandLogoImg()}
         </div>
 
         <div style="max-width:440px;margin:0 auto;background-color:#161616;border:1px solid #2a2a2a;border-radius:20px;overflow:hidden;box-shadow:0 20px 45px rgba(0,0,0,0.55);text-align:left;">

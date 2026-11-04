@@ -3,7 +3,7 @@ import { requireAdmin } from '@/lib/api-auth';
 import { sendMail } from '@/lib/mailer';
 import { escapeHtml } from '@/lib/escapeHtml';
 import { fetchSafeImage } from '@/lib/safeImageFetch';
-import { emailIconImg, emailIconAttachment } from '@/lib/emailIcons';
+import { emailIconImg, emailIconAttachment, brandLogoImg } from '@/lib/emailIcons';
 
 type Recipient = { email: string; name?: string | null };
 
@@ -58,16 +58,20 @@ function buildHtml(params: {
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <meta name="color-scheme" content="dark">
+      <meta name="format-detection" content="telephone=no, date=no, address=no, email=no">
       <style>
-        :root { color-scheme: dark; supported-color-schemes: dark; }
+        /* @import는 다른 규칙보다 앞에 와야 한다. 뒤에 두면 무시돼 Pretendard가 안 불러와진다. */
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
+        :root { color-scheme: dark; supported-color-schemes: dark; }
+        /* iOS 메일이 날짜·장소를 자동 링크(밑줄)로 바꾸는 것 방지 */
+        a[x-apple-data-detectors] { color: inherit !important; text-decoration: none !important; font-size: inherit !important; font-family: inherit !important; font-weight: inherit !important; line-height: inherit !important; }
       </style>
     </head>
     <body style="margin:0; padding:0; -webkit-font-smoothing: antialiased; background-color:#0a0a0a;">
       <div style="padding: 40px 12px; font-family: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; text-align: center;">
 
-        <div style="margin-bottom: 22px;">
-          <div style="color:#737373; font-size:12px; font-weight:600; letter-spacing:0.32em;">영화대교</div>
+        <div style="margin-bottom: 14px;">
+          ${brandLogoImg()}
         </div>
 
         <div style="margin: 0 auto; width: 100%; max-width: 380px; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 45px rgba(0,0,0,0.55); text-align: left; background-color:#161616;">
@@ -139,6 +143,7 @@ export async function POST(req: Request) {
       buildHtml({ name, movieInfo, baseUrl, hasPoster: !!posterAttachment });
 
     const iconAttachments = [
+      emailIconAttachment('brandLogo', 'brandLogo'),
       ...(movieInfo?.venue ? [emailIconAttachment('mapPinGray', 'mapPinGray')] : []),
       ...(movieInfo?.deadline_date ? [emailIconAttachment('hourglassAmber', 'hourglassAmber')] : []),
       emailIconAttachment('ticketWhite', 'ticketWhite'),
