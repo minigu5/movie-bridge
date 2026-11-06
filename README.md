@@ -137,6 +137,11 @@ npm run deploy    # 수동 배포
   ```
 
 - `NEXT_PUBLIC_*` 값은 빌드할 때 번들에 들어가므로, 바꾼 뒤에는 다시 배포해야 합니다.
+- **정적 파일은 Cloudflare Pages에서** (2026-11-06): 한국(KT) 접속은 Cloudflare 무료 망이 `*.dshs.dev`를 LAX로 보내 느리지만 `*.pages.dev`는 서울(ICN)에서 응답합니다. 그래서 `npm run deploy`(`scripts/deploy.sh`)가 `/_next/static`을 Pages 프로젝트 `movie-bridge-assets`의 새 브랜치 주소(`d<UTC 시각>.movie-bridge-assets.pages.dev`)에 올리고, 그 주소를 `ASSET_PREFIX`(`next.config.ts` `assetPrefix`)로 넣어 빌드합니다. 사이트 주소·HTML·API는 그대로입니다.
+  - Pages에 못 올리면 배포는 멈추지 않고 예전처럼 Worker가 정적 파일을 주는 빌드로 다시 만듭니다(로그 `정적 파일 올리기 실패 — Pages 없이 다시 빌드`).
+  - 배포마다 새 주소라 옛 배포의 파일도 계속 열립니다(이미 열린 화면이 404 나지 않음). Pages 무료 한도는 배포 월 500회입니다.
+  - Workers Builds의 API 토큰에 **Cloudflare Pages · Edit** 권한이 있어야 올라갑니다.
+  - Pages 프로젝트는 `wrangler pages project create <이름> --production-branch main --force`로 만듭니다. `--force`가 없으면 wrangler 4가 Workers로 넘겨 `*.workers.dev`(KT에서 LAX)가 됩니다.
 - Workers 런타임은 `runtime = 'edge'`를 지원하지 않습니다. 서버 시크릿은 모듈 최상위가 아니라 요청 처리 중에 읽어야 합니다.
 - 실시간 로그: `npx wrangler tail movie-bridge --format pretty`
 
