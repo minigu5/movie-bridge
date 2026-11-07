@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
+import { useState, useEffect, useMemo, useRef, useSyncExternalStore, type ComponentProps } from 'react';
 import { supabase } from '../lib/supabase';
 import { ensureProfile, signInWithGoogle, signOutAndClear, authFetch, authFetchGet, DomainNotAllowedError, type AppProfile } from '../lib/supabase-auth';
 import Link from 'next/link'; // 🌟[추가] Next.js Link 임포트
-import { Crown, Check, Ban, Siren, Popcorn, CircleCheck, Sparkles, PartyPopper, Mail, BookOpen, LogOut, Hourglass, RefreshCw, User, Users, Lightbulb, ClipboardList, CircleHelp, Ticket, PenLine } from 'lucide-react';
+import { Crown, Check, Siren, Popcorn, Sparkles, PartyPopper, Mail, BookOpen, LogOut, Hourglass, RefreshCw, User, Users, Lightbulb, ClipboardList, CircleHelp, Ticket, PenLine } from 'lucide-react';
 
 import AccountInfo from '@/components/AccountInfo';
 import MovieReviews from '@/components/MovieReviews';
@@ -15,6 +15,7 @@ import { countBookable, getZones, initialZone, zoneOf, type ZoneKey } from '@/li
 import SeatGrid, { type SeatState } from '@/components/home/SeatGrid';
 import ZoneMap from '@/components/home/ZoneMap';
 import SeatLegend from '@/components/home/SeatLegend';
+import BookingBar from '@/components/home/BookingBar';
 import MovieInfo from '@/components/home/MovieInfo';
 
 // 🌟 [로그인 리다이렉트 복원] 비로그인 좌석 클릭 -> 구글 로그인 -> 복귀 사이에 풀 페이지
@@ -823,6 +824,40 @@ export default function Home() {
     });
   };
 
+  // 🌟 [예매 영역] 상태별 하단 바 내용. 분기 순서는 예전 예매 패널과 같다(단체 > 마감 > 내 예매 > 자리 이동 > 고른 좌석).
+  const myPopcorns = myReservation?.popcorn && myReservation.popcorn !== 'none' ? myReservation.popcorn.split(',') : [];
+  const cancelLocked = myReservation?.status === 'confirmed' && myPopcorns.length > 0;
+  const bookingBar: ComponentProps<typeof BookingBar> = isGroupMode ? {
+    seatLabel: groupLeader?.seat ?? null,
+    hint: `리더 · 멤버 ${groupMembers.length}명`,
+    primary: { label: '완료하기', onClick: () => { if (groupMembers.length === 0) { setIsGroupSoloConfirmOpen(true); } else { setIsGroupSummaryOpen(true); } } },
+    secondary: [{ label: '단체 예매 취소', onClick: handleCancelGroupMode }],
+  } : isClosed ? {
+    seatLabel: null, hint: '예매가 마감되었어요', primary: null,
+  } : myReservation && !isMovingSeat ? {
+    seatLabel: myReservation.seat,
+    hint: `내 좌석 · ${myReservation.status === 'pending' ? '입금 대기' : '예매 확정'}`,
+    primary: { label: '자리 이동', onClick: () => {
+      setPopcornList([...myPopcorns, 'none']);
+      setIsMovingSeat(true);
+      setSelectedSeat(null);
+    } },
+    secondary: [cancelLocked
+      ? { label: '취소 불가', onClick: () => {}, disabled: true }
+      : { label: '예매 취소', onClick: handleCancelMyReservation, danger: true }],
+  } : isMovingSeat ? {
+    seatLabel: selectedSeat,
+    hint: selectedSeat ? '이동할 좌석' : '이동할 좌석을 골라 주세요',
+    primary: { label: '이 자리로 이동', onClick: handleSubmit, disabled: !selectedSeat },
+    secondary: [{ label: '이동 취소', onClick: () => { setIsMovingSeat(false); setSelectedSeat(null); } }],
+  } : selectedSeat ? {
+    seatLabel: selectedSeat,
+    hint: '선택한 좌석',
+    primary: { label: '예매하기', onClick: () => profile ? setIsModalOpen(true) : signInWithGoogle().catch(() => showAlert('로그인에 실패했습니다.')) },
+  } : {
+    seatLabel: null, hint: '좌석을 골라 주세요', primary: null,
+  };
+
   if (authLoading || isLoading) {
     return (
       <div className="min-h-screen bg-ground flex items-center justify-center select-none">
@@ -836,7 +871,7 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-ground text-ink select-none overflow-x-hidden">
+    <div className={`min-h-screen bg-ground text-ink select-none overflow-x-hidden ${viewingPast ? '' : 'pb-[calc(72px+env(safe-area-inset-bottom))] md:pb-0'}`}>
       <header className="border-b border-line">
         <div className="max-w-[1120px] mx-auto px-4 md:px-10 py-2.5 md:py-4 flex items-center justify-between gap-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -976,102 +1011,61 @@ export default function Home() {
         </div>
       </section>
 
-      <div className="mt-8 p-6 bg-white/5 backdrop-blur-xl rounded-2xl w-full max-w-xl text-center shadow-2xl border border-white/10">
-        {isGroupMode ? (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-emerald-400 font-bold flex items-center gap-1"><Crown className="w-4 h-4" /> 리더: {groupLeader?.name} ({groupLeader?.seat})</span>
-              <span className="text-neutral-400">멤버: {groupMembers.length}명 / 9명</span>
-            </div>
-            {groupMembers.length > 0 && (
-              <div className="flex flex-wrap gap-2 justify-center">
-                {groupMembers.map(m => (
-                  <span key={m.seat} className="bg-sky-600/20 text-sky-300 pl-3 pr-2 py-1 rounded-full text-sm border border-sky-500/30 flex items-center gap-1 transition-all">
-                    {m.name} ({m.seat})
-                    <button onClick={() => setGroupMembers(prev => prev.filter(member => member.seat !== m.seat))} className="ml-1 text-sky-400 hover:text-rose-400 font-bold transition-colors w-5 h-5 flex items-center justify-center rounded-full hover:bg-rose-500/20">×</button>
-                  </span>
-                ))}
-              </div>
-            )}
-            <p className="text-neutral-400 text-xs">빈 좌석을 클릭하여 멤버를 추가하세요 (최대 10명)</p>
-            <div className="flex gap-3">
-              <button onClick={handleCancelGroupMode} className="flex-1 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-neutral-300 font-bold transition-all">단체 예매 취소</button>
-              <button onClick={() => { if (groupMembers.length === 0) { setIsGroupSoloConfirmOpen(true); } else { setIsGroupSummaryOpen(true); } }} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 rounded-lg text-white font-bold transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)]">완료하기 →</button>
-            </div>
+      {/* 예매 영역 위 본문 카드: 단체 멤버 목록, 내 예매의 팝콘·입금 안내 */}
+      {isGroupMode ? (
+        <div className="bg-card border border-line p-5 flex flex-col gap-4">
+          <div className="flex items-center justify-between gap-2 flex-wrap text-sm">
+            <span className="font-bold flex items-center gap-1.5"><Crown className="w-4 h-4" /> 리더: {groupLeader?.name} ({groupLeader?.seat})</span>
+            <span className="text-dim">멤버: {groupMembers.length}명 / 9명</span>
           </div>
-        ) : isClosed ? (
-           <div className="py-4 px-8 rounded-xl w-full bg-rose-900/40 border border-rose-800 text-rose-400 font-bold text-lg cursor-not-allowed">예매가 모두 마감되었습니다</div>
-        ) : myReservation && !isMovingSeat ? (
-          <div className="space-y-4">
-            <span className={`inline-flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full border ${myReservation.status === 'pending' ? 'bg-yellow-600/20 text-yellow-400 border-yellow-600 animate-pulse' : 'bg-emerald-600/20 text-emerald-400 border-emerald-500/40'}`}>
-              {myReservation.status === 'pending' ? <><Hourglass className="w-3.5 h-3.5" /> 결제 대기 중</> : <><CircleCheck className="w-3.5 h-3.5" /> 예매 확정</>}
-            </span>
-            <p className="text-lg text-neutral-200">내 좌석: <span className="text-amber-400 font-bold text-3xl md:text-4xl ml-2 tracking-tighter drop-shadow-md">{myReservation.seat}</span></p>
-            {myReservation.popcorn && myReservation.popcorn !== 'none' && (
-              <p className="text-neutral-400 text-sm flex items-center justify-center gap-1"><Popcorn className="w-4 h-4" /> 팝콘 {myReservation.popcorn.split(',').length}개 주문됨</p>
-            )}
-            {myReservation.status === 'confirmed' && (!myReservation.popcorn || myReservation.popcorn === 'none') && (
-              <button onClick={() => {
-                setPopcornList(['none']);
+          {groupMembers.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {groupMembers.map(m => (
+                <span key={m.seat} className="border border-line-strong pl-3 pr-1 py-1 text-sm flex items-center gap-1">
+                  {m.name} ({m.seat})
+                  <button type="button" aria-label={`${m.name} 빼기`} onClick={() => setGroupMembers(prev => prev.filter(member => member.seat !== m.seat))} className="w-6 h-6 flex items-center justify-center text-dim hover:text-accent font-bold transition-colors">×</button>
+                </span>
+              ))}
+            </div>
+          )}
+          <p className="text-dim text-xs">빈 좌석을 클릭하여 멤버를 추가하세요 (최대 10명)</p>
+        </div>
+      ) : !isClosed && myReservation && !isMovingSeat ? (
+        <div className="bg-card border border-line p-5 flex flex-col gap-4">
+          {myPopcorns.length > 0 && (
+            <p className="text-sub text-sm flex items-center gap-1.5"><Popcorn className="w-4 h-4" /> 팝콘 {myPopcorns.length}개 주문됨</p>
+          )}
+          {cancelLocked && <p className="text-dim text-xs">팝콘 결제가 완료된 예매는 취소할 수 없습니다.</p>}
+          {myReservation.status === 'confirmed' && myPopcorns.length === 0 && (
+            <button type="button" onClick={() => {
+              setPopcornList(['none']);
+              setIsAddPopcornMode(true);
+              setIsModalOpen(true);
+            }} className="w-full md:w-auto md:self-start h-11 px-5 border border-line-strong hover:border-line-bold text-ink font-bold transition-colors text-sm flex items-center justify-center gap-1.5"><Popcorn className="w-4 h-4" /> 팝콘 추가 (결제 필요)</button>
+          )}
+          {myReservation.status === 'pending' && (
+            <>
+              <p className="text-ink text-sm font-bold flex items-center gap-1.5"><Hourglass className="w-4 h-4 shrink-0" /> 아래 QR코드 또는 계좌로 입금을 완료해주세요.</p>
+              <div className="flex flex-col md:flex-row items-center md:items-start gap-4">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <div className="bg-white p-3 shrink-0"><img src="/qr.jpeg" alt="QR" loading="lazy" decoding="async" className="w-32 h-32 object-contain" /></div>
+                <div className="w-full"><AccountInfo /></div>
+              </div>
+              <dl className="border-t border-ink text-sm">
+                <div className="py-2.5 border-b border-line flex gap-4"><dt className="w-16 shrink-0 text-dim">결제 금액</dt><dd className="font-bold">{(myPopcorns.length * 2500).toLocaleString()}원</dd></div>
+                <div className="py-2.5 border-b border-line flex gap-4"><dt className="w-16 shrink-0 text-dim">입금자명</dt><dd className="font-bold">{profile?.student_id ?? ''} {profile?.name}</dd></div>
+              </dl>
+              <button type="button" onClick={() => {
+                setPopcornList([...myPopcorns, 'none']);
                 setIsAddPopcornMode(true);
                 setIsModalOpen(true);
-              }} className="w-full py-2.5 bg-amber-600/90 hover:bg-amber-500 border border-amber-500 rounded-lg text-white font-bold transition-all text-sm flex items-center justify-center gap-1.5"><Popcorn className="w-4 h-4" /> 팝콘 추가 (결제 필요)</button>
-            )}
-            {myReservation.status === 'pending' && (
-              <div className="bg-neutral-900/60 border border-amber-500/30 rounded-xl p-4 text-left space-y-3">
-                <p className="text-amber-300 text-sm font-bold text-center flex items-center justify-center gap-1.5"><Hourglass className="w-4 h-4" /> 아래 QR코드 또는 계좌로 입금을 완료해주세요.</p>
-                <div className="flex flex-col items-center gap-3">
-                  <div className="bg-white p-3 rounded-xl inline-block"><img src="/qr.jpeg" alt="QR" loading="lazy" decoding="async" className="w-32 h-32 object-contain" /></div>
-                  <div className="w-full"><AccountInfo /></div>
-                </div>
-                <div className="bg-neutral-800 rounded-lg p-3 text-sm">
-                  <p className="text-neutral-300 mb-1">결제 금액: <span className="text-amber-400 font-bold">{((myReservation.popcorn && myReservation.popcorn !== 'none' ? myReservation.popcorn.split(',').length : 0) * 2500).toLocaleString()}원</span></p>
-                  <p className="text-neutral-300">입금자명: <span className="text-orange-400 font-bold">{profile?.student_id ?? ''} {profile?.name}</span></p>
-                </div>
-                <button onClick={() => {
-                  const existing = myReservation.popcorn && myReservation.popcorn !== 'none' ? myReservation.popcorn.split(',') : [];
-                  setPopcornList([...existing, 'none']);
-                  setIsAddPopcornMode(true);
-                  setIsModalOpen(true);
-                }} className="w-full py-2.5 bg-amber-600 hover:bg-amber-500 border border-amber-500 rounded-lg text-white font-bold transition-all text-sm flex items-center justify-center gap-1.5"><Popcorn className="w-4 h-4" /> 팝콘 추가</button>
-              </div>
-            )}
-            <div className="flex gap-3">
-              <button onClick={() => {
-                const existing = myReservation.popcorn && myReservation.popcorn !== 'none' ? myReservation.popcorn.split(',') : [];
-                setPopcornList([...existing, 'none']);
-                setIsMovingSeat(true);
-                setSelectedSeat(null);
-              }} className="flex-1 py-3 bg-orange-600 hover:bg-orange-500 border border-orange-500 rounded-lg text-white font-bold transition-all shadow-[0_0_15px_rgba(234,88,12,0.3)] flex items-center justify-center gap-1.5"><RefreshCw className="w-4 h-4" /> 자리 이동</button>
-              {myReservation.status === 'confirmed' && myReservation.popcorn && myReservation.popcorn !== 'none' ? (
-                <button disabled title="팝콘 결제가 완료된 예매는 취소할 수 없습니다." className="flex-1 py-3 bg-neutral-700/40 border border-neutral-600 rounded-lg text-neutral-500 font-bold cursor-not-allowed flex items-center justify-center gap-1.5"><Ban className="w-4 h-4" /> 예매 취소 불가</button>
-              ) : (
-                <button onClick={handleCancelMyReservation} className="flex-1 py-3 bg-rose-600/90 hover:bg-rose-500 border border-rose-500 rounded-lg text-white font-bold transition-all flex items-center justify-center gap-1.5"><Ban className="w-4 h-4" /> 예매 취소</button>
-              )}
-            </div>
-          </div>
-        ) : isMovingSeat ? (
-          selectedSeat ? (
-            <>
-              <p className="text-lg md:text-xl mb-6 text-neutral-200">이동할 좌석: <span className="text-amber-400 font-bold text-3xl md:text-4xl ml-2 tracking-tighter drop-shadow-md">{selectedSeat}</span></p>
-              <div className="flex gap-3">
-                <button onClick={() => { setIsMovingSeat(false); setSelectedSeat(null); }} className="py-4 px-6 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-neutral-300 font-bold transition-all">취소</button>
-                <button onClick={handleSubmit} className="flex-1 bg-orange-600 hover:bg-orange-500 hover:scale-[1.02] transition-all text-white font-bold py-4 px-8 rounded-xl text-lg border border-orange-500">이 자리로 이동하기</button>
-              </div>
+              }} className="w-full md:w-auto md:self-start h-11 px-5 border border-line-strong hover:border-line-bold text-ink font-bold transition-colors text-sm flex items-center justify-center gap-1.5"><Popcorn className="w-4 h-4" /> 팝콘 추가</button>
             </>
-          ) : (
-            <div className="space-y-3">
-              <p className="text-neutral-400 py-2 font-light">이동할 빈 좌석을 선택해주세요.</p>
-              <button onClick={() => setIsMovingSeat(false)} className="py-2 px-6 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-neutral-300 font-bold text-sm transition-all">이동 취소</button>
-            </div>
-          )
-        ) : selectedSeat ? (
-          <>
-            <p className="text-lg md:text-xl mb-6 text-neutral-200">선택된 좌석: <span className="text-amber-400 font-bold text-3xl md:text-4xl ml-2 tracking-tighter drop-shadow-md">{selectedSeat}</span></p>
-            <button onClick={() => profile ? setIsModalOpen(true) : signInWithGoogle().catch(() => showAlert('로그인에 실패했습니다.'))} className="bg-orange-600 hover:bg-orange-500 hover:scale-[1.02] hover:shadow-[0_0_20px_rgba(234,88,12,0.5)] transition-all text-white font-bold py-4 px-8 rounded-xl w-full text-lg border border-orange-500">예매하기</button>
-          </>
-        ) : <p className="text-neutral-400 py-4 font-light">관람하실 좌석을 선택해주세요.</p>}
-      </div>
+          )}
+        </div>
+      ) : null}
+
+      <BookingBar {...bookingBar} />
       </>
       )}
 
