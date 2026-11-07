@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
-import { Printer, Popcorn, Clapperboard } from 'lucide-react';
+import { Printer } from 'lucide-react';
 
 
 export default function KioskPrintPage() {
@@ -127,40 +127,38 @@ export default function KioskPrintPage() {
     }
   };
 
-  const getPopcornReceiptText = (popcornString: string): React.ReactNode => {
-    const popcornArray = popcornString.split(',');
-    const POPCORN_NAMES: Record<string, string> = { original: '오리지널', consomme: '콘소메', caramel: '카라멜' };
+  // 메일 티켓과 같은 이름으로 종류별 한 줄씩 (예: 오리지널 버터 팝콘 2개)
+  const getPopcornReceiptLines = (popcornString: string): string[] => {
+    const POPCORN_NAMES: Record<string, string> = { original: '오리지널 버터 팝콘', consomme: '콘소메맛 팝콘', caramel: '카라멜맛 팝콘' };
     const counts: Record<string, number> = {};
-
-    popcornArray.forEach((p: string) => { counts[p] = (counts[p] || 0) + 1; });
-    return Object.entries(counts).map(([k, c]) => `${POPCORN_NAMES[k]} x${c}`).join(' / ');
+    popcornString.split(',').forEach((p: string) => { counts[p] = (counts[p] || 0) + 1; });
+    return Object.entries(counts).map(([k, c]) => `${POPCORN_NAMES[k] ?? k} ${c}개`);
   };
 
   if (!isAdminAuth) {
     // ... (기존 로그인 UI 화면 동일하므로 생략하지 않고 그대로 포함합니다.)
     return (
-      <div className="min-h-screen bg-neutral-950 flex flex-col items-center justify-center p-4">
-        <div className="bg-neutral-900 p-8 rounded-xl max-w-sm w-full text-center border border-orange-600 shadow-2xl">
-          <h1 className="text-2xl font-bold text-orange-500 mb-6 flex items-center justify-center gap-1.5">
-            <Printer className="w-6 h-6" />
-            KIOSK 발권기 접속
-          </h1>
-          <p className="text-neutral-400 text-sm mb-6">원활한 현장 발권 준비를 위해<br />관리자 비밀번호를 입력해주세요.</p>
+      <div className="min-h-screen bg-[#0F0F10] text-[#F2F2F0] flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-sm flex flex-col items-center gap-6 text-center">
+          <img src="/brand/logo-horizontal-dark.svg" alt="영화대교" className="w-[150px] h-auto" />
+          <div className="flex flex-col gap-1.5">
+            <h1 className="text-2xl font-black tracking-tight">발권기 열기</h1>
+            <p className="text-[#A1A1A6] text-sm">현장 발권을 시작하려면 관리자 비밀번호를 입력해 주세요.</p>
+          </div>
           <input
             type="password"
             value={adminPasswordInput}
             onChange={(e) => setAdminPasswordInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()}
-            className="w-full p-4 rounded-lg bg-neutral-800 text-white border border-neutral-600 mb-6 text-center outline-none focus:border-orange-500"
-            placeholder="비밀번호 입력"
+            className="w-full h-14 px-4 rounded-xl bg-[#18181A] text-[#F2F2F0] border border-[#2A2A2E] text-center text-lg outline-none focus:border-[#F2F2F0]"
+            placeholder="비밀번호"
           />
           <button
             onClick={handleAdminLogin}
-            className="w-full py-4 bg-orange-600 hover:bg-orange-500 rounded-lg text-black font-bold text-lg"
+            className="w-full h-14 rounded-xl bg-[#F2F2F0] text-[#0F0F10] font-black text-lg hover:bg-white transition-colors"
           >
             발권기 열기
           </button>
-
         </div>
       </div>
     );
@@ -176,99 +174,95 @@ export default function KioskPrintPage() {
         }
       `}} />
 
-      <div className="min-h-screen bg-neutral-950 text-white flex flex-col items-center justify-center p-4 print:bg-white print:text-black print:min-h-0 print:p-0 print:block select-none">
+      <div className="min-h-screen bg-[#0F0F10] text-[#F2F2F0] flex flex-col items-center justify-center p-4 print:bg-white print:text-black print:min-h-0 print:p-0 print:block select-none">
 
         {!ticketData ? (
-          <>
-            <div className="w-full max-w-md bg-neutral-900 p-8 rounded-2xl shadow-2xl border border-neutral-600 print:hidden">
-              <div className="text-center mb-8">
-                <div className="flex items-center justify-center gap-1.5 mb-3">
-                  <Clapperboard className="w-4 h-4 text-neutral-400" strokeWidth={2.5} />
-                  <span className="text-xs font-black text-neutral-400 tracking-[0.3em]">영화대교</span>
-                </div>
-                <h1 className="text-3xl font-bold text-orange-500 tracking-wider mb-2">현장 발권기</h1>
-                <p className="text-neutral-400 text-sm">현장에서 예매 티켓을 스티커/영수증으로 출력합니다.</p>
+          <div className="w-full max-w-[420px] flex flex-col gap-7 print:hidden">
+            <div className="flex flex-col items-center gap-[18px] text-center">
+              <img src="/brand/logo-horizontal-dark.svg" alt="영화대교" className="w-[170px] h-auto" />
+              <div className="flex flex-col gap-1.5">
+                <h1 className="text-[32px] font-black tracking-tight">현장 발권</h1>
+                <p className="text-[#A1A1A6] text-[15px]">예매한 티켓을 영수증으로 뽑아요.</p>
               </div>
-
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-neutral-800 border border-neutral-600">
-                  {([['학생', false], ['교직원', true]] as const).map(([label, staff]) => (
-                    <button
-                      key={label}
-                      type="button"
-                      onClick={() => setIsStaff(staff)}
-                      className={`py-3 rounded-lg text-lg font-bold transition-colors ${isStaff === staff ? 'bg-orange-600 text-black' : 'text-neutral-400 hover:text-white'}`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                {!isStaff && (
-                  <div>
-                    <label className="block text-neutral-300 mb-1 text-sm font-bold">학번</label>
-                    <input type="text" name="studentId" value={formData.studentId} onChange={handleInputChange} className="w-full p-4 rounded-xl bg-neutral-800 text-white border border-neutral-600 outline-none focus:border-orange-500 text-lg" placeholder="예: 2703" />
-                  </div>
-                )}
-                <div>
-                  <label className="block text-neutral-300 mb-1 text-sm font-bold">이름</label>
-                  <input type="text" name="name" value={formData.name} onChange={handleInputChange} onKeyDown={(e) => e.key === 'Enter' && handlePrintSubmit()} className="w-full p-4 rounded-xl bg-neutral-800 text-white border border-neutral-600 outline-none focus:border-orange-500 text-lg" placeholder="본명 입력" />
-                </div>
-              </div>
-
-              <button onClick={handlePrintSubmit} disabled={isPrinting} className="w-full mt-8 py-4 bg-orange-600 hover:bg-orange-500 text-black font-black text-xl rounded-xl shadow-[0_0_20px_rgba(234,88,12,0.4)] transition-all">
-                {isPrinting ? '티켓 정보 확인 중...' : (
-                  <span className="flex items-center justify-center gap-1.5">
-                    <Printer className="w-4 h-4" />
-                    영수증 티켓 출력하기
-                  </span>
-                )}
-              </button>
             </div>
-          </>
+
+            <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#18181A] border border-[#2A2A2E]">
+              {([['학생', false], ['교직원', true]] as const).map(([label, staff]) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => setIsStaff(staff)}
+                  className={`h-[52px] rounded-[9px] text-lg font-bold transition-colors ${isStaff === staff ? 'bg-[#F2F2F0] text-[#0F0F10]' : 'text-[#8E8E93] hover:text-[#F2F2F0]'}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex flex-col gap-3.5">
+              {!isStaff && (
+                <label className="flex flex-col gap-1.5 text-[13px] font-bold text-[#A1A1A6]">
+                  학번
+                  <input type="text" name="studentId" value={formData.studentId} onChange={handleInputChange} className="h-[58px] px-[18px] rounded-xl bg-[#18181A] text-[#F2F2F0] border border-[#2A2A2E] outline-none focus:border-[#F2F2F0] text-xl font-medium" placeholder="예: 2703" />
+                </label>
+              )}
+              <label className="flex flex-col gap-1.5 text-[13px] font-bold text-[#A1A1A6]">
+                이름
+                <input type="text" name="name" value={formData.name} onChange={handleInputChange} onKeyDown={(e) => e.key === 'Enter' && handlePrintSubmit()} className="h-[58px] px-[18px] rounded-xl bg-[#18181A] text-[#F2F2F0] border border-[#2A2A2E] outline-none focus:border-[#F2F2F0] text-xl font-medium" placeholder="이름" />
+              </label>
+            </div>
+
+            <button onClick={handlePrintSubmit} disabled={isPrinting} className="h-[62px] rounded-xl bg-[#F2F2F0] text-[#0F0F10] font-black text-[19px] hover:bg-white disabled:opacity-60 transition-colors flex items-center justify-center gap-2.5">
+              {isPrinting ? '티켓을 찾는 중…' : (
+                <>
+                  <Printer className="w-5 h-5" strokeWidth={2.2} />
+                  티켓 출력하기
+                </>
+              )}
+            </button>
+          </div>
         ) : (
-          <div className="w-[72mm] mx-auto bg-white text-black font-mono print:w-full print:m-0 print:px-4">
+          // 72mm 흑백 감열 영수증: 검정 한 가지 색만 쓴다(회색·빨강 금지)
+          <div className="w-[72mm] mx-auto bg-white text-black px-1 pt-2 pb-1 flex flex-col gap-2.5 print:w-full print:m-0 print:px-4">
 
-            <div className="text-center text-2xl font-black mb-0.5 tracking-widest pt-1">영화대교 입장권</div>
-            <div className="text-[11px] text-center text-gray-700 mb-1">{new Date().toLocaleString()} (현장_KIOSK_1)</div>
+            <div className="flex flex-col items-center gap-2">
+              <img src="/brand/logo-horizontal-mono.svg" alt="영화대교" className="w-[150px] h-auto" />
+              <div className="text-[13px] font-black tracking-[0.5em] pl-[0.5em]">입장권</div>
+              <div className="text-[11px] tabular-nums">{new Date().toLocaleString('ko-KR')} · 현장 발권</div>
+            </div>
 
-            <div className="border-b-2 border-dashed border-black my-1.5"></div>
+            <div className="border-t-2 border-dashed border-black"></div>
 
-            {/* 🌟 [수정됨] 좁은 80mm 폭에서 제목이 세로로 쪼개지지 않도록 뱃지 제거, 제목 아래 텍스트로 배치 */}
-            <div className="text-3xl font-black leading-tight tracking-tighter mb-0.5">{movieInfo?.title}</div>
-            <div className="text-sm font-bold text-gray-800 mb-1.5">{movieInfo?.age_rating || '전체관람가'}</div>
+            <div className="flex flex-col gap-0.5">
+              <div className="text-[26px] font-black leading-tight tracking-tighter">{movieInfo?.title}</div>
+              <div className="text-xs font-bold">2D · {movieInfo?.age_rating || '전체관람가'}</div>
+            </div>
 
-            {/* 🌟 [수정됨] 상영일시를 전체 폭 한 줄로 (기존엔 좁은 컬럼에 갇혀 여러 줄로 쪼개짐) */}
-            <div className="text-[13px] font-black tracking-tight border-b-[3px] border-black inline-block pb-0.5 mb-1.5">상영일시: {movieInfo?.date_string}</div>
-
-            <div className="flex justify-between items-end mb-1.5">
-              <div className="leading-tight">
-                <div className="text-sm font-bold">{movieInfo?.venue}</div>
-                <div className="text-sm font-bold mt-0.5">예매자: {ticketData.student_name} ({ticketData.student_id ?? '교직원'})</div>
+            <div className="flex justify-between items-end gap-2">
+              <div className="flex flex-col gap-[3px] text-[13px] font-medium leading-snug">
+                <div><b className="font-black">상영</b> {movieInfo?.date_string}</div>
+                {movieInfo?.venue && <div><b className="font-black">장소</b> {movieInfo.venue}</div>}
+                <div><b className="font-black">예매</b> {ticketData.student_name} ({ticketData.student_id ?? '교직원'})</div>
               </div>
-              <div className="text-right">
-                <div className="text-[12px] font-bold">관람석</div>
-                <div className="text-4xl font-black">{ticketData.seat_number}</div>
+              <div className="flex flex-col items-end shrink-0">
+                <span className="text-[11px] font-bold">관람석</span>
+                <span className="text-[46px] font-black leading-none tracking-tighter tabular-nums">{ticketData.seat_number}</span>
               </div>
             </div>
 
-            <div className="border-b-2 border-dashed border-black my-1.5"></div>
+            <div className="border-t-2 border-dashed border-black"></div>
 
             {ticketData.popcorn_order && ticketData.popcorn_order !== 'none' && (
-              <>
-                <div className="text-lg font-black mb-1 flex items-center gap-1.5">
-                  <Popcorn className="w-4 h-4" />
-                  팝콘 수령 정보
-                </div>
-                <div className="text-sm font-bold leading-tight">
-                  {getPopcornReceiptText(ticketData.popcorn_order)}
-                </div>
-              </>
+              <div className="flex flex-col gap-[3px]">
+                <div className="text-sm font-black">팝콘 수령</div>
+                {getPopcornReceiptLines(ticketData.popcorn_order).map((line) => (
+                  <div key={line} className="text-[13px] font-medium">{line}</div>
+                ))}
+              </div>
             )}
 
-            {/* 🌟 [수정됨] 팝콘/footer 사이 구분선 제거해 구분선 3개→2개로 압축 */}
-            <div className="text-center font-bold text-sm mt-2 mb-1">대구과학고등학교 영화대교</div>
-            <div className="text-[11px] leading-snug mb-2 text-left font-bold">
-              * 1인 1매 한정 출력, 분실 시 재발권/팝콘수령 불가. 팝콘 배부처에 본 티켓을 제시해주세요.
+            <div className="text-[11px] leading-normal font-medium border-[1.5px] border-black px-2 py-1.5">
+              1인 1매 한정 출력이에요. 잃어버리면 다시 뽑거나 팝콘을 받을 수 없어요. 팝콘 배부처에 이 티켓을 보여주세요.
             </div>
 
             {/* 🌟 [수정됨] 외부 API 접속 차단(CORS/Adblock) 환경을 대비해 순수 React CSS 바코드 렌더러로 완전 대체 */}
@@ -319,12 +313,14 @@ export default function KioskPrintPage() {
                       {svgElements}
                     </svg>
                   </div>
-                  <div className="text-center font-mono text-[13px] font-bold tracking-[0.2em] mt-1 text-gray-800">
+                  <div className="text-center text-[11px] font-bold tracking-[0.2em] mt-1 tabular-nums">
                     {formattedId}
                   </div>
                 </div>
               );
             })()}
+
+            <div className="text-center text-[11px] font-bold tracking-[0.12em] pb-1">대구과학고등학교 영화대교</div>
           </div>
         )}
 

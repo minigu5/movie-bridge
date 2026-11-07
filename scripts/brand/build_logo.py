@@ -150,6 +150,8 @@ def build(out_dir: str = OUT_DIR) -> list:
         "logo-square-light.svg": square(glyphs, INK_LIGHT, RED),
         "logo-horizontal-dark.svg": horizontal(glyphs, INK_DARK, RED),
         "logo-horizontal-light.svg": horizontal(glyphs, INK_LIGHT, RED),
+        # 흑백 감열 영수증용: 빨간 점도 검정
+        "logo-horizontal-mono.svg": horizontal(glyphs, INK_LIGHT, INK_LIGHT),
         "icon-hwa-dark.svg": single(glyphs, HWA, INK_DARK, RED),
         "icon-yeong-dark.svg": single(glyphs, 0, INK_DARK, RED),
         "icon-hwa-dark-small.svg": single(glyphs, HWA, INK_DARK, RED, stroke=12, scale=0.80),

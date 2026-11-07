@@ -26,7 +26,7 @@ class BuildLogoTest(unittest.TestCase):
         names = sorted(os.path.basename(p) for p in self.files)
         self.assertEqual(names, sorted([
             "logo-square-dark.svg", "logo-square-light.svg",
-            "logo-horizontal-dark.svg", "logo-horizontal-light.svg",
+            "logo-horizontal-dark.svg", "logo-horizontal-light.svg", "logo-horizontal-mono.svg",
             "icon-hwa-dark.svg", "icon-yeong-dark.svg",
             "icon-hwa-dark-small.svg", "icon-yeong-dark-small.svg",
         ]))
@@ -34,7 +34,7 @@ class BuildLogoTest(unittest.TestCase):
     def test_red_appears_once_where_hwa_exists(self):
         for p in self.files:
             svg = open(p, encoding="utf-8").read()
-            expected = 0 if "yeong" in p else 1
+            expected = 0 if ("yeong" in p or "mono" in p) else 1
             self.assertEqual(svg.count(RED), expected, p)
 
     def test_no_english_text(self):
