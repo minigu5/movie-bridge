@@ -613,7 +613,8 @@ export default function Home() {
       }
     }
 
-    const processReservation = async () => {
+    // alreadyConfirmed: 자리 이동처럼 바깥에서 이미 한 번 물어봤으면 기존 예매 변경 확인을 다시 띄우지 않는다.
+    const processReservation = async (alreadyConfirmed = false) => {
       try {
         const { data: existingTickets } = await supabase.from('reservations')
           .select('*')
@@ -639,7 +640,7 @@ export default function Home() {
             confirmMsg = `팝콘 주문 내역이 변경되었습니다.\n(추가 결제/수령 시 현장에서 문의해주세요.)\n\n` + confirmMsg;
           }
           
-          showConfirm(confirmMsg, async () => {
+          const applyChange = async () => {
             const { data: updatedTicket, error: updateError } = await supabase.from('reservations')
               .update({ seat_number: selectedSeat, popcorn_order: finalPopcornString })
               .eq('id', myOldTicket.id)
@@ -655,7 +656,9 @@ export default function Home() {
             }
             showSuccess("예매 변경 완료!", "좌석이 성공적으로 변경되었습니다.\n새로운 티켓이 학교 메일로 발송되었습니다.");
             fetchInitialData(); setIsModalOpen(false); setSelectedSeat(null); setIsMovingSeat(false);
-          });
+          };
+          if (alreadyConfirmed) return applyChange();
+          showConfirm(confirmMsg, applyChange);
           return;
         }
 
@@ -696,7 +699,12 @@ export default function Home() {
       }
     };
 
-    showConfirm(`[${selectedSeat}] 좌석 예매를 확정하시겠습니까?`, processReservation);
+    // 자리 이동은 한 번만 묻는다(예전엔 "예매를 확정할까요" → "변경할까요"를 연달아 물었다).
+    if (isMovingSeat && myReservation) {
+      showConfirm(`${myReservation.seat} → ${selectedSeat}\n이 자리로 옮길까요? 새 티켓을 메일로 보내드려요.`, () => processReservation(true));
+      return;
+    }
+    showConfirm(`[${selectedSeat}] 좌석 예매를 확정하시겠습니까?`, () => processReservation());
   };
 
   // 🌟 [예매 후 UI] 내 예매 취소
