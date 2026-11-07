@@ -40,7 +40,6 @@ interface Props {
   setNewMovieForm: (updater: any) => void;
   onSubmitNewMovie: () => void;
   onCancelNewMovie: () => void;
-  promo: PromoProps;
 }
 
 const zoneFromForm = (form: any, hall: 'mid' | 'grand'): Zone => {
@@ -108,7 +107,7 @@ function MovieFormFields({ form, setForm }: { form: any; setForm: (u: any) => vo
   );
 }
 
-function PromoMailSection({ promo, movieTitle }: { promo: PromoProps; movieTitle: string | undefined }) {
+export function PromoMailSection({ promo, movieTitle }: { promo: PromoProps; movieTitle: string | undefined }) {
   const p = promo;
   const [yy3, yy2, yy1] = activeAdmissionYears();
   const toggle = (key: keyof PromoSources) => p.setSources((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -235,15 +234,12 @@ export default function SettingsTab(props: Props) {
   const {
     movieInfo, editForm, setEditForm, onSaveSettings, bgGenerating, bgStatus, onGenerateBg,
     onStartNewMovieClick, isStartingNewMovie, newMovieForm, setNewMovieForm, onSubmitNewMovie, onCancelNewMovie,
-    promo,
   } = props;
   const [editHall, setEditHall] = useState<'mid' | 'grand'>('mid');
   const [newHall, setNewHall] = useState<'mid' | 'grand'>('mid');
 
   return (
     <div className="space-y-8">
-      <PromoMailSection promo={promo} movieTitle={movieInfo?.title} />
-
       {movieInfo && (
         <section className="bg-neutral-800 p-6 rounded-xl border border-purple-700">
           <h2 className="text-xl font-bold text-purple-400 mb-4 flex items-center gap-1.5"><Settings className="w-5 h-5" /> 현재 상영 설정 — {movieInfo.title}</h2>
