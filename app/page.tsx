@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef, useSyncExternalStore, type Compon
 import { supabase } from '../lib/supabase';
 import { ensureProfile, signInWithGoogle, signOutAndClear, authFetch, authFetchGet, DomainNotAllowedError, type AppProfile } from '../lib/supabase-auth';
 import Link from 'next/link'; // 🌟[추가] Next.js Link 임포트
-import { Crown, Check, Siren, Popcorn, Sparkles, PartyPopper, Mail, BookOpen, LogOut, Hourglass, RefreshCw, User, Users, Lightbulb, ClipboardList, CircleHelp, Ticket, PenLine } from 'lucide-react';
+import { Crown, Popcorn, Sparkles, PartyPopper, Mail, BookOpen, LogOut, Hourglass, RefreshCw, User, Users, Lightbulb, ClipboardList, CircleHelp, Ticket, PenLine, TriangleAlert } from 'lucide-react';
 
 import AccountInfo from '@/components/AccountInfo';
 import MovieReviews from '@/components/MovieReviews';
@@ -24,6 +24,12 @@ const PENDING_SEAT_KEY = 'pending_seat_selection';
 
 // 폰(md 미만)은 좌석을 구역 하나씩 보여 준다.
 const PHONE_QUERY = '(max-width: 767px)';
+// 창(모달) 공통 모양: 덮개, 상자, 흰 주버튼(각진 모서리), 테두리 보조버튼
+const OVERLAY = 'fixed inset-0 bg-ground/90 flex items-center justify-center p-4';
+const BOX = 'bg-card border border-line rounded-lg';
+const BTN_PRIMARY = 'h-12 px-4 bg-ink text-ground font-bold hover:bg-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed';
+const BTN_SECONDARY = 'h-12 px-4 border border-line-strong text-ink font-bold hover:border-line-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed';
+
 function subscribePhone(onChange: () => void) {
   const mq = window.matchMedia(PHONE_QUERY);
   mq.addEventListener('change', onChange);
@@ -131,7 +137,7 @@ export default function Home() {
   const defectiveSeats = useMemo(() => new Set(movieInfo.defective_seats ?? []), [movieInfo]);
   const warnIfDefective = (seatId: string, proceed: () => void) => {
     if (!defectiveSeats.has(seatId)) return proceed();
-    showConfirm(`⚠️ ${seatId}번 좌석은 의자에 하자가 있습니다.\n그래도 이 좌석을 선택하시겠습니까?`, proceed);
+    showConfirm(`${seatId}번 좌석은 의자에 하자가 있습니다.\n그래도 이 좌석을 선택하시겠습니까?`, proceed);
   };
 
   // 🌟 [과거 상영 회차 열람] 과거 회차 목록/현재 보고 있는 인덱스(null=현재 상영작)/좌석 점유(익명) 상태
@@ -1084,30 +1090,30 @@ export default function Home() {
       </footer>
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-neutral-950/95 flex items-center justify-center p-4 z-50 overflow-y-auto duration-300">
-          <div className="bg-neutral-900/90 backdrop-blur-xl p-6 rounded-2xl w-full max-w-md border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] my-8">
-            <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">{isAddPopcornMode ? <><Popcorn className="w-5 h-5" /> 팝콘 추가</> : '예매 정보 입력'}</h2>
+        <div className={`${OVERLAY} z-50 overflow-y-auto`}>
+          <div className={`${BOX} p-6 w-full max-w-md my-8`}>
+            <h2 className="text-2xl font-black text-ink mb-6 flex items-center gap-2">{isAddPopcornMode ? <><Popcorn className="w-5 h-5" /> 팝콘 추가</> : '예매 정보 입력'}</h2>
             <div className="space-y-4 text-left">
               {!isAddPopcornMode && (
-                <div className="bg-neutral-800/50 p-4 rounded-xl border border-neutral-700/50">
-                  <p className="text-neutral-500 text-xs mb-1">예매자 (구글 계정으로 확인됨)</p>
-                  <p className="text-white font-bold text-lg">{profile?.name} <span className="text-neutral-400 font-normal text-sm">{profile?.student_id ?? '교직원'}</span></p>
-                  <p className="text-neutral-500 text-xs mt-1">{profile?.email}</p>
+                <div className="bg-raised p-4 border border-line">
+                  <p className="text-dim text-xs mb-1">예매자 (구글 계정으로 확인됨)</p>
+                  <p className="text-ink font-bold text-lg">{profile?.name} <span className="text-sub font-normal text-sm">{profile?.student_id ?? '교직원'}</span></p>
+                  <p className="text-dim text-xs mt-1">{profile?.email}</p>
                 </div>
               )}
 
-              <div className="bg-neutral-800/50 p-4 rounded-xl border border-neutral-700/50">
-                <label className="flex items-center gap-1.5 text-neutral-300 mb-3 text-sm font-bold"><Popcorn className="w-4 h-4" /> 팝콘 선택 (개당 2,500원)</label>
-                
+              <div className="bg-raised p-4 border border-line">
+                <label className="flex items-center gap-1.5 text-ink mb-3 text-sm font-bold"><Popcorn className="w-4 h-4" /> 팝콘 선택 (개당 2,500원)</label>
+
                 {popcornList.map((pop, idx) => (
                   <div key={idx} className="mb-3 flex items-center gap-2">
-                    <span className="text-neutral-400 text-xs w-12 text-center">
+                    <span className="text-dim text-xs w-12 text-center">
                       {pop === 'none' ? '추가' : `선택 ${idx + 1}`}
                     </span>
-                    <select 
-                      value={pop} 
+                    <select
+                      value={pop}
                       onChange={(e) => handlePopcornChange(idx, e.target.value)}
-                      className="flex-1 p-2 rounded-lg bg-neutral-900 border border-neutral-600 outline-none text-sm text-neutral-200"
+                      className="flex-1 min-w-0 p-2 bg-ground border border-line-strong outline-none text-sm text-ink focus:border-line-bold"
                     >
                       <option value="none">{pop === 'none' ? '+ 팝콘 추가하기 (선택 시 결제 필요)' : '선택 취소'}</option>
                       <option value="original">오리지널 버터 팝콘 (2,500원)</option>
@@ -1116,27 +1122,27 @@ export default function Home() {
                     </select>
                   </div>
                 ))}
-                
-                <p className="text-xs text-neutral-400 mt-2">* 팝콘은 여러 개 추가할 수 있습니다. (음료는 배부하지 않습니다.)</p>
-                
+
+                <p className="text-xs text-dim mt-2">* 팝콘은 여러 개 추가할 수 있습니다. (음료는 배부하지 않습니다.)</p>
+
                 {(popcornList.filter(p => p !== 'none').length * 2500) > 0 && (
-                  <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg flex justify-between items-center">
-                    <span className="text-amber-400 font-bold">총 결제 예정 금액</span>
-                    <span className="text-xl font-bold text-amber-400">{(popcornList.filter(p => p !== 'none').length * 2500).toLocaleString()}원</span>
+                  <div className="mt-4 pt-3 border-t border-ink flex justify-between items-center">
+                    <span className="text-ink font-bold">총 결제 예정 금액</span>
+                    <span className="text-xl font-black text-ink">{(popcornList.filter(p => p !== 'none').length * 2500).toLocaleString()}원</span>
                   </div>
                 )}
               </div>
 
             </div>
-            
+
             <div className="flex gap-3 mt-8">
-              <button onClick={() => { setIsModalOpen(false); setIsAddPopcornMode(false); }} className="py-3 px-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-neutral-300 font-bold transition-all text-sm">취소</button>
+              <button onClick={() => { setIsModalOpen(false); setIsAddPopcornMode(false); }} className={`${BTN_SECONDARY} text-sm`}>취소</button>
               {isAddPopcornMode ? (
-                <button onClick={handleAddPopcornSubmit} className="flex-1 py-3 bg-amber-600 hover:bg-amber-500 border border-amber-500 rounded-lg text-white font-bold transition-all shadow-[0_0_15px_rgba(217,119,6,0.3)] text-sm">추가하기</button>
+                <button onClick={handleAddPopcornSubmit} className={`${BTN_PRIMARY} flex-1 text-sm`}>추가하기</button>
               ) : (
                 <>
-                  <button onClick={handleSubmit} className="flex-1 py-3 bg-orange-600 hover:bg-orange-500 border border-orange-500 rounded-lg text-white font-bold transition-all shadow-[0_0_15px_rgba(234,88,12,0.3)] text-sm">예매 확정하기</button>
-                  <button onClick={handleGroupStart} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 rounded-lg text-white font-bold transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)] text-sm">단체 예매하기</button>
+                  <button onClick={handleSubmit} className={`${BTN_PRIMARY} flex-1 text-sm`}>예매 확정하기</button>
+                  <button onClick={handleGroupStart} className={`${BTN_SECONDARY} flex-1 text-sm`}>단체 예매하기</button>
                 </>
               )}
             </div>
@@ -1144,32 +1150,31 @@ export default function Home() {
         </div>
       )}
       {isPaymentModalOpen && (
-        <div className="fixed inset-0 bg-neutral-950/95 flex items-center justify-center p-4 z-[60]">
-          <div className="bg-neutral-900/90 backdrop-blur-xl p-8 rounded-2xl max-w-sm border border-amber-500/30 text-center shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-            <h2 className="text-2xl font-bold text-amber-400 mb-2">결제 대기 중</h2>
-            <p className="text-neutral-300 mb-6 text-sm">QR코드로 30분 내에 입금을 완료해주세요.</p>
-            <div className="bg-white p-4 rounded-xl mb-4 inline-block"><img src="/qr.jpeg" alt="QR" loading="lazy" decoding="async" className="w-48 h-48 object-contain" /></div>
+        <div className={`${OVERLAY} z-[60]`}>
+          <div className={`${BOX} p-8 max-w-sm w-full text-center`}>
+            <h2 className="text-2xl font-black text-ink mb-2">결제 대기 중</h2>
+            <p className="text-sub mb-6 text-sm">QR코드로 30분 내에 입금을 완료해주세요.</p>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <div className="bg-white p-4 mb-4 inline-block"><img src="/qr.jpeg" alt="QR" loading="lazy" decoding="async" className="w-48 h-48 object-contain" /></div>
             <div className="mb-6"><AccountInfo /></div>
-            <div className="bg-neutral-800 rounded-xl p-4 text-left mb-6 border border-neutral-700">
-              <p className="text-sm text-neutral-300 mb-1">결제 금액: <span className="text-amber-400 font-bold text-xl">{(popcornList.filter(p => p !== 'none').length * 2500).toLocaleString()}원</span></p>
-              <p className="text-sm text-neutral-300">입금자명: <span className="text-orange-400 font-bold">{profile?.student_id ?? ''} {profile?.name}</span></p>
-            </div>
-            <button onClick={() => { setIsPaymentModalOpen(false); setSelectedSeat(null); }} className="w-full py-3 bg-orange-600 hover:bg-orange-500 rounded-xl text-white font-bold transition-all text-sm">닫기</button>
+            <dl className="border-t border-ink text-left text-sm mb-6">
+              <div className="py-2.5 border-b border-line flex items-baseline gap-4"><dt className="w-16 shrink-0 text-dim">결제 금액</dt><dd className="font-black text-xl">{(popcornList.filter(p => p !== 'none').length * 2500).toLocaleString()}원</dd></div>
+              <div className="py-2.5 border-b border-line flex gap-4"><dt className="w-16 shrink-0 text-dim">입금자명</dt><dd className="font-bold">{profile?.student_id ?? ''} {profile?.name}</dd></div>
+            </dl>
+            <button onClick={() => { setIsPaymentModalOpen(false); setSelectedSeat(null); }} className={`${BTN_PRIMARY} w-full text-sm`}>닫기</button>
           </div>
         </div>
       )}
 
       {/* 🌟 [신규] 단체 멤버 없이 완료 시 선택 모달 */}
       {isGroupSoloConfirmOpen && groupLeader && (
-        <div className="fixed inset-0 bg-neutral-950/90 flex items-center justify-center p-4 z-50">
-          <div className="bg-neutral-900 border border-neutral-700 p-8 rounded-2xl w-full max-w-sm shadow-[0_0_40px_rgba(0,0,0,0.8)] text-center">
-            <div className="w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CircleHelp className="w-8 h-8 text-amber-400" />
-            </div>
-            <h2 className="text-xl font-bold text-white mb-2">어떻게 하시겠습니까?</h2>
-            <p className="text-neutral-400 text-sm mb-6">
+        <div className={`${OVERLAY} z-50`}>
+          <div className={`${BOX} p-8 w-full max-w-sm text-center`}>
+            <CircleHelp className="w-10 h-10 text-sub mx-auto mb-4" />
+            <h2 className="text-xl font-black text-ink mb-2">어떻게 하시겠습니까?</h2>
+            <p className="text-sub text-sm mb-6">
               추가된 멤버가 없습니다.<br/>
-              <span className="text-white font-bold">{groupLeader.name}</span>님의 좌석({groupLeader.seat})만 혼자 예매하거나,<br/>
+              <span className="text-ink font-bold">{groupLeader.name}</span>님의 좌석({groupLeader.seat})만 혼자 예매하거나,<br/>
               계속해서 단체 멤버를 추가할 수 있습니다.
             </p>
             <div className="flex flex-col gap-3">
@@ -1183,19 +1188,19 @@ export default function Home() {
                   setGroupMembers([]);
                   setIsModalOpen(true);
                 }}
-                className="w-full py-4 bg-orange-600 hover:bg-orange-500 rounded-xl text-white font-bold transition-all shadow-[0_0_15px_rgba(249,115,22,0.3)] flex items-center justify-center gap-2"
+                className={`${BTN_PRIMARY} w-full flex items-center justify-center gap-2`}
               >
                 <User className="w-5 h-5" /> 혼자 예매하기
               </button>
               <button
                 onClick={() => setIsGroupSoloConfirmOpen(false)}
-                className="w-full py-4 bg-emerald-700 hover:bg-emerald-600 rounded-xl text-white font-bold transition-all flex items-center justify-center gap-2"
+                className={`${BTN_SECONDARY} w-full flex items-center justify-center gap-2`}
               >
                 <Users className="w-5 h-5" /> 계속 단체 추가하기
               </button>
               <button
                 onClick={() => { setIsGroupSoloConfirmOpen(false); setIsGroupMode(false); setGroupLeader(null); setGroupMembers([]); setSelectedSeat(null); }}
-                className="w-full py-3 bg-white/5 hover:bg-white/10 rounded-xl text-neutral-400 font-bold transition-all text-sm"
+                className="w-full py-3 text-accent hover:opacity-80 font-bold transition-opacity text-sm"
               >
                 단체 예매 전체 취소
               </button>
@@ -1205,91 +1210,91 @@ export default function Home() {
       )}
 
       {isManualOpen && (
-        <div className="fixed inset-0 bg-neutral-950/90 flex items-center justify-center p-4 z-50 animate-in fade-in zoom-in duration-200">
-          <div className="bg-neutral-900 border border-neutral-700 p-6 md:p-8 rounded-2xl w-full max-w-lg shadow-[0_0_40px_rgba(0,0,0,0.8)] max-h-[90vh] overflow-y-auto">
-            <h2 className="text-2xl font-bold text-orange-400 mb-6 flex items-center gap-2"><BookOpen className="w-6 h-6" /> 영화대교 예매 가이드</h2>
-            
-            <div className="space-y-6 text-neutral-300 text-sm md:text-base">
+        <div className={`${OVERLAY} z-50`}>
+          <div className={`${BOX} p-6 md:p-8 w-full max-w-lg max-h-[90vh] overflow-y-auto`}>
+            <h2 className="text-2xl font-black text-ink mb-6 flex items-center gap-2"><BookOpen className="w-6 h-6" /> 영화대교 예매 가이드</h2>
+
+            <div className="space-y-6 text-sub text-sm md:text-base">
               <div>
-                <h3 className="font-bold text-white text-lg mb-1">1. 좌석 선택 및 예매</h3>
-                <p>배치도에서 원하는 좌석을 누른 후, 화면 하단의 <span className="text-orange-400 font-bold">예매하기</span> 버튼을 클릭하면, 로그인된 구글 계정 정보로 바로 예약이 확정됩니다.</p>
-                <div className="mt-3 bg-orange-500/10 border border-orange-500/20 p-4 rounded-xl text-sm">
+                <h3 className="font-bold text-ink text-lg mb-1">1. 좌석 선택 및 예매</h3>
+                <p>배치도에서 원하는 좌석을 누른 후, 화면 하단의 <span className="text-ink font-bold">예매하기</span> 버튼을 클릭하면, 로그인된 구글 계정 정보로 바로 예약이 확정됩니다.</p>
+                <div className="mt-3 bg-raised border border-line p-4 text-sm">
                   <div className="flex items-start gap-3">
-                    <Lightbulb className="w-5 h-5 text-orange-300 shrink-0" />
-                    <p className="text-orange-200 leading-relaxed">
-                      <span className="font-bold text-orange-300">학번/이름은 구글 계정 이름에서 자동으로 인식됩니다.</span><br/>
+                    <Lightbulb className="w-5 h-5 text-dim shrink-0" />
+                    <p className="text-sub leading-relaxed">
+                      <span className="font-bold text-ink">학번/이름은 구글 계정 이름에서 자동으로 인식됩니다.</span><br/>
                       정보가 잘못 표시되면 동아리 관리자에게 문의해주세요.
                     </p>
                   </div>
                 </div>
 
                 {/* 🌟 [디자인 개선] 좌석 변경 안내 섹션 */}
-                <div className="mt-3 bg-neutral-800/50 border border-neutral-700 p-4 rounded-xl text-sm group transition-all hover:border-orange-500/50">
+                <div className="mt-3 bg-raised border border-line p-4 text-sm">
                   <div className="flex items-center gap-3 mb-2">
-                    <div className="w-8 h-8 rounded-full bg-orange-600/20 flex items-center justify-center text-orange-400 font-bold"><RefreshCw className="w-4 h-4" /></div>
-                    <span className="font-bold text-orange-300 text-base">좌석 변경 방법</span>
+                    <div className="w-8 h-8 rounded-full border border-line-strong flex items-center justify-center text-ink"><RefreshCw className="w-4 h-4" /></div>
+                    <span className="font-bold text-ink text-base">좌석 변경 방법</span>
                   </div>
-                  <p className="text-neutral-400 leading-relaxed ml-11">
-                    예매되지 않은 빈 좌석을 선택하여 예매를 다시 진행하면, <span className="text-white">기존 좌석은 자동으로 취소</span>되고 즉시 새로운 좌석으로 변경됩니다.
+                  <p className="text-sub leading-relaxed ml-11">
+                    예매되지 않은 빈 좌석을 선택하여 예매를 다시 진행하면, <span className="text-ink">기존 좌석은 자동으로 취소</span>되고 즉시 새로운 좌석으로 변경됩니다.
                   </p>
                 </div>
               </div>
-              
+
               <div>
-                <h3 className="font-bold text-white text-lg mb-1">2. 모바일 티켓 (이메일 수신)</h3>
-                <p>성공적으로 예매가 완료되면, 입력하신 인적 사항에 해당하는 <span className="text-amber-400 font-bold">학교 이메일</span>로 모바일 티켓(예매 내역)이 즉시 발송됩니다.</p>
+                <h3 className="font-bold text-ink text-lg mb-1">2. 모바일 티켓 (이메일 수신)</h3>
+                <p>성공적으로 예매가 완료되면, 입력하신 인적 사항에 해당하는 <span className="text-ink font-bold">학교 이메일</span>로 모바일 티켓(예매 내역)이 즉시 발송됩니다.</p>
               </div>
 
               <div>
-                <h3 className="font-bold text-white text-lg mb-1">3. 좌석 범례 안내</h3>
+                <h3 className="font-bold text-ink text-lg mb-1">3. 좌석 범례 안내</h3>
                 <div className="grid grid-cols-2 gap-2 mt-2">
-                  <div className="flex items-center gap-2 text-xs bg-neutral-800/30 p-2 rounded-lg border border-white/5">
-                    <div className="w-5 h-6 bg-white/10 rounded-t-md rounded-b-sm flex-shrink-0"></div>
-                    <span className="text-neutral-400">예매 가능</span>
+                  <div className="flex items-center gap-2 text-xs bg-raised p-2 border border-line">
+                    <div className="w-5 h-6 bg-seat border border-line-bold rounded-t-md rounded-b-sm flex-shrink-0"></div>
+                    <span className="text-sub">예매 가능</span>
                   </div>
-                  <div className="flex items-center gap-2 text-xs bg-amber-900/40 p-2 rounded-lg border border-amber-500/30">
-                    <div className="w-5 h-6 bg-amber-900/60 border border-amber-500/50 rounded-t-md rounded-b-sm flex-shrink-0 flex items-center justify-center"><Crown className="w-3 h-3 text-amber-300" /></div>
-                    <span className="text-amber-300">동아리 전용</span>
+                  <div className="flex items-center gap-2 text-xs bg-raised p-2 border border-line">
+                    <div className="w-5 h-6 bg-seat border-2 border-ink rounded-t-md rounded-b-sm flex-shrink-0"></div>
+                    <span className="text-sub">동아리 전용</span>
                   </div>
-                  <div className="flex items-center gap-2 text-xs bg-neutral-800 p-2 rounded-lg border border-neutral-700">
-                    <div className="w-5 h-6 bg-neutral-800/80 rounded-t-md rounded-b-sm flex-shrink-0 flex items-center justify-center"><Check className="w-3 h-3 text-neutral-500" /></div>
-                    <span className="text-neutral-500">예매 완료</span>
+                  <div className="flex items-center gap-2 text-xs bg-raised p-2 border border-line">
+                    <div className="w-5 h-6 bg-taken rounded-t-md rounded-b-sm flex-shrink-0"></div>
+                    <span className="text-sub">예매 완료</span>
                   </div>
-                  <div className="flex items-center gap-2 text-xs bg-yellow-600/10 p-2 rounded-lg border border-yellow-600/40">
-                    <div className="w-5 h-6 bg-yellow-600/20 border border-yellow-600 rounded-t-md rounded-b-sm animate-pulse flex-shrink-0"></div>
-                    <span className="text-yellow-400">팝콘 결제 대기</span>
+                  <div className="flex items-center gap-2 text-xs bg-raised p-2 border border-line">
+                    <div className="w-5 h-6 bg-taken rounded-t-md rounded-b-sm flex-shrink-0" style={{ backgroundImage: 'repeating-linear-gradient(135deg, #2A2A2E 0 3px, #333338 3px 6px)' }}></div>
+                    <span className="text-sub">팝콘 결제 대기</span>
                   </div>
                 </div>
               </div>
 
               {/* 🌟 [신규 추가] 팝콘 선택 안내 */}
               <div>
-                <h3 className="font-bold text-amber-400 text-lg mb-1 flex items-center gap-1.5">4. 팝콘 선택 안내 <Popcorn className="w-4 h-4" /></h3>
-                <p className="text-neutral-300">예매 시 팝콘을 선택하면 현장에서 수령할 수 있습니다.</p>
-                <ul className="list-disc list-inside mt-2 space-y-1 text-sm text-neutral-400 ml-2 leading-relaxed">
-                  <li>팝콘 1개당 <span className="text-amber-400 font-bold">2,500원</span> (현장 결제)</li>
+                <h3 className="font-bold text-ink text-lg mb-1 flex items-center gap-1.5">4. 팝콘 선택 안내 <Popcorn className="w-4 h-4" /></h3>
+                <p className="text-sub">예매 시 팝콘을 선택하면 현장에서 수령할 수 있습니다.</p>
+                <ul className="list-disc list-inside mt-2 space-y-1 text-sm text-sub ml-2 leading-relaxed">
+                  <li>팝콘 1개당 <span className="text-ink font-bold">2,500원</span> (현장 결제)</li>
                   <li>종류: 오리지널 버터, 콘소메맛, 카라멜맛</li>
-                  <li>팝콘 선택 시 좌석은 <span className="text-yellow-400 font-bold">결제 대기(노란색)</span>로 표시</li>
-                  <li>결제 확인 후 관리자가 <span className="text-white font-bold">예매 확정</span>으로 변경</li>
-                  <li>팝콘 없이 <span className="text-white font-bold">무료로 예매 확정</span>된 이후에도 <span className="text-amber-400 font-bold">팝콘 추가</span> 버튼으로 언제든 팝콘을 추가 주문할 수 있음 (추가 시 결제 대기로 전환)</li>
+                  <li>팝콘 선택 시 좌석은 <span className="text-ink font-bold">결제 대기(빗금 무늬)</span>로 표시</li>
+                  <li>결제 확인 후 관리자가 <span className="text-ink font-bold">예매 확정</span>으로 변경</li>
+                  <li>팝콘 없이 <span className="text-ink font-bold">무료로 예매 확정</span>된 이후에도 <span className="text-ink font-bold">팝콘 추가</span> 버튼으로 언제든 팝콘을 추가 주문할 수 있음 (추가 시 결제 대기로 전환)</li>
                 </ul>
               </div>
 
               {/* 🌟 [신규 추가] 단체 예매 안내 */}
               <div>
-                <h3 className="font-bold text-emerald-400 text-lg mb-1">5. 단체 예매 안내 (최대 10명)</h3>
-                <p className="text-neutral-300">리더는 본인을 포함해 <span className="text-white font-bold">최대 10명</span>까지 한 번에 예매할 수 있습니다.</p>
-                <ul className="list-disc list-inside mt-2 space-y-1 text-sm text-neutral-400 ml-2 leading-relaxed">
+                <h3 className="font-bold text-ink text-lg mb-1">5. 단체 예매 안내 (최대 10명)</h3>
+                <p className="text-sub">리더는 본인을 포함해 <span className="text-ink font-bold">최대 10명</span>까지 한 번에 예매할 수 있습니다.</p>
+                <ul className="list-disc list-inside mt-2 space-y-1 text-sm text-sub ml-2 leading-relaxed">
                   <li>리더가 멤버들의 좌석을 지정하여 예매</li>
-                  <li>멤버들에게 즉시 <span className="text-emerald-400">초대 이메일</span>이 발송됨</li>
-                  <li>멤버는 <span className="text-amber-400 font-bold underline underline-offset-4">1시간 이내</span>에 수락 및 확정 필수</li>
+                  <li>멤버들에게 즉시 <span className="text-ink">초대 이메일</span>이 발송됨</li>
+                  <li>멤버는 <span className="text-ink font-bold underline underline-offset-4">1시간 이내</span>에 수락 및 확정 필수</li>
                   <li>미확정 시 해당 좌석은 자동으로 취소됨</li>
                 </ul>
               </div>
 
             </div>
 
-            <button onClick={() => setIsManualOpen(false)} className="w-full mt-8 py-4 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-xl transition-all border border-neutral-600 shadow-md">
+            <button onClick={() => setIsManualOpen(false)} className={`${BTN_PRIMARY} w-full mt-8`}>
               닫기
             </button>
           </div>
@@ -1297,149 +1302,149 @@ export default function Home() {
       )}
 
       {isGroupMemberModal && selectedSeat && (
-        <div className="fixed inset-0 bg-neutral-950/95 flex items-center justify-center p-4 z-50">
-          <div className="bg-neutral-900/90 backdrop-blur-xl p-6 rounded-2xl w-full max-w-md border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-            <h2 className="text-2xl font-bold text-white mb-2">단체 멤버 추가</h2>
-            <p className="text-neutral-400 text-sm mb-6">좌석 <span className="text-sky-400 font-bold">{selectedSeat}</span>에 앉을 사람을 검색하세요. <span className="text-amber-400">한 번이라도 로그인한 적이 있어야</span> 검색됩니다.</p>
+        <div className={`${OVERLAY} z-50`}>
+          <div className={`${BOX} p-6 w-full max-w-md`}>
+            <h2 className="text-2xl font-black text-ink mb-2">단체 멤버 추가</h2>
+            <p className="text-sub text-sm mb-6">좌석 <span className="text-ink font-bold">{selectedSeat}</span>에 앉을 사람을 검색하세요. <span className="text-ink">한 번이라도 로그인한 적이 있어야</span> 검색됩니다.</p>
             <div className="space-y-4 text-left">
               <div>
-                <label className="block text-neutral-300 mb-1 text-sm">이름 또는 학번으로 검색</label>
+                <label className="block text-sub mb-1 text-sm">이름 또는 학번으로 검색</label>
                 <input
                   type="text"
                   value={memberSearchQuery}
                   onChange={e => { setMemberSearchQuery(e.target.value); setSelectedMember(null); }}
-                  className="w-full p-3 rounded-lg bg-neutral-800/80 text-white border border-white/10 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all"
+                  className="w-full p-3 bg-ground text-ink border border-line-strong focus:border-ink outline-none transition-colors"
                   placeholder="예: 신민규 또는 2208"
                 />
               </div>
               {memberSearchQuery.trim().length > 0 && (
                 <div className="max-h-48 overflow-y-auto space-y-1">
                   {memberSearchResults.length === 0 && (
-                    <p className="text-neutral-500 text-xs px-1">검색 결과가 없습니다. 아직 로그인한 적이 없는 사람일 수 있어요.</p>
+                    <p className="text-dim text-xs px-1">검색 결과가 없습니다. 아직 로그인한 적이 없는 사람일 수 있어요.</p>
                   )}
                   {memberSearchResults.map(r => (
                     <button
                       key={r.id}
                       onClick={() => { setSelectedMember(r); setMemberSearchQuery(r.name); setMemberSearchResults([]); }}
-                      className={`w-full text-left p-3 rounded-lg border transition-all ${selectedMember?.id === r.id ? 'bg-sky-600/30 border-sky-500' : 'bg-neutral-800/60 border-white/10 hover:bg-neutral-700/60'}`}
+                      className={`w-full text-left p-3 border transition-colors ${selectedMember?.id === r.id ? 'bg-raised border-ink' : 'bg-ground border-line hover:border-line-bold'}`}
                     >
-                      <span className="text-white font-bold">{r.name}</span>
-                      {r.student_id && <span className="text-neutral-400 text-sm ml-2">{r.student_id}</span>}
+                      <span className="text-ink font-bold">{r.name}</span>
+                      {r.student_id && <span className="text-dim text-sm ml-2">{r.student_id}</span>}
                     </button>
                   ))}
                 </div>
               )}
             </div>
             <div className="flex gap-3 mt-8">
-              <button onClick={() => { setIsGroupMemberModal(false); setSelectedSeat(null); setMemberSearchQuery(''); setMemberSearchResults([]); setSelectedMember(null); }} className="py-3 px-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-neutral-300 font-bold transition-all text-sm">취소</button>
-              <button onClick={() => handleAddGroupMember(false)} disabled={!selectedMember} className="flex-1 py-3 bg-sky-600 hover:bg-sky-500 disabled:opacity-40 disabled:cursor-not-allowed border border-sky-500 rounded-lg text-white font-bold transition-all text-sm">계속하기</button>
-              <button onClick={() => handleAddGroupMember(true)} disabled={!selectedMember} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed border border-emerald-500 rounded-lg text-white font-bold transition-all text-sm">완료하기</button>
+              <button onClick={() => { setIsGroupMemberModal(false); setSelectedSeat(null); setMemberSearchQuery(''); setMemberSearchResults([]); setSelectedMember(null); }} className={`${BTN_SECONDARY} text-sm`}>취소</button>
+              <button onClick={() => handleAddGroupMember(false)} disabled={!selectedMember} className={`${BTN_SECONDARY} flex-1 text-sm`}>계속하기</button>
+              <button onClick={() => handleAddGroupMember(true)} disabled={!selectedMember} className={`${BTN_PRIMARY} flex-1 text-sm`}>완료하기</button>
             </div>
           </div>
         </div>
       )}
 
       {isGroupSummaryOpen && groupLeader && (
-        <div className="fixed inset-0 bg-neutral-950/95 flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-neutral-900 border border-emerald-500/30 p-6 md:p-8 rounded-2xl w-full max-w-lg shadow-[0_0_40px_rgba(16,185,129,0.2)] my-8">
-            <h2 className="text-2xl font-bold text-emerald-400 mb-6 flex items-center gap-2"><ClipboardList className="w-6 h-6" /> 단체 예매 최종 확인</h2>
+        <div className={`${OVERLAY} z-50 overflow-y-auto`}>
+          <div className={`${BOX} p-6 md:p-8 w-full max-w-lg my-8`}>
+            <h2 className="text-2xl font-black text-ink mb-6 flex items-center gap-2"><ClipboardList className="w-6 h-6" /> 단체 예매 최종 확인</h2>
             <div className="space-y-3 mb-6">
-              <div className="bg-emerald-900/30 border border-emerald-500/30 p-4 rounded-xl flex items-center gap-3">
-                <Crown className="w-5 h-5 text-emerald-400 shrink-0" />
+              <div className="bg-raised border border-line-strong p-4 flex items-center gap-3">
+                <Crown className="w-5 h-5 text-ink shrink-0" />
                 <div>
-                  <p className="text-emerald-300 font-bold">{groupLeader.name} <span className="text-emerald-500 text-xs">(리더)</span></p>
-                  <p className="text-neutral-400 text-sm">좌석: {groupLeader.seat} · {groupLeader.studentId ?? '교직원'}</p>
+                  <p className="text-ink font-bold">{groupLeader.name} <span className="text-dim text-xs">(리더)</span></p>
+                  <p className="text-sub text-sm">좌석: {groupLeader.seat} · {groupLeader.studentId ?? '교직원'}</p>
                 </div>
               </div>
               {groupMembers.map((m, i) => (
-                <div key={m.seat} className="bg-sky-900/20 border border-sky-500/20 p-4 rounded-xl flex items-center justify-between">
+                <div key={m.seat} className="border border-line p-4 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <span className="text-sky-400 font-bold text-lg">{i + 1}</span>
+                    <span className="text-dim font-bold text-lg">{i + 1}</span>
                     <div>
-                      <p className="text-sky-300 font-bold">{m.name}</p>
-                      <p className="text-neutral-400 text-sm">좌석: {m.seat} · {m.studentId ?? '교직원'}</p>
+                      <p className="text-ink font-bold">{m.name}</p>
+                      <p className="text-sub text-sm">좌석: {m.seat} · {m.studentId ?? '교직원'}</p>
                     </div>
                   </div>
-                  <button onClick={() => setGroupMembers(prev => prev.filter(member => member.seat !== m.seat))} className="w-8 h-8 flex items-center justify-center rounded-full bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white transition-colors" title="멤버 제거">
+                  <button onClick={() => setGroupMembers(prev => prev.filter(member => member.seat !== m.seat))} className="w-8 h-8 flex items-center justify-center text-accent hover:opacity-80 transition-opacity" title="멤버 제거">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
                   </button>
                 </div>
               ))}
             </div>
-            <div className="bg-amber-900/20 border border-amber-500/30 p-4 rounded-xl mb-6">
-              <p className="text-amber-300 text-sm font-bold flex items-center gap-1.5"><Hourglass className="w-4 h-4" /> 1시간 안에 초대 이메일에 응답한 사람만 예매가 확정됩니다.</p>
-              <p className="text-neutral-400 text-xs mt-1">미응답 시 해당 좌석은 자동으로 해제됩니다.</p>
+            <div className="bg-raised border border-line p-4 mb-6">
+              <p className="text-ink text-sm font-bold flex items-center gap-1.5"><Hourglass className="w-4 h-4" /> 1시간 안에 초대 이메일에 응답한 사람만 예매가 확정됩니다.</p>
+              <p className="text-dim text-xs mt-1">미응답 시 해당 좌석은 자동으로 해제됩니다.</p>
             </div>
-            <p className="text-neutral-300 text-sm text-center mb-6">단체의 모든 사람에게 초대 이메일을 발송하시겠습니까?</p>
+            <p className="text-sub text-sm text-center mb-6">단체의 모든 사람에게 초대 이메일을 발송하시겠습니까?</p>
             <div className="flex gap-3">
-              <button onClick={() => setIsGroupSummaryOpen(false)} className="flex-1 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-neutral-300 font-bold transition-all">돌아가기</button>
-              <button onClick={handleGroupFinalize} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 rounded-lg text-white font-bold transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)]">확정 및 이메일 발송</button>
+              <button onClick={() => setIsGroupSummaryOpen(false)} className={`${BTN_SECONDARY} flex-1`}>돌아가기</button>
+              <button onClick={handleGroupFinalize} className={`${BTN_PRIMARY} flex-1`}>확정 및 이메일 발송</button>
             </div>
           </div>
         </div>
       )}
 
       {groupSendingProgress.sending && (
-        <div className="fixed inset-0 bg-neutral-950/95 flex items-center justify-center p-4 z-[100]">
-          <div className="bg-neutral-900 border border-emerald-500/30 p-8 rounded-2xl w-full max-w-md text-center shadow-2xl">
-            <div className="mb-4 flex justify-center text-emerald-400 animate-bounce"><Mail className="w-12 h-12" /></div>
-            <h3 className="text-xl font-bold text-white mb-4">초대 이메일 발송 중...</h3>
-            <div className="w-full bg-neutral-800 rounded-full h-4 mb-4 overflow-hidden">
-              <div className="bg-emerald-500 h-4 rounded-full transition-all duration-500" style={{ width: `${(groupSendingProgress.current / groupSendingProgress.total) * 100}%` }}></div>
+        <div className={`${OVERLAY} z-[100]`}>
+          <div className={`${BOX} p-8 w-full max-w-md text-center`}>
+            <div className="mb-4 flex justify-center text-ink"><Mail className="w-12 h-12" /></div>
+            <h3 className="text-xl font-black text-ink mb-4">초대 이메일 발송 중...</h3>
+            <div className="w-full bg-raised h-2 mb-4 overflow-hidden">
+              <div className="bg-ink h-2 transition-all duration-500" style={{ width: `${(groupSendingProgress.current / groupSendingProgress.total) * 100}%` }}></div>
             </div>
-            <p className="text-emerald-400 font-bold">{groupSendingProgress.current} / {groupSendingProgress.total}명 완료</p>
-            <p className="text-neutral-500 text-xs mt-2">창을 닫지 마세요. 이메일 발송이 완료될 때까지 기다려주세요.</p>
+            <p className="text-ink font-bold">{groupSendingProgress.current} / {groupSendingProgress.total}명 완료</p>
+            <p className="text-dim text-xs mt-2">창을 닫지 마세요. 이메일 발송이 완료될 때까지 기다려주세요.</p>
           </div>
         </div>
       )}
 
       {/* ===== 웹 자체 팝업 UI ===== */}
-      
+
       {alertInfo && (
-        <div className="fixed inset-0 bg-neutral-950/80 flex items-center justify-center p-4 z-[80]">
-          <div className="bg-neutral-900 border border-white/10 p-6 rounded-2xl w-full max-w-sm text-center shadow-2xl">
-            <div className={`mb-4 flex justify-center ${alertInfo.isError ? 'text-rose-500' : 'text-orange-400'}`}>
-               {alertInfo.isError ? <Siren className="w-10 h-10" /> : <Sparkles className="w-10 h-10" />}
+        <div className={`${OVERLAY} z-[80]`}>
+          <div className={`${BOX} p-6 w-full max-w-sm text-center`}>
+            <div className="mb-4 flex justify-center text-sub">
+               {alertInfo.isError ? <TriangleAlert className="w-10 h-10" /> : <Sparkles className="w-10 h-10" />}
             </div>
-            <p className="text-white text-lg font-bold mb-6 whitespace-pre-line leading-relaxed">{alertInfo.message}</p>
-            <button onClick={() => setAlertInfo(null)} className="w-full py-3 bg-white/10 hover:bg-white/20 rounded-lg text-white font-bold transition-all border border-white/10">확인</button>
+            <p className="text-ink text-lg font-bold mb-6 whitespace-pre-line leading-relaxed">{alertInfo.message}</p>
+            <button onClick={() => setAlertInfo(null)} className={`${BTN_PRIMARY} w-full`}>확인</button>
           </div>
         </div>
       )}
 
       {confirmInfo && (
-        <div className="fixed inset-0 bg-neutral-950/80 flex items-center justify-center p-4 z-[90]">
-          <div className="bg-neutral-900 border border-orange-500/30 p-6 rounded-2xl w-full max-w-sm text-center shadow-[0_0_30px_rgba(234,88,12,0.2)]">
-            <div className="mb-4 flex justify-center text-orange-400"><CircleHelp className="w-10 h-10" /></div>
-            <p className="text-white text-lg font-bold mb-6 whitespace-pre-line leading-relaxed">{confirmInfo.message}</p>
+        <div className={`${OVERLAY} z-[90]`}>
+          <div className={`${BOX} p-6 w-full max-w-sm text-center`}>
+            <div className="mb-4 flex justify-center text-sub"><CircleHelp className="w-10 h-10" /></div>
+            <p className="text-ink text-lg font-bold mb-6 whitespace-pre-line leading-relaxed">{confirmInfo.message}</p>
             <div className="flex gap-3">
-              <button 
-                onClick={() => setConfirmInfo(null)} 
-                className="flex-1 py-3 bg-white/5 hover:bg-white/10 rounded-lg text-neutral-300 font-bold transition-all border border-white/10">취소</button>
-              <button 
+              <button
+                onClick={() => setConfirmInfo(null)}
+                className={`${BTN_SECONDARY} flex-1`}>취소</button>
+              <button
                 onClick={() => {
                   setConfirmInfo(null);
                   confirmInfo.onConfirm();
-                }} 
-                className="flex-1 py-3 bg-orange-600 hover:bg-orange-500 rounded-lg text-white font-bold transition-all shadow-[0_0_15px_rgba(234,88,12,0.3)] border border-orange-500">확인</button>
+                }}
+                className={`${BTN_PRIMARY} flex-1`}>확인</button>
             </div>
           </div>
         </div>
       )}
 
       {successInfo && (
-        <div className="fixed inset-0 bg-neutral-950/90 flex items-center justify-center p-4 z-[100] animate-in fade-in zoom-in duration-300">
-          <div className="bg-neutral-900 border border-emerald-500/50 p-8 rounded-2xl w-full max-w-md w-[90%] md:w-full text-center shadow-[0_0_50px_rgba(16,185,129,0.3)]">
-            <div className="mb-4 flex justify-center text-emerald-400 animate-bounce"><PartyPopper className="w-14 h-14" /></div>
-            <h3 className="text-2xl font-black text-white mb-2">{successInfo.title}</h3>
-            <p className="text-neutral-300 text-base mb-8 whitespace-pre-line leading-relaxed">{successInfo.message}</p>
+        <div className={`${OVERLAY} z-[100]`}>
+          <div className={`${BOX} p-8 w-full max-w-md text-center`}>
+            <div className="mb-4 flex justify-center text-ink"><PartyPopper className="w-14 h-14" /></div>
+            <h3 className="text-2xl font-black text-ink mb-2">{successInfo.title}</h3>
+            <p className="text-sub text-base mb-8 whitespace-pre-line leading-relaxed">{successInfo.message}</p>
             <div className="flex flex-col gap-3">
-              <a href="https://mail.google.com/" target="_blank" rel="noopener noreferrer" 
+              <a href="https://mail.google.com/" target="_blank" rel="noopener noreferrer"
                  onClick={() => setSuccessInfo(null)}
-                 className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-white font-black text-lg transition-all shadow-[0_0_20px_rgba(16,185,129,0.4)] border border-emerald-400 flex items-center justify-center gap-2">
-<Ticket className="w-5 h-5" /> 티켓 확인하러 가기
+                 className={`${BTN_PRIMARY} w-full text-lg flex items-center justify-center gap-2`}>
+                <Ticket className="w-5 h-5" /> 티켓 확인하러 가기
               </a>
-              <button onClick={() => setSuccessInfo(null)} className="w-full py-3 bg-transparent text-neutral-400 hover:text-white font-bold transition-all mt-2">그냥 닫기</button>
+              <button onClick={() => setSuccessInfo(null)} className="w-full py-3 text-sub hover:text-ink font-bold transition-colors mt-2">그냥 닫기</button>
             </div>
           </div>
         </div>
