@@ -1,8 +1,7 @@
 "use client";
 
 import { useMemo, useState } from 'react';
-import { BarChart3, Popcorn, Banknote, Crown, Printer, CircleCheck, RefreshCw, CircleX, Hourglass, UserX } from 'lucide-react';
-import { analyzePopcorn, parseSeat, STATUS_WEIGHT } from './reservationView';
+import { analyzePopcorn, parseSeat, POPCORN_NAMES, STATUS_WEIGHT } from './reservationView';
 
 type SortKey = 'seat' | 'name' | 'status' | 'printed';
 type SortDir = 'asc' | 'desc';
@@ -17,13 +16,50 @@ interface Props {
   popcornStats: PopcornStats;
   clubMembers: { email: string }[];
   nameByEmail: Record<string, string>;
+  movieTitle?: string;
+  deadline?: string | null;
   onApprove: (ticket: any) => void;
   onCancel: (ticket: any) => void;
   onResetPrint: (ticket: any) => void;
+  // 취소를 누르고 5초 되돌리기 중인 예약
+  pendingCancelIds: Set<string>;
+  cancelSecondsLeft: (id: string) => number;
+  onUndoCancel: (id: string) => void;
 }
 
-export default function ReservationsTab({ reservations, popcornStats, clubMembers, nameByEmail, onApprove, onCancel, onResetPrint }: Props) {
-  const [sortKey, setSortKey] = useState<SortKey>('seat');
+const TABLE_COLS = 'grid-cols-[56px_120px_minmax(160px,1fr)_100px_64px_220px]';
+
+const STATUS_VIEW: Record<string, { label: string; cls: string }> = {
+  pending: { label: '승인 대기', cls: 'text-accent' },
+  confirmed: { label: '확정', cls: 'text-ink' },
+  group_pending: { label: '단체 확인 중', cls: 'text-sub' },
+};
+
+// "예매 마감까지 n일 n시간". 마감이 없으면 null.
+function deadlineText(deadline?: string | null): string | null {
+  if (!deadline) return null;
+  const t = new Date(deadline).getTime();
+  if (Number.isNaN(t)) return null;
+  const left = t - Date.now();
+  if (left <= 0) return '예매 마감됨';
+  const hours = Math.floor(left / 3600000);
+  const d = Math.floor(hours / 24);
+  const h = hours % 24;
+  if (d > 0) return `예매 마감까지 ${d}일 ${h}시간`;
+  if (h > 0) return `예매 마감까지 ${h}시간`;
+  return `예매 마감까지 ${Math.max(1, Math.floor(left / 60000))}분`;
+}
+
+function popcornText(order: string | null | undefined, withPrice: boolean) {
+  const { arr, counts, totalPrice } = analyzePopcorn(order);
+  if (arr.length === 0) return '팝콘 없음';
+  const kinds = Object.entries(counts).map(([k, c]) => `${POPCORN_NAMES[k] ?? k} ${c}`).join(', ');
+  return withPrice ? `${kinds} · ${totalPrice.toLocaleString()}원` : kinds;
+}
+
+export default function ReservationsTab(props: Props) {
+  const { reservations, popcornStats, clubMembers, nameByEmail, movieTitle, deadline, onApprove, onCancel, onResetPrint, pendingCancelIds, cancelSecondsLeft, onUndoCancel } = props;
+  const [sortKey, setSortKey] = useState<SortKey>('status');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [filter, setFilter] = useState<FilterKey | null>(null);
   const [query, setQuery] = useState('');
@@ -48,6 +84,11 @@ export default function ReservationsTab({ reservations, popcornStats, clubMember
   const sorted = useMemo(() => {
     const dir = sortDir === 'asc' ? 1 : -1;
     const q = query.trim().toLowerCase();
+    const bySeat = (a: any, b: any) => {
+      const [as, an] = parseSeat(a.seat_number);
+      const [bs, bn] = parseSeat(b.seat_number);
+      return as.localeCompare(bs) || an - bn;
+    };
     const visible = reservations.filter(r => {
       if (filter === 'unprinted' ? !(r.payment_status === 'confirmed' && !r.is_printed) : filter && r.payment_status !== filter) return false;
       if (!q) return true;
@@ -56,9 +97,7 @@ export default function ReservationsTab({ reservations, popcornStats, clubMember
     return visible.sort((a, b) => {
       let cmp = 0;
       if (sortKey === 'seat') {
-        const [as, an] = parseSeat(a.seat_number);
-        const [bs, bn] = parseSeat(b.seat_number);
-        cmp = as.localeCompare(bs) || an - bn;
+        cmp = bySeat(a, b);
       } else if (sortKey === 'name') {
         cmp = String(a.student_id ?? '').localeCompare(String(b.student_id ?? ''))
           || String(a.student_name ?? '').localeCompare(String(b.student_name ?? ''));
@@ -67,7 +106,8 @@ export default function ReservationsTab({ reservations, popcornStats, clubMember
       } else if (sortKey === 'printed') {
         cmp = (a.is_printed ? 1 : 0) - (b.is_printed ? 1 : 0);
       }
-      return cmp * dir;
+      // 같은 값끼리는 좌석순
+      return cmp * dir || bySeat(a, b);
     });
   }, [reservations, sortKey, sortDir, filter, query]);
 
@@ -75,143 +115,168 @@ export default function ReservationsTab({ reservations, popcornStats, clubMember
     if (k === sortKey) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
     else { setSortKey(k); setSortDir('asc'); }
   };
-
   const toggleFilter = (k: FilterKey) => setFilter(f => (f === k ? null : k));
-
   const arrow = (k: SortKey) => (sortKey === k ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '');
 
-  return (
-    <div className="space-y-6">
-      {/* 상단 요약 카운터 */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Counter label="승인 대기" value={counts.pending} tone="amber" active={filter === 'pending'} onClick={() => toggleFilter('pending')} />
-        <Counter label="확정" value={counts.confirmed} tone="green" active={filter === 'confirmed'} onClick={() => toggleFilter('confirmed')} />
-        <Counter label="단체 대기" value={counts.groupPending} tone="yellow" active={filter === 'group_pending'} onClick={() => toggleFilter('group_pending')} />
-        <Counter label="미발권 (확정)" value={counts.unprinted} tone="slate" active={filter === 'unprinted'} onClick={() => toggleFilter('unprinted')} />
-      </div>
+  const stats: { key: FilterKey; label: string; value: number; accent?: boolean }[] = [
+    { key: 'pending', label: '승인 대기', value: counts.pending, accent: true },
+    { key: 'confirmed', label: '확정', value: counts.confirmed },
+    { key: 'group_pending', label: '단체 확인 중', value: counts.groupPending },
+    { key: 'unprinted', label: '아직 발권 안 함', value: counts.unprinted },
+  ];
+  const subtitle = [movieTitle ? `「${movieTitle}」` : null, deadlineText(deadline)].filter(Boolean).join(' · ');
 
-      {/* 팝콘 / 매출 요약 */}
-      <div className="bg-neutral-800 p-6 rounded-xl border border-neutral-700">
-        <h2 className="text-lg font-bold text-yellow-500 mb-4 flex items-center gap-1.5"><BarChart3 className="w-5 h-5" /> 팝콘 현황 요약 (확정 기준)</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-yellow-900/30 p-4 rounded-lg border border-yellow-700"><span className="flex items-center gap-1.5 text-yellow-400 text-sm font-bold mb-1"><Popcorn className="w-4 h-4" /> 오리지널</span><span className="text-2xl font-black text-yellow-400">{popcornStats.original}개</span></div>
-          <div className="bg-orange-900/30 p-4 rounded-lg border border-orange-700"><span className="flex items-center gap-1.5 text-orange-400 text-sm font-bold mb-1"><Popcorn className="w-4 h-4" /> 콘소메</span><span className="text-2xl font-black text-orange-400">{popcornStats.consomme}개</span></div>
-          <div className="bg-amber-900/30 p-4 rounded-lg border border-amber-700"><span className="flex items-center gap-1.5 text-amber-500 text-sm font-bold mb-1"><Popcorn className="w-4 h-4" /> 카라멜</span><span className="text-2xl font-black text-amber-500">{popcornStats.caramel}개</span></div>
-          <div className="bg-green-900/30 p-4 rounded-lg border border-green-700"><span className="flex items-center gap-1.5 text-green-400 text-sm font-bold mb-1"><Banknote className="w-4 h-4" /> 현금 매출</span><span className="text-xl font-black text-green-400">{popcornStats.cash.toLocaleString()}원</span></div>
-        </div>
-      </div>
-
-      {/* 미예매 동아리원 */}
-      <div className="bg-neutral-800 p-6 rounded-xl border border-neutral-700">
-        <h2 className="text-lg font-bold text-orange-400 mb-4 flex items-center gap-1.5"><UserX className="w-5 h-5" /> 아직 예매하지 않은 동아리원 ({unbookedMembers.length} / {clubMembers.length}명)</h2>
-        {unbookedMembers.length === 0 ? (
-          <p className="text-neutral-500 text-sm">{clubMembers.length === 0 ? '등록된 동아리원이 없습니다.' : '모든 동아리원이 예매했습니다.'}</p>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {unbookedMembers.map(m => (
-              <span key={m.email} title={m.email} className="bg-neutral-700 px-3 py-1.5 rounded-full text-sm border border-neutral-600">
-                {m.name ? <span className="font-bold text-white">{m.name}</span> : <span className="text-neutral-400">{m.email}</span>}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* 검색 / 필터 */}
-      <div className="flex flex-wrap items-center gap-3">
-        <input
-          type="text"
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          placeholder="이름 / 학번 / 좌석 / 이메일 검색"
-          className="flex-1 min-w-[200px] p-2 bg-neutral-800 rounded border border-neutral-600 outline-none text-white text-sm"
-        />
-        {(filter || query) && (
-          <>
-            <span className="text-neutral-500 text-xs">{sorted.length} / {reservations.length}건 표시 중</span>
-            <button onClick={() => { setFilter(null); setQuery(''); }} className="px-3 py-2 bg-neutral-700 hover:bg-neutral-600 rounded text-xs font-bold">필터 해제</button>
-          </>
-        )}
-      </div>
-
-      {/* 예매 내역 테이블 */}
-      <div className="bg-neutral-800 rounded-xl overflow-x-auto border border-neutral-700">
-        <table className="w-full text-left text-sm whitespace-nowrap">
-          <thead className="bg-neutral-700 text-neutral-300 select-none">
-            <tr>
-              <th className="p-4 cursor-pointer hover:text-white" onClick={() => toggleSort('status')}>상태{arrow('status')}</th>
-              <th className="p-4 cursor-pointer hover:text-white" onClick={() => toggleSort('seat')}>좌석{arrow('seat')}</th>
-              <th className="p-4 cursor-pointer hover:text-white" onClick={() => toggleSort('name')}>학번/이름{arrow('name')}</th>
-              <th className="p-4">결제/팝콘</th>
-              <th className="p-4 text-center cursor-pointer hover:text-white" onClick={() => toggleSort('printed')}>발권 여부{arrow('printed')}</th>
-              <th className="p-4 text-right">관리 작업</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-neutral-500">예매 내역이 없습니다.</td></tr>}
-            {sorted.map((ticket) => {
-              const { arr, totalPrice, summary } = analyzePopcorn(ticket.popcorn_order);
-              return (
-                <tr key={ticket.id} className="border-b border-neutral-700 hover:bg-neutral-750">
-                  <td className="p-4">
-                    {ticket.payment_status === 'group_pending' ? (
-                      <span className="bg-yellow-600/20 text-yellow-400 px-2 py-1 rounded border border-yellow-600 font-bold text-xs inline-flex items-center gap-1"><Hourglass className="w-3.5 h-3.5" /> 단체 대기</span>
-                    ) : ticket.payment_status === 'pending' ? (
-                      <span className="bg-amber-600/20 text-amber-400 px-2 py-1 rounded border border-amber-600 font-bold text-xs">승인 대기</span>
-                    ) : (
-                      <span className="bg-green-600/20 text-green-500 px-2 py-1 rounded border border-green-600 font-bold">확정됨</span>
-                    )}
-                    {ticket.is_group_leader && <span className="ml-1 inline-flex items-center text-emerald-400 text-xs font-bold"><Crown className="w-3.5 h-3.5" /></span>}
-                  </td>
-                  <td className="p-4 font-bold text-lg">{ticket.seat_number}</td>
-                  <td className="p-4">{ticket.student_id ?? '교직원'} <span className="text-orange-300 font-bold">{ticket.student_name}</span></td>
-                  <td className="p-4">
-                    {arr.length > 0 ? (
-                      <div className="flex flex-col">
-                        <span className="text-yellow-400 font-bold text-sm tracking-widest">{totalPrice.toLocaleString()}원</span>
-                        <span className="flex items-center gap-1.5 text-neutral-400 text-xs mt-1"><Popcorn className="w-3.5 h-3.5" /> {summary}</span>
-                      </div>
-                    ) : (
-                      <span className="text-neutral-500 text-sm">무료 관람 (0원)</span>
-                    )}
-                  </td>
-                  <td className="p-4 text-center">
-                    {ticket.is_printed ? (
-                      <span className="inline-flex items-center gap-1.5 text-orange-400 font-bold border border-orange-600 bg-orange-900/30 px-3 py-1 rounded-lg text-xs tracking-wider"><Printer className="w-3.5 h-3.5" /> 발권 완료</span>
-                    ) : (
-                      <span className="text-neutral-500 font-bold text-sm">미발권</span>
-                    )}
-                  </td>
-                  <td className="p-4 text-right flex justify-end gap-2">
-                    {ticket.payment_status === 'pending' && (
-                      <button onClick={() => onApprove(ticket)} className="flex items-center gap-1.5 bg-green-600 hover:bg-green-500 text-white px-3 py-1 rounded font-bold shadow-md transition-colors"><CircleCheck className="w-4 h-4" /> 승인</button>
-                    )}
-                    {ticket.is_printed && (
-                      <button onClick={() => onResetPrint(ticket)} className="flex items-center gap-1.5 bg-yellow-600 hover:bg-yellow-500 text-black px-3 py-1 rounded font-bold shadow-md transition-colors"><RefreshCw className="w-4 h-4" /> 발권 초기화</button>
-                    )}
-                    <button onClick={() => onCancel(ticket)} className="flex items-center gap-1.5 bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded font-bold shadow-md transition-colors"><CircleX className="w-4 h-4" /> 강제 취소</button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+  const UndoRow = ({ ticket }: { ticket: any }) => (
+    <div className="flex items-center justify-between gap-3 min-h-[52px] px-3 py-2 bg-card border-b border-line">
+      <span className="text-[13px] text-sub min-w-0 break-keep">
+        <b className="text-ink">{ticket.seat_number} {ticket.student_name}</b> 예매를 취소했어요. 취소 메일은 5초 뒤 나가요.
+      </span>
+      <button type="button" onClick={() => onUndoCancel(ticket.id)} className="shrink-0 h-[34px] px-3.5 border border-ink text-ink text-[13px] font-bold whitespace-nowrap">
+        되돌리기 · {cancelSecondsLeft(ticket.id)}
+      </button>
     </div>
   );
-}
 
-function Counter({ label, value, tone, active, onClick }: { label: string; value: number; tone: 'amber' | 'green' | 'yellow' | 'slate'; active: boolean; onClick: () => void }) {
-  const toneClass = {
-    amber: 'border-amber-700 text-amber-400',
-    green: 'border-green-700 text-green-400',
-    yellow: 'border-yellow-700 text-yellow-400',
-    slate: 'border-neutral-600 text-neutral-300',
-  }[tone];
+  const Actions = ({ ticket, phone }: { ticket: any; phone?: boolean }) => (
+    <>
+      {ticket.payment_status === 'pending' && (
+        <button type="button" onClick={() => onApprove(ticket)} className={`${phone ? 'h-10 px-3.5 text-sm' : 'h-9 px-4 text-[13px]'} bg-ink text-ground font-bold whitespace-nowrap`}>승인</button>
+      )}
+      {ticket.is_printed && (
+        <button type="button" onClick={() => onResetPrint(ticket)} className={`${phone ? 'h-10 px-2.5 text-xs' : 'h-9 px-3 text-[13px]'} border border-line-strong text-ink font-bold whitespace-nowrap`}>발권 되돌리기</button>
+      )}
+      <button type="button" onClick={() => onCancel(ticket)} className={`${phone ? 'h-10 pl-2.5 pr-1' : 'h-9 pl-3.5 pr-2.5 ml-2.5'} border-l border-line text-accent text-[13px] font-bold whitespace-nowrap`}>취소</button>
+    </>
+  );
+
   return (
-    <button type="button" onClick={onClick} aria-pressed={active} className={`text-left bg-neutral-800 p-4 rounded-xl border transition-colors hover:bg-neutral-700/60 ${toneClass} ${active ? 'ring-2 ring-orange-500' : ''}`}>
-      <span className="block text-neutral-400 text-xs font-bold mb-1">{label}</span>
-      <span className="text-2xl font-black">{value}</span>
-    </button>
+    <div className="flex flex-col gap-10">
+      <section className="min-w-0 flex flex-col gap-[22px]">
+        <div className="flex flex-col gap-1.5">
+          <h1 className="text-2xl md:text-[28px] font-black tracking-[-0.02em]">예매</h1>
+          {subtitle && <p className="text-sm text-dim">{subtitle}</p>}
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 border-t border-ink md:border-b md:border-line">
+          {stats.map((s, i) => {
+            const on = filter === s.key;
+            return (
+              <button
+                key={s.key}
+                type="button"
+                aria-pressed={on}
+                onClick={() => toggleFilter(s.key)}
+                className={[
+                  'flex flex-col items-start gap-1 px-3.5 py-3 md:px-4 md:py-3.5 text-left border-b border-line md:border-b-0',
+                  i % 2 === 1 ? 'border-l border-line' : i > 0 ? 'md:border-l md:border-line' : '',
+                  on ? 'bg-raised' : 'hover:bg-card',
+                ].join(' ')}
+              >
+                <span className="text-[11px] md:text-xs text-dim">{s.label}</span>
+                <span className={`text-[22px] md:text-[28px] font-black leading-tight ${s.accent ? 'text-accent' : 'text-ink'}`}>{s.value}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="flex flex-col-reverse gap-3 md:flex-row md:items-center md:justify-between">
+          <span className="text-[13px] text-sub">
+            {filter || query
+              ? <>{sorted.length} / {reservations.length}건 보는 중 · <button type="button" onClick={() => { setFilter(null); setQuery(''); }} className="underline underline-offset-4 decoration-line-strong text-ink">모두 보기</button></>
+              : '승인 대기가 맨 위에 와요. 위 숫자를 누르면 그것만 보여요.'}
+          </span>
+          <label htmlFor="bk-q" className="sr-only">이름, 학번, 좌석 찾기</label>
+          <input
+            id="bk-q"
+            type="search"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="이름 · 학번 · 좌석 찾기"
+            className="w-full md:w-[240px] h-11 md:h-9 px-3.5 bg-card border border-line text-ink text-sm md:text-[13px] outline-none focus:border-line-bold placeholder:text-mute"
+          />
+        </div>
+
+        {/* 넓은 화면: 표 */}
+        <div className="hidden lg:block overflow-x-auto">
+          <div className="min-w-[804px] flex flex-col">
+            <div className={`grid ${TABLE_COLS} gap-3 px-3 py-2.5 text-xs text-dim border-b border-line select-none`}>
+              <button type="button" onClick={() => toggleSort('seat')} className="text-left hover:text-ink whitespace-nowrap">좌석{arrow('seat')}</button>
+              <button type="button" onClick={() => toggleSort('name')} className="text-left hover:text-ink whitespace-nowrap">이름{arrow('name')}</button>
+              <span>팝콘</span>
+              <button type="button" onClick={() => toggleSort('status')} className="text-left hover:text-ink whitespace-nowrap">상태{arrow('status')}</button>
+              <button type="button" onClick={() => toggleSort('printed')} className="text-left hover:text-ink whitespace-nowrap">발권{arrow('printed')}</button>
+              <span />
+            </div>
+            {sorted.length === 0 && <p className="px-3 py-10 text-center text-sm text-mute border-b border-line">예매가 없어요.</p>}
+            {sorted.map((ticket) => {
+              if (pendingCancelIds.has(ticket.id)) return <UndoRow key={ticket.id} ticket={ticket} />;
+              const st = STATUS_VIEW[ticket.payment_status] ?? { label: ticket.payment_status, cls: 'text-sub' };
+              return (
+                <div key={ticket.id} className={`grid ${TABLE_COLS} gap-3 items-center min-h-14 px-3 border-b border-line`}>
+                  <span className="text-[17px] font-black">{ticket.seat_number}</span>
+                  <span className="flex flex-col min-w-0">
+                    <span className="text-sm font-bold truncate">{ticket.student_name}</span>
+                    <span className="text-xs text-dim">{ticket.student_id ?? '교직원'}</span>
+                  </span>
+                  <span className="text-[13px] text-sub whitespace-nowrap overflow-hidden text-ellipsis">{popcornText(ticket.popcorn_order, true)}</span>
+                  <span className={`text-[13px] font-bold whitespace-nowrap ${st.cls}`}>
+                    {st.label}{ticket.is_group_leader && <span className="ml-1 font-normal text-dim">대표</span>}
+                  </span>
+                  <span className={`text-[13px] whitespace-nowrap ${ticket.is_printed ? 'text-ink' : 'text-mute'}`}>{ticket.is_printed ? '발권함' : '—'}</span>
+                  <span className="flex justify-end items-center gap-1.5"><Actions ticket={ticket} /></span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 좁은 화면: 한 줄 목록 */}
+        <div className="lg:hidden flex flex-col">
+          {sorted.length === 0 && <p className="py-10 text-center text-sm text-mute border-b border-line">예매가 없어요.</p>}
+          {sorted.map((ticket) => {
+            if (pendingCancelIds.has(ticket.id)) return <UndoRow key={ticket.id} ticket={ticket} />;
+            const st = STATUS_VIEW[ticket.payment_status] ?? { label: ticket.payment_status, cls: 'text-sub' };
+            return (
+              <div key={ticket.id} className="flex items-center gap-3.5 min-h-[72px] border-b border-line">
+                <span className="shrink-0 w-[52px] text-lg font-black">{ticket.seat_number}</span>
+                <span className="flex-1 min-w-0 flex flex-col gap-0.5">
+                  <span className="text-[15px] font-bold truncate">{ticket.student_name} <span className="text-xs font-normal text-dim">{ticket.student_id ?? '교직원'}</span></span>
+                  <span className={`text-xs truncate ${ticket.payment_status === 'pending' ? 'text-accent' : 'text-sub'}`}>
+                    {st.label}{ticket.is_printed ? ' · 발권함' : ''} <span className="text-dim">· {popcornText(ticket.popcorn_order, false)}</span>
+                  </span>
+                </span>
+                <span className="shrink-0 flex items-center gap-1.5"><Actions ticket={ticket} phone /></span>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-start">
+        <section className="flex flex-col gap-2.5">
+          <h2 className="text-sm font-black border-b border-ink pb-2">팝콘 <span className="text-xs font-medium text-dim">· 확정 기준</span></h2>
+          <div className="flex flex-col text-[13px]">
+            <span className="flex justify-between py-2 border-b border-line"><span className="text-sub">오리지널</span><b>{popcornStats.original}</b></span>
+            <span className="flex justify-between py-2 border-b border-line"><span className="text-sub">콘소메</span><b>{popcornStats.consomme}</b></span>
+            <span className="flex justify-between py-2 border-b border-line"><span className="text-sub">카라멜</span><b>{popcornStats.caramel}</b></span>
+            <span className="flex justify-between py-2.5"><span className="text-sub">받을 돈</span><b className="text-base">{popcornStats.cash.toLocaleString()}원</b></span>
+          </div>
+        </section>
+        <section className="flex flex-col gap-2.5">
+          <h2 className="text-sm font-black border-b border-ink pb-2">아직 예매 안 한 동아리원 <span className="text-xs font-medium text-dim">{unbookedMembers.length}명</span></h2>
+          {unbookedMembers.length === 0 ? (
+            <p className="text-[13px] text-mute">{clubMembers.length === 0 ? '등록된 동아리원이 없어요.' : '모든 동아리원이 예매했어요.'}</p>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {unbookedMembers.map(m => (
+                <span key={m.email} title={m.email} className="h-7 inline-flex items-center px-2.5 border border-line text-xs text-sub max-w-full truncate">
+                  {m.name ?? m.email}
+                </span>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+    </div>
   );
 }

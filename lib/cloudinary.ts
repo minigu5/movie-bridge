@@ -9,9 +9,8 @@ async function sha1Hex(input: string): Promise<string> {
 /**
  * Uploads an image data URI to Cloudinary and returns its public URL. No
  * transformation is requested — this is just reliable storage/CDN for an image
- * the admin's browser already produced or fetched. Used for the pre-composed
- * ticket card background (lib/ticketBackgroundCanvas.ts) and for re-hosting the
- * raw movie poster off an unreliable origin.
+ * the admin's browser already produced or fetched. Used for re-hosting the raw
+ * movie poster off an unreliable origin (admin file upload and poster URL saves).
  */
 export async function uploadImageDataUri(dataUri: string): Promise<string | null> {
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME;

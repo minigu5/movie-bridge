@@ -9,6 +9,10 @@ import { admissionYearForGrade, gradeEmails } from '@/lib/schoolEmails';
 import { loadTicketMailMovie, sendTicketMail, type TicketMailReservation } from '@/lib/ticketMail';
 import { sendBlacklistMail } from '@/lib/blacklistMail';
 
+// 이메일 행 지우기는 대소문자를 가리지 않는다(옛 행에 대문자가 섞여 있을 수 있다).
+// ilike 패턴의 %, _, \ 는 글자 그대로 비교되게 이스케이프한다.
+const emailPattern = (email: unknown) => String(email ?? '').trim().replace(/[\\%_]/g, (c) => `\\${c}`);
+
 // 처리 결과 메일. 메일이 실패해도 이미 끝난 DB 작업은 되돌리지 않고 로그만 남긴다.
 async function sendMailSafely(label: string, send: () => Promise<void>): Promise<boolean> {
   try {
@@ -60,7 +64,7 @@ export async function POST(req: Request) {
           supabaseAdmin.from('kiosk_settings').select('password').eq('id', 1).single(),
           supabaseAdmin.from('invited_emails').select('email, added_by, source, created_at').order('created_at', { ascending: false }),
           // 로그인 이력이 있는 사람: 이름 표시 + 회원/권한 탭의 로그인 명단(조회 전용)
-          supabaseAdmin.from('profiles').select('email, name, student_id, role, created_at').order('created_at', { ascending: false })
+          supabaseAdmin.from('profiles').select('id, email, name, student_id, role, created_at').order('created_at', { ascending: false })
         ]);
 
         if (resQ.error) throw resQ.error;
@@ -91,35 +95,12 @@ export async function POST(req: Request) {
             .select('poster_url').eq('is_active', true).single();
           if (current?.poster_url !== updatePayload.poster_url) {
             updatePayload.poster_cdn_url = await rehostPosterUrl(updatePayload.poster_url);
-            // 옛 포스터로 합성된 배경이 남아 있으면 메일에 엉뚱한 포스터가 나간다.
-            // 비워 두면 관리자 페이지가 저장 직후 새 포스터로 다시 생성한다.
-            updatePayload.background_template_url = null;
           }
         }
 
         const { error } = await supabaseAdmin.from('movie_settings').update(updatePayload).eq('is_active', true);
         if (error) throw error;
         return NextResponse.json({ success: true });
-      }
-
-      case 'UPLOAD_TICKET_BACKGROUND': {
-        const { movieId, imageBase64 } = payload;
-        if (!movieId || typeof imageBase64 !== 'string' || !imageBase64.startsWith('data:image/')) {
-          return NextResponse.json({ success: false, error: 'movieId와 이미지 데이터가 필요합니다.' }, { status: 400 });
-        }
-
-        const url = await uploadImageDataUri(imageBase64);
-        if (!url) {
-          return NextResponse.json({ success: false, error: 'Cloudinary 업로드에 실패했습니다.' }, { status: 502 });
-        }
-
-        const { error } = await supabaseAdmin
-          .from('movie_settings')
-          .update({ background_template_url: url })
-          .eq('id', movieId);
-        if (error) throw error;
-
-        return NextResponse.json({ success: true, url });
       }
 
       // 원본 포스터를 Cloudinary에 복사해 두고 URL을 저장한다. 원본 호스트가
@@ -293,10 +274,10 @@ export async function POST(req: Request) {
 
       case 'REMOVE_BLACKLIST': {
         const { email } = payload;
-        const { error } = await supabaseAdmin.from('blacklist').delete().eq('email', email);
+        const { error } = await supabaseAdmin.from('blacklist').delete().ilike('email', emailPattern(email));
         if (error) throw error;
 
-        const { data: prof } = await supabaseAdmin.from('profiles').select('name').eq('email', email).maybeSingle();
+        const { data: prof } = await supabaseAdmin.from('profiles').select('name').ilike('email', emailPattern(email)).limit(1).maybeSingle();
         const name = prof?.name ?? email;
         await sendMailSafely('Blacklist removed', () => sendBlacklistMail({ email, name, added: false }));
         return NextResponse.json({ success: true, name });
@@ -321,10 +302,10 @@ export async function POST(req: Request) {
 
       case 'REMOVE_ADMIN': {
         const { email } = payload;
-        if (email === adminEmail) {
+        if (String(email ?? '').trim().toLowerCase() === adminEmail.toLowerCase()) {
           return NextResponse.json({ success: false, error: '본인 계정은 스스로 제거할 수 없습니다.' }, { status: 400 });
         }
-        const { error } = await supabaseAdmin.from('admins').delete().eq('email', email);
+        const { error } = await supabaseAdmin.from('admins').delete().ilike('email', emailPattern(email));
         if (error) throw error;
         return NextResponse.json({ success: true });
       }
@@ -354,7 +335,7 @@ export async function POST(req: Request) {
 
       case 'REMOVE_CLUB_MEMBER': {
         const { email } = payload;
-        const { error } = await supabaseAdmin.from('club_members').delete().eq('email', email);
+        const { error } = await supabaseAdmin.from('club_members').delete().ilike('email', emailPattern(email));
         if (error) throw error;
         return NextResponse.json({ success: true });
       }
@@ -381,7 +362,7 @@ export async function POST(req: Request) {
 
       case 'REMOVE_INVITED_EMAIL': {
         const { email } = payload;
-        const { error } = await supabaseAdmin.from('invited_emails').delete().eq('email', String(email).toLowerCase());
+        const { error } = await supabaseAdmin.from('invited_emails').delete().ilike('email', emailPattern(email));
         if (error) throw error;
         return NextResponse.json({ success: true });
       }
@@ -455,27 +436,31 @@ export async function POST(req: Request) {
         const manualText: string = typeof payload?.manualText === 'string' ? payload.manualText : '';
 
         const emailSet = new Set<string>();
+        // 관리자 화면의 "겹치는 사람 빼기" 숫자용: 고른 명단을 그냥 더한 수
+        let rawCount = 0;
+        const add = (e: string) => { rawCount++; emailSet.add(e.toLowerCase()); };
 
         if (club) {
           const { data, error } = await supabaseAdmin.from('club_members').select('email');
           if (error) throw error;
-          (data ?? []).forEach((r: { email: string }) => emailSet.add(r.email.toLowerCase()));
+          (data ?? []).forEach((r: { email: string }) => add(r.email));
         }
 
         if (invited) {
           const { data, error } = await supabaseAdmin.from('invited_emails').select('email');
           if (error) throw error;
-          (data ?? []).forEach((r: { email: string }) => emailSet.add(r.email.toLowerCase()));
+          (data ?? []).forEach((r: { email: string }) => add(r.email));
         }
 
         grades
           .filter((g): g is 'g1' | 'g2' | 'g3' => g === 'g1' || g === 'g2' || g === 'g3')
           .forEach((g) => {
-            gradeEmails(admissionYearForGrade(g)).forEach((e) => emailSet.add(e.toLowerCase()));
+            gradeEmails(admissionYearForGrade(g)).forEach((e) => add(e));
           });
 
-        extractSchoolEmails(manualText).forEach((e) => emailSet.add(e.toLowerCase()));
+        extractSchoolEmails(manualText).forEach((e) => add(e));
 
+        const uniqueCount = emailSet.size;
         // 블랙리스트 제외
         const { data: blRows, error: blError } = await supabaseAdmin.from('blacklist').select('email');
         if (blError) throw blError;
@@ -498,7 +483,10 @@ export async function POST(req: Request) {
         }
 
         const recipients = emails.map((email) => ({ email, name: nameByEmail.get(email) ?? null }));
-        return NextResponse.json({ success: true, data: { recipients, count: recipients.length } });
+        return NextResponse.json({
+          success: true,
+          data: { recipients, count: recipients.length, overlap: rawCount - uniqueCount, blocked: uniqueCount - recipients.length },
+        });
       }
 
       case 'LOG_PROMO_SENT': {
