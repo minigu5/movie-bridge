@@ -244,6 +244,15 @@ export default function Home() {
     openSeat();
   }, [profile, isLoading, canBook, pendingReview, consentStatus]);
 
+  // 후기 필수 대상이면 들어오자마자 후기 작성 창을 띄운다(페이지당 한 번). '나중에'로 닫으면 배너와 좌석 클릭으로 다시 연다.
+  // 위 좌석 복원 effect가 먼저 열었으면 그 이어갈 일을 유지한다.
+  const reviewAutoOpenedRef = useRef(false);
+  useEffect(() => {
+    if (reviewAutoOpenedRef.current || !pendingReview || myReservation || isClosed || isLoading || consentStatus !== 'valid') return;
+    reviewAutoOpenedRef.current = true;
+    setReviewResume(prev => prev ?? { next: () => {} });
+  }, [pendingReview, myReservation, isClosed, isLoading, consentStatus]);
+
   useEffect(() => {
     if (!profile) { setCanBook(null); return; }
     let active = true;
@@ -317,6 +326,14 @@ export default function Home() {
       if (error) { console.error('my_pending_review 확인 실패:', error); setPendingReview(null); return; }
       setPendingReview((data as PendingReview[] | null)?.[0] ?? null);
     });
+  };
+
+  // 화면 확인을 지나쳐 DB 트리거(reservations_require_review)에 막혔을 때도 경고 대신 후기 작성 창을 연다.
+  const isReviewRequiredError = (error: { code?: string; message: string }) =>
+    error.code === 'P0001' && error.message.includes('후기를 남겨야');
+  const openRequiredReview = () => {
+    refreshPendingReview();
+    setReviewResume({ next: () => {} });
   };
 
   const fetchInitialData = async () => {
@@ -507,6 +524,7 @@ export default function Home() {
 
     if (blacklistedUsers.includes(profile.email)) return showAlert("블랙리스트에 등록되어 예매가 제한되었습니다.");
     if (canBook === false && !myReservation) return showAlert(NOT_INVITED_MESSAGE);
+    if (pendingReview && !myReservation) return setReviewResume({ next: () => {} });
 
     if (selectedSeat && vipSeats.has(selectedSeat)) {
       if (!clubMemberIds.includes(profile.email)) {
@@ -568,6 +586,7 @@ export default function Home() {
         if (insertError) {
           // 42501 = RLS 위반 (예매 도중 초대 명단에서 빠진 경우 등)
           if (insertError.code === '42501') return showAlert(NOT_INVITED_MESSAGE);
+          if (isReviewRequiredError(insertError)) return openRequiredReview();
           if (insertError.code === 'P0001') return showAlert(insertError.message);
           showAlert("앗! 다른 분이 먼저 예매했습니다.\n다른 좌석을 선택해주세요.");
           fetchInitialData(); return;
@@ -635,6 +654,7 @@ export default function Home() {
 
     if (blacklistedUsers.includes(profile.email)) return showAlert("블랙리스트에 등록되어 예매가 제한되었습니다.");
     if (canBook === false) return showAlert(NOT_INVITED_MESSAGE);
+    if (pendingReview) return setReviewResume({ next: () => {} });
     if (selectedSeat && vipSeats.has(selectedSeat) && !clubMemberIds.includes(profile.email)) {
       return showAlert("선택하신 좌석은 '영화대교' 동아리 전용석입니다.\n일반 학생은 다른 좌석을 선택해주세요.");
     }
