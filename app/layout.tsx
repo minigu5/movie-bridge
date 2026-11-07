@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Noto_Sans_KR } from "next/font/google";
-import localFont from "next/font/local";
 import { preconnect } from "react-dom";
 import "./globals.css";
 
@@ -12,23 +11,11 @@ const notoSansKr = Noto_Sans_KR({
   display: "swap",
 });
 
-// 로고 "영화대교" 4글자만 담은 Song Myung subset(5KB). 전체 폰트를 next/font/google로 받으면
-// 슬라이스 89개 @font-face가 렌더 차단 CSS 130KB를 차지하고 폰트가 늦게 도착해 스플래시가
-// 기본 serif로 먼저 그려진다. 로고 문구를 바꾸면 이 파일도 새 글자로 다시 만들어야 한다:
-// https://fonts.googleapis.com/css2?family=Song+Myung&text=<새 문구>
-const songMyung = localFont({
-  src: "./fonts/SongMyung-logo.woff2",
-  variable: "--font-song-myung",
-  weight: "400",
-  display: "swap",
-  adjustFontFallback: "Times New Roman",
-});
-
 export const metadata: Metadata = {
   title: "영화대교",
   description: "대구과학고등학교 자율동아리 영화대교 영화 예매",
   // app/icon.png로 두면 Next 메타데이터 라우트라 요청마다 Worker가 응답한다. public/에 두면 static assets가 바로 준다.
-  icons: { icon: "/icon.png" },
+  icons: { icon: [{ url: "/icon-16.png", sizes: "16x16" }, { url: "/icon-32.png", sizes: "32x32" }, { url: "/icon.png", sizes: "48x48" }], apple: "/apple-touch-icon.png" },
 };
 
 export default function RootLayout({
@@ -46,7 +33,7 @@ export default function RootLayout({
   return (
     <html
       lang="ko"
-      className={`${notoSansKr.variable} ${songMyung.variable} h-full antialiased`}
+      className={`${notoSansKr.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans">
         {children}
