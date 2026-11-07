@@ -18,6 +18,9 @@ type Props = {
   onNewer(): void;
   // null이면 숫자를 숨긴다(지난 회차).
   remainingSeats: number | null;
+  // 이미 예매했으면 "좌석 선택하기" 대신 내 좌석을 보여 준다.
+  mySeat: { seat: string; pending: boolean } | null;
+  closed: boolean;
 };
 
 function formatDeadline(deadline?: string | null) {
@@ -44,7 +47,7 @@ function Nav({ canGoOlder, canGoNewer, onOlder, onNewer, small }: Pick<Props, 'c
   );
 }
 
-export default function MovieInfo({ movie, isPast, canGoOlder, canGoNewer, onOlder, onNewer, remainingSeats }: Props) {
+export default function MovieInfo({ movie, isPast, canGoOlder, canGoNewer, onOlder, onNewer, remainingSeats, mySeat, closed }: Props) {
   const poster = movie.poster_cdn_url || movie.poster_url;
   const deadline = formatDeadline(movie.deadline_date);
   // 폰 표는 폭이 좁아 학교 이름을 뺀 상영관 이름만 쓴다.
@@ -89,8 +92,18 @@ export default function MovieInfo({ movie, isPast, canGoOlder, canGoNewer, onOld
           </dl>
           {!isPast && (
             <div className="flex flex-wrap items-center gap-5">
-              <a href="#seats" className="inline-flex items-center justify-center h-[52px] px-8 bg-ink text-ground text-[15px] font-bold tracking-[0.04em] hover:bg-white transition-colors">좌석 선택하기</a>
-              {remainingSeats !== null && (
+              {mySeat ? (
+                <span className="flex items-baseline gap-3">
+                  <span className="text-sm text-dim">내 좌석</span>
+                  <b className="text-[28px] leading-none font-black text-accent tabular-nums">{mySeat.seat}</b>
+                  <span className="text-sm text-sub">{mySeat.pending ? '입금 대기' : '예매 확정'}</span>
+                </span>
+              ) : closed ? (
+                <span className="text-sm text-sub">예매가 마감되었어요</span>
+              ) : (
+                <a href="#seats" className="inline-flex items-center justify-center h-[52px] px-8 bg-ink text-ground text-[15px] font-bold tracking-[0.04em] hover:bg-white transition-colors">좌석 선택하기</a>
+              )}
+              {!mySeat && !closed && remainingSeats !== null && (
                 <span className="text-sm text-dim">남은 좌석 <b className="text-ink">{remainingSeats}</b>석</span>
               )}
             </div>

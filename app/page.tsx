@@ -950,6 +950,8 @@ export default function Home() {
             onOlder={goToOlderMovie}
             onNewer={goToNewerMovie}
             remainingSeats={viewingPast ? null : remainingSeats}
+            mySeat={!viewingPast && myReservation ? { seat: myReservation.seat, pending: myReservation.status === 'pending' } : null}
+            closed={isClosed}
           />
         </div>
 
