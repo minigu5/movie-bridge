@@ -432,27 +432,31 @@ export async function POST(req: Request) {
         const manualText: string = typeof payload?.manualText === 'string' ? payload.manualText : '';
 
         const emailSet = new Set<string>();
+        // 관리자 화면의 "겹치는 사람 빼기" 숫자용: 고른 명단을 그냥 더한 수
+        let rawCount = 0;
+        const add = (e: string) => { rawCount++; emailSet.add(e.toLowerCase()); };
 
         if (club) {
           const { data, error } = await supabaseAdmin.from('club_members').select('email');
           if (error) throw error;
-          (data ?? []).forEach((r: { email: string }) => emailSet.add(r.email.toLowerCase()));
+          (data ?? []).forEach((r: { email: string }) => add(r.email));
         }
 
         if (invited) {
           const { data, error } = await supabaseAdmin.from('invited_emails').select('email');
           if (error) throw error;
-          (data ?? []).forEach((r: { email: string }) => emailSet.add(r.email.toLowerCase()));
+          (data ?? []).forEach((r: { email: string }) => add(r.email));
         }
 
         grades
           .filter((g): g is 'g1' | 'g2' | 'g3' => g === 'g1' || g === 'g2' || g === 'g3')
           .forEach((g) => {
-            gradeEmails(admissionYearForGrade(g)).forEach((e) => emailSet.add(e.toLowerCase()));
+            gradeEmails(admissionYearForGrade(g)).forEach((e) => add(e));
           });
 
-        extractSchoolEmails(manualText).forEach((e) => emailSet.add(e.toLowerCase()));
+        extractSchoolEmails(manualText).forEach((e) => add(e));
 
+        const uniqueCount = emailSet.size;
         // 블랙리스트 제외
         const { data: blRows, error: blError } = await supabaseAdmin.from('blacklist').select('email');
         if (blError) throw blError;
@@ -475,7 +479,10 @@ export async function POST(req: Request) {
         }
 
         const recipients = emails.map((email) => ({ email, name: nameByEmail.get(email) ?? null }));
-        return NextResponse.json({ success: true, data: { recipients, count: recipients.length } });
+        return NextResponse.json({
+          success: true,
+          data: { recipients, count: recipients.length, overlap: rawCount - uniqueCount, blocked: uniqueCount - recipients.length },
+        });
       }
 
       case 'LOG_PROMO_SENT': {

@@ -1,134 +1,150 @@
 "use client";
 
 import { type Dispatch, type SetStateAction } from 'react';
-import { Mail, Send, X } from 'lucide-react';
-import { activeAdmissionYears } from '../../../lib/schoolEmails';
+import { X } from 'lucide-react';
+import { activeAdmissionYears, gradeEmails } from '../../../lib/schoolEmails';
 
 export type PromoSources = { club: boolean; invited: boolean; g1: boolean; g2: boolean; g3: boolean };
 
-export interface PromoProps {
+export interface MailTabProps {
+  movieTitle: string | undefined;
+  sourceCounts: { club: number; invited: number };
   sources: PromoSources;
   setSources: Dispatch<SetStateAction<PromoSources>>;
   manualText: string;
   setManualText: (v: string) => void;
   manualPreviewCount: number;
-  isResolving: boolean;
   isSending: boolean;
   progress: { current: number; total: number };
   recipients: { email: string; name: string | null }[];
-  showConfirm: boolean;
-  onResolveClick: () => void;
-  onConfirmSend: () => void;
   onRemoveRecipient: (email: string) => void;
-  onCancelConfirm: () => void;
+  recipientCount: number | null;
+  // 겹침·차단으로 빠진 수(서버가 계산해 준 경우만)
+  excluded: { overlap: number; blocked: number } | null;
+  isResolving: boolean;
+  onSend(): void;
+  sendCountdown: number | null;
+  onStopCountdown(): void;
+  showRecipients: boolean;
+  onToggleRecipients(): void;
 }
 
-export default function PromoMailSection({ promo, movieTitle }: { promo: PromoProps; movieTitle: string | undefined }) {
-  const p = promo;
+function SourceRow({ checked, onChange, title, detail, count }: { checked: boolean; onChange(): void; title: string; detail: string; count: number }) {
+  return (
+    <label className="flex items-center gap-3.5 min-h-[54px] border-b border-line cursor-pointer">
+      <input type="checkbox" checked={checked} onChange={onChange} className="w-5 h-5 m-0 shrink-0 accent-[#F2F2F0]" />
+      <span className="flex-1 min-w-0 flex flex-col gap-0.5">
+        <span className="text-[15px] font-bold">{title}</span>
+        <span className="text-xs text-dim break-keep">{detail}</span>
+      </span>
+      <span className="shrink-0 text-sm text-sub">{count}명</span>
+    </label>
+  );
+}
+
+export default function MailTab(p: MailTabProps) {
   const [yy3, yy2, yy1] = activeAdmissionYears();
   const toggle = (key: keyof PromoSources) => p.setSources((prev) => ({ ...prev, [key]: !prev[key] }));
   const pct = p.progress.total > 0 ? Math.round((p.progress.current / p.progress.total) * 100) : 0;
+  const gradeDetail = (yy: number) => `${yy}학번 · 학번 ${yy === 25 ? '0001~0110' : '001~110'} 학교 이메일`;
+  const canSend = !p.isSending && p.sendCountdown === null && !!p.recipientCount;
 
   return (
-    <section className="bg-neutral-800 p-6 rounded-xl border border-orange-600">
-      <h2 className="text-xl font-bold text-orange-400 mb-1 flex items-center gap-1.5"><Mail className="w-5 h-5" /> 상영작 홍보 메일 발송</h2>
-      <p className="text-neutral-400 text-sm mb-4">
-        현재 상영작(<span className="text-neutral-200">{movieTitle || '미설정'}</span>) 기준으로 (광고) 초청 메일을 보냅니다.
-        블랙리스트는 자동 제외됩니다.
-      </p>
-
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
-        <label className="flex items-center gap-2 cursor-pointer bg-neutral-700/40 rounded px-3 py-2">
-          <input type="checkbox" checked={p.sources.club} onChange={() => toggle('club')} className="w-4 h-4 accent-amber-500" />
-          <span className="text-sm text-amber-300 font-bold">동아리원(VIP)</span>
-        </label>
-        <label className="flex items-center gap-2 cursor-pointer bg-neutral-700/40 rounded px-3 py-2">
-          <input type="checkbox" checked={p.sources.invited} onChange={() => toggle('invited')} className="w-4 h-4 accent-sky-500" />
-          <span className="text-sm text-sky-300 font-bold">초대 명단</span>
-        </label>
-        <label className="flex items-center gap-2 cursor-pointer bg-neutral-700/40 rounded px-3 py-2">
-          <input type="checkbox" checked={p.sources.g1} onChange={() => toggle('g1')} className="w-4 h-4 accent-orange-500" />
-          <span className="text-sm text-neutral-200 font-bold">1학년 ({yy1}학번)</span>
-        </label>
-        <label className="flex items-center gap-2 cursor-pointer bg-neutral-700/40 rounded px-3 py-2">
-          <input type="checkbox" checked={p.sources.g2} onChange={() => toggle('g2')} className="w-4 h-4 accent-orange-500" />
-          <span className="text-sm text-neutral-200 font-bold">2학년 ({yy2}학번)</span>
-        </label>
-        <label className="flex items-center gap-2 cursor-pointer bg-neutral-700/40 rounded px-3 py-2">
-          <input type="checkbox" checked={p.sources.g3} onChange={() => toggle('g3')} className="w-4 h-4 accent-orange-500" />
-          <span className="text-sm text-neutral-200 font-bold">3학년 ({yy3}학번)</span>
-        </label>
-      </div>
-      <p className="text-neutral-500 text-xs mb-4">
-        학년별 발송은 각 학년 001~110번(25학번은 0001~0110번) 학생 이메일(<code>ts{yy1}{yy1 === 25 ? '0001' : '001'}@ts.hs.kr</code> 형식)로 보냅니다. 학년도(3월 2일) 기준 자동 갱신.
-      </p>
-
-      <div className="mb-4">
-        <label className="block text-neutral-300 mb-1 text-sm font-bold">추가 수동 발송 (선택)</label>
-        <textarea
-          value={p.manualText}
-          onChange={(e) => p.setManualText(e.target.value)}
-          placeholder={'이름과 이메일을 붙여넣으면 @ts.hs.kr 이메일만 자동 인식됩니다.\n예) 2208 신민규 <ts250024@ts.hs.kr>'}
-          rows={3}
-          className="w-full p-2 bg-neutral-700 rounded border border-neutral-600 outline-none text-white text-sm resize-none"
-        />
-        <span className="text-neutral-500 text-xs">{p.manualPreviewCount}개 이메일 인식됨</span>
+    <div className="max-w-[1020px] flex flex-col gap-9">
+      <div className="flex flex-col gap-1.5">
+        <h1 className="text-2xl md:text-[28px] font-black tracking-[-0.02em]">메일</h1>
+        <p className="text-sm text-dim break-keep">「{p.movieTitle || '상영작 없음'}」 초대 메일을 보냅니다. 받은 사람은 예매할 수 있게 초대 명단에 들어가요.</p>
       </div>
 
-      {p.isSending ? (
-        <div className="w-full bg-neutral-700 rounded-full h-8 relative overflow-hidden border border-neutral-600">
-          <div className="bg-orange-600 h-8 transition-all duration-300" style={{ width: `${pct}%` }} />
-          <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-white">
-            안전 발송 중... ({p.progress.current} / {p.progress.total})
-          </span>
-        </div>
-      ) : (
-        <button
-          onClick={p.onResolveClick}
-          disabled={p.isResolving}
-          className="w-full py-3 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white font-bold rounded-lg shadow-lg transition-colors flex items-center justify-center gap-1.5"
-        >
-          {p.isResolving ? '명단 계산 중...' : (<><Send className="w-4 h-4" /> 체크한 대상에게 홍보 메일 발송하기</>)}
-        </button>
-      )}
-
-      {p.showConfirm && (
-        <div className="fixed inset-0 bg-orange-900/90 backdrop-blur-sm flex items-center justify-center p-4 z-[100]">
-          <div className="bg-neutral-900 p-8 rounded-2xl max-w-md w-full border-4 border-orange-500 shadow-[0_0_50px_rgba(249,115,22,0.5)] text-center">
-            <h3 className="text-2xl font-black text-white mb-4 flex items-center justify-center gap-1.5"><Mail className="w-6 h-6" /> 대량 메일 발송 확인</h3>
-            <div className="bg-orange-950 p-5 rounded-xl text-white border border-orange-800 mb-4">
-              <p className="text-sm text-orange-300 mb-1">발송 예정 총 인원 (블랙리스트/중복 제외)</p>
-              <p className="text-5xl text-yellow-400 font-black">{p.recipients.length}<span className="text-xl text-white ml-2">명</span></p>
-            </div>
-            <div className="bg-neutral-950 rounded-xl border border-neutral-700 mb-4 max-h-56 overflow-y-auto text-left">
-              <p className="sticky top-0 bg-neutral-950 px-4 py-2 text-xs text-neutral-400 border-b border-neutral-800">
-                수신자 목록 (로그인 이력 있으면 이름, 없으면 이메일)
-              </p>
-              <ul className="divide-y divide-neutral-800">
-                {p.recipients.map((r) => (
-                  <li key={r.email} className="flex items-center justify-between gap-2 px-4 py-1.5 text-sm text-neutral-200">
-                    <span className="truncate" title={r.email}>{r.name || r.email}</span>
-                    <button
-                      type="button"
-                      onClick={() => p.onRemoveRecipient(r.email)}
-                      aria-label={`${r.name || r.email} 발송 대상에서 제외`}
-                      className="shrink-0 p-1 rounded text-neutral-500 hover:text-red-400 hover:bg-neutral-800"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <p className="text-orange-300 text-sm mb-2">발송에 성공한 수신자는 초대 명단에 자동으로 추가되어 예매할 수 있게 됩니다.</p>
-            <p className="text-neutral-400 text-sm mb-6">발송 중에는 창을 닫거나 새로고침하지 마세요. 진행 바가 다 찰 때까지 기다려 주세요.</p>
-            <div className="flex gap-3">
-              <button onClick={p.onCancelConfirm} className="flex-1 py-3 bg-neutral-700 hover:bg-neutral-600 rounded-xl text-white font-bold">돌아가기</button>
-              <button onClick={p.onConfirmSend} disabled={p.recipients.length === 0} className="flex-1 py-3 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-white font-bold flex items-center justify-center gap-1.5"><Send className="w-4 h-4" /> 발송 시작</button>
+      <div className="flex flex-wrap gap-10 items-start">
+        <section className="flex-[1_1_420px] min-w-0 flex flex-col gap-7">
+          <div className="flex flex-col gap-3">
+            <h2 className="text-base font-black border-b border-ink pb-2.5">1 · 누구에게 보낼까요</h2>
+            <div className="flex flex-col">
+              <SourceRow checked={p.sources.club} onChange={() => toggle('club')} title="동아리원" detail="사람 메뉴의 동아리원 전체" count={p.sourceCounts.club} />
+              <SourceRow checked={p.sources.invited} onChange={() => toggle('invited')} title="초대 명단" detail="전에 초대 메일을 받았거나 직접 넣은 사람" count={p.sourceCounts.invited} />
+              <SourceRow checked={p.sources.g1} onChange={() => toggle('g1')} title="1학년" detail={gradeDetail(yy1)} count={gradeEmails(yy1).length} />
+              <SourceRow checked={p.sources.g2} onChange={() => toggle('g2')} title="2학년" detail={gradeDetail(yy2)} count={gradeEmails(yy2).length} />
+              <SourceRow checked={p.sources.g3} onChange={() => toggle('g3')} title="3학년" detail={gradeDetail(yy3)} count={gradeEmails(yy3).length} />
             </div>
           </div>
-        </div>
-      )}
-    </section>
+          <div className="flex flex-col gap-2.5">
+            <h2 className="text-base font-black border-b border-ink pb-2.5">2 · 더 넣을 사람 <span className="text-xs font-medium text-dim">(선택)</span></h2>
+            <label htmlFor="mail-extra" className="text-xs text-dim">이름과 이메일을 아무렇게나 붙여넣어도 학교 이메일만 골라내요.</label>
+            <textarea
+              id="mail-extra"
+              rows={3}
+              value={p.manualText}
+              onChange={(e) => p.setManualText(e.target.value)}
+              placeholder="예) 2208 신민규 <ts250024@ts.hs.kr>"
+              className="w-full px-3.5 py-3 bg-card border border-line text-ink text-sm resize-y outline-none focus:border-line-bold placeholder:text-mute"
+            />
+            <span className="text-xs text-sub">이메일 <b className="text-ink">{p.manualPreviewCount}</b>개 찾음</span>
+          </div>
+        </section>
+
+        <aside className="w-full md:w-[300px] md:flex-[0_0_300px] flex flex-col gap-4 p-6 bg-card border border-line">
+          <span className="text-[13px] text-dim">보낼 사람</span>
+          <span className="text-[44px] font-black tracking-[-0.02em] leading-none">
+            {p.recipientCount ?? '—'}<span className="text-lg font-bold ml-1">명</span>
+            {p.isResolving && <span className="ml-2 text-xs font-normal text-mute align-middle">세는 중</span>}
+          </span>
+          {p.excluded && (p.excluded.overlap > 0 || p.excluded.blocked > 0) && (
+            <div className="flex flex-col gap-1.5 text-[13px] text-sub border-t border-line pt-3.5">
+              <span className="flex justify-between"><span>겹치는 사람 빼기</span><span>−{p.excluded.overlap}</span></span>
+              <span className="flex justify-between"><span>차단한 사람 빼기</span><span>−{p.excluded.blocked}</span></span>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={p.onToggleRecipients}
+            aria-expanded={p.showRecipients}
+            disabled={p.recipients.length === 0}
+            className="h-10 border border-line-strong text-ink text-[13px] font-bold disabled:opacity-40"
+          >
+            {p.showRecipients ? '받는 사람 목록 접기' : '받는 사람 목록 보기'}
+          </button>
+          {p.showRecipients && p.recipients.length > 0 && (
+            <ul className="max-h-64 overflow-y-auto border border-line divide-y divide-line">
+              {p.recipients.map((r) => (
+                <li key={r.email} className="flex items-center justify-between gap-2 pl-3 pr-1 py-1 text-[13px] text-sub">
+                  <span className="truncate" title={r.email}>{r.name || r.email}</span>
+                  <button
+                    type="button"
+                    onClick={() => p.onRemoveRecipient(r.email)}
+                    disabled={p.isSending || p.sendCountdown !== null}
+                    aria-label={`${r.name || r.email} 받는 사람에서 빼기`}
+                    className="shrink-0 p-1.5 text-mute hover:text-ink disabled:opacity-40"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {p.isSending ? (
+            <div className="flex flex-col gap-2">
+              <div className="h-2 bg-line"><div className="h-2 bg-ink transition-all duration-300" style={{ width: `${pct}%` }} /></div>
+              <span className="text-[13px] text-ink">보내는 중 {p.progress.current} / {p.progress.total}</span>
+            </div>
+          ) : p.sendCountdown !== null ? (
+            <button type="button" onClick={p.onStopCountdown} className="h-[52px] border border-ink text-ink text-[15px] font-bold">
+              5초 뒤 보내요 · 멈추기 {p.sendCountdown}
+            </button>
+          ) : (
+            <button type="button" onClick={p.onSend} disabled={!canSend} className="h-[52px] bg-ink text-ground text-[15px] font-bold disabled:opacity-40">
+              보내기
+            </button>
+          )}
+          <span className="text-xs leading-relaxed text-mute break-keep">누르면 5초 뒤 보내기 시작해요. 그 사이엔 멈출 수 있어요. 다 보낼 때까지 창을 닫지 마세요.</span>
+        </aside>
+      </div>
+
+      <section className="flex flex-col gap-2.5 border-t border-line pt-5">
+        <h2 className="text-sm font-bold text-sub">자동으로 나가는 메일</h2>
+        <p className="text-[13px] leading-relaxed text-dim break-keep">예매 확정 · 결제 승인 · 취소 메일은 그 일이 생기면 알아서 보내요. 여기서 따로 할 일은 없어요.</p>
+      </section>
+    </div>
   );
 }

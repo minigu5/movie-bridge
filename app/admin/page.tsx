@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, Suspense, type ReactNode } from 'react';
+import { useState, useEffect, useMemo, useRef, Suspense, type ReactNode } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ensureProfile, signInWithGoogle, signOutAndClear, authFetch, DomainNotAllowedError, type AppProfile } from '../../lib/supabase-auth';
 import { extractSchoolEmails } from '../../lib/parseEmails';
@@ -10,7 +10,8 @@ import { useToasts, ToastStack } from './_components/Toasts';
 import { buildDerivedFields } from './_components/screeningSchedule';
 import ReservationsTab from './_components/ReservationsTab';
 import MovieTab from './_components/MovieTab';
-import PromoMailSection from './_components/MailTab';
+import MailTab from './_components/MailTab';
+import { scheduleUndoable } from '../../lib/undoable';
 import MembersTab from './_components/MembersTab';
 import HistoryTab from './_components/HistoryTab';
 
@@ -113,8 +114,12 @@ function AdminPageInner() {
   const [isResolvingPromo, setIsResolvingPromo] = useState(false);
   const [isSendingPromo, setIsSendingPromo] = useState(false);
   const [promoProgress, setPromoProgress] = useState({ current: 0, total: 0 });
-  const [promoRecipients, setPromoRecipients] = useState<{ email: string; name: string | null }[]>([]);
-  const [showPromoConfirm, setShowPromoConfirm] = useState(false);
+  const [promoRecipients, setPromoRecipients] = useState<{ email: string; name: string | null }[] | null>(null);
+  const [promoExcluded, setPromoExcluded] = useState<{ overlap: number; blocked: number } | null>(null);
+  const [showPromoRecipients, setShowPromoRecipients] = useState(false);
+  const [promoCountdown, setPromoCountdown] = useState<number | null>(null);
+  const promoSendRef = useRef<{ cancel(): boolean; interval: ReturnType<typeof setInterval> } | null>(null);
+  const promoResolveSeq = useRef(0);
 
   // 🌟 (신규) 팝콘 통계 계산을 위한 함수
   const popcornStats = useMemo(() => {
@@ -474,41 +479,80 @@ function AdminPageInner() {
     setProfileSearchQuery('');
   };
 
-  const handleResolvePromoClick = async () => {
+  // 체크·붙여넣기가 바뀌면 500ms 뒤 받는 사람을 다시 센다(겹침·차단 제외는 서버가 한다).
+  useEffect(() => {
+    if (!isAdmin || activeTab !== 'mail') return;
     const grades = (['g1', 'g2', 'g3'] as const).filter((g) => promoSources[g]);
-    const hasTarget =
-      promoSources.club || promoSources.invited || grades.length > 0 || promoManualPreviewCount > 0;
-    if (!hasTarget) return notify('발송 대상을 하나 이상 선택하세요.', 'error');
-    if (!movieInfo?.title) return notify('현재 상영작 정보가 없습니다. 회차 설정을 먼저 저장하세요.', 'error');
-
-    setIsResolvingPromo(true);
-    try {
-      const res = await authFetch('/api/admin/action', {
-        action: 'RESOLVE_PROMO_RECIPIENTS',
-        payload: {
-          club: promoSources.club,
-          invited: promoSources.invited,
-          grades,
-          manualText: promoManualText,
-        },
-      });
-      const data = await res.json();
-      if (!data.success) return notify('명단 조회 실패: ' + data.error, 'error');
-      if (data.data.count === 0) return notify('발송 대상이 없습니다. (블랙리스트 제외 후 0명)', 'error');
-      setPromoRecipients(data.data.recipients);
-      setShowPromoConfirm(true);
-    } catch (err) {
-      console.error(err);
-      notify('명단 조회 중 오류가 발생했습니다.', 'error');
-    } finally {
+    const hasTarget = promoSources.club || promoSources.invited || grades.length > 0 || promoManualText.trim() !== '';
+    const seq = ++promoResolveSeq.current;
+    if (!hasTarget) {
+      setPromoRecipients([]);
+      setPromoExcluded(null);
       setIsResolvingPromo(false);
+      return;
     }
+    setIsResolvingPromo(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await authFetch('/api/admin/action', {
+          action: 'RESOLVE_PROMO_RECIPIENTS',
+          payload: { club: promoSources.club, invited: promoSources.invited, grades, manualText: promoManualText },
+        });
+        const data = await res.json();
+        if (seq !== promoResolveSeq.current) return;
+        if (!data.success) { notify('받는 사람 계산 실패: ' + data.error, 'error'); return; }
+        setPromoRecipients(data.data.recipients);
+        setPromoExcluded(typeof data.data.overlap === 'number' ? { overlap: data.data.overlap, blocked: data.data.blocked } : null);
+      } catch (err) {
+        console.error(err);
+        if (seq === promoResolveSeq.current) notify('받는 사람 계산 중 오류가 났어요.', 'error');
+      } finally {
+        if (seq === promoResolveSeq.current) setIsResolvingPromo(false);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [isAdmin, activeTab, promoSources, promoManualText]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const stopPromoCountdown = () => {
+    const h = promoSendRef.current;
+    if (!h) return;
+    h.cancel();
+    clearInterval(h.interval);
+    promoSendRef.current = null;
+    setPromoCountdown(null);
   };
 
-  const executeSendPromo = async () => {
-    setShowPromoConfirm(false);
+  // 보내기: 5초 카운트다운 뒤 발송 시작. 그 사이엔 멈출 수 있다.
+  const handleSendPromo = () => {
+    if (!movieInfo?.title) return notify('지금 상영작 정보가 없어요. 상영 메뉴에서 먼저 저장해 주세요.', 'error');
+    const recipients = promoRecipients ?? [];
+    if (recipients.length === 0) return notify('보낼 사람이 없어요.', 'error');
+    if (promoSendRef.current || isSendingPromo) return;
+    const startedAt = Date.now();
+    setPromoCountdown(5);
+    const interval = setInterval(() => {
+      setPromoCountdown(Math.max(1, 5 - Math.floor((Date.now() - startedAt) / 1000)));
+    }, 250);
+    const handle = scheduleUndoable(() => {
+      clearInterval(interval);
+      promoSendRef.current = null;
+      setPromoCountdown(null);
+      return executeSendPromo(recipients);
+    }, 5000);
+    promoSendRef.current = { cancel: handle.cancel, interval };
+  };
+
+  // 메일 메뉴를 떠나면 카운트다운 중인 발송은 멈춘다(보내기 시작한 뒤에는 그대로 간다).
+  useEffect(() => {
+    if (activeTab !== 'mail') stopPromoCountdown();
+  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => {
+    const h = promoSendRef.current;
+    if (h) { h.cancel(); clearInterval(h.interval); promoSendRef.current = null; }
+  }, []);
+
+  const executeSendPromo = async (recipients: { email: string; name: string | null }[]) => {
     setIsSendingPromo(true);
-    const recipients = promoRecipients;
     setPromoProgress({ current: 0, total: recipients.length });
 
     const movieInfoPayload = {
@@ -671,24 +715,26 @@ function AdminPageInner() {
       )}
 
       {activeTab === 'mail' && (
-        <PromoMailSection
+        <MailTab
           movieTitle={movieInfo?.title}
-          promo={{
-            sources: promoSources,
-            setSources: setPromoSources,
-            manualText: promoManualText,
-            setManualText: setPromoManualText,
-            manualPreviewCount: promoManualPreviewCount,
-            isResolving: isResolvingPromo,
-            isSending: isSendingPromo,
-            progress: promoProgress,
-            recipients: promoRecipients,
-            showConfirm: showPromoConfirm,
-            onResolveClick: handleResolvePromoClick,
-            onConfirmSend: executeSendPromo,
-            onRemoveRecipient: (email: string) => setPromoRecipients((prev) => prev.filter((r) => r.email !== email)),
-            onCancelConfirm: () => setShowPromoConfirm(false),
-          }}
+          sourceCounts={{ club: clubMembers.length, invited: invitedEmails.length }}
+          sources={promoSources}
+          setSources={setPromoSources}
+          manualText={promoManualText}
+          setManualText={setPromoManualText}
+          manualPreviewCount={promoManualPreviewCount}
+          isSending={isSendingPromo}
+          progress={promoProgress}
+          recipients={promoRecipients ?? []}
+          onRemoveRecipient={(email: string) => setPromoRecipients((prev) => (prev ?? []).filter((r) => r.email !== email))}
+          recipientCount={promoRecipients ? promoRecipients.length : null}
+          excluded={promoExcluded}
+          isResolving={isResolvingPromo}
+          onSend={handleSendPromo}
+          sendCountdown={promoCountdown}
+          onStopCountdown={stopPromoCountdown}
+          showRecipients={showPromoRecipients}
+          onToggleRecipients={() => setShowPromoRecipients((v) => !v)}
         />
       )}
 
