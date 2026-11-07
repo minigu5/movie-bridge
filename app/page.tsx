@@ -1,22 +1,33 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import { supabase } from '../lib/supabase';
 import { ensureProfile, signInWithGoogle, signOutAndClear, authFetch, authFetchGet, DomainNotAllowedError, type AppProfile } from '../lib/supabase-auth';
 import Link from 'next/link'; // 🌟[추가] Next.js Link 임포트
-import { Crown, Check, Ban, Siren, Popcorn, CircleCheck, Sparkles, PartyPopper, Mail, BookOpen, LogOut, History, Lock, ArrowRight, Hourglass, RefreshCw, User, Users, Lightbulb, ClipboardList, CircleHelp, Ticket, PenLine } from 'lucide-react';
+import { Crown, Check, Ban, Siren, Popcorn, CircleCheck, Sparkles, PartyPopper, Mail, BookOpen, LogOut, Hourglass, RefreshCw, User, Users, Lightbulb, ClipboardList, CircleHelp, Ticket, PenLine } from 'lucide-react';
 
 import AccountInfo from '@/components/AccountInfo';
 import MovieReviews from '@/components/MovieReviews';
 import PrivacyConsentGate, { type ConsentStatus } from '@/components/PrivacyConsentGate';
 import RequiredReviewModal, { type PendingReview } from '@/components/RequiredReviewModal';
-import { getGridRows, getGridCols, computeSeatId, computeVipSeats } from '@/lib/seatGrid';
-import { countBookable } from '@/lib/seatZones';
+import { getGridRows, getGridCols, computeVipSeats } from '@/lib/seatGrid';
+import { countBookable, getZones, initialZone, zoneOf, type ZoneKey } from '@/lib/seatZones';
+import SeatGrid, { type SeatState } from '@/components/home/SeatGrid';
+import ZoneMap from '@/components/home/ZoneMap';
+import SeatLegend from '@/components/home/SeatLegend';
 import MovieInfo from '@/components/home/MovieInfo';
 
 // 🌟 [로그인 리다이렉트 복원] 비로그인 좌석 클릭 -> 구글 로그인 -> 복귀 사이에 풀 페이지
 // 리다이렉트로 예매 진행 state가 초기화되는 것을 막기 위한 임시 저장 키
 const PENDING_SEAT_KEY = 'pending_seat_selection';
+
+// 폰(md 미만)은 좌석을 구역 하나씩 보여 준다.
+const PHONE_QUERY = '(max-width: 767px)';
+function subscribePhone(onChange: () => void) {
+  const mq = window.matchMedia(PHONE_QUERY);
+  mq.addEventListener('change', onChange);
+  return () => mq.removeEventListener('change', onChange);
+}
 
 // reservations 가드 트리거(0016)는 사용자에게 보여줄 수 있는 사유를 P0001로 던진다.
 // 그 외 오류(중복 좌석 등)는 화면별 기본 문구를 쓴다.
@@ -105,8 +116,6 @@ export default function Home() {
 
   const cols = useMemo(() => getGridCols(isGrandHall), [isGrandHall]);
 
-  const getSeatId = (rowIndex: number, colIndex: number) => computeSeatId(isGrandHall, rowIndex, colIndex);
-
   const vipSeats = useMemo(
     () => computeVipSeats(isGrandHall, rows, cols, movieInfo),
     [movieInfo, isGrandHall, rows, cols]
@@ -117,7 +126,7 @@ export default function Home() {
   const takenSeats = useMemo(() => new Set(Object.keys(seatStatuses)), [seatStatuses]);
   const remainingSeats = countBookable(isGrandHall, null, takenSeats, vipSeats, viewerIsClubMember);
 
-  // 하자 좌석은 좌석표에 표시하지 않고, 클릭 시점에만 경고한다.
+  // 하자 좌석은 좌석표에 점선으로 표시하고, 클릭 시점에도 경고한다.
   const defectiveSeats = useMemo(() => new Set(movieInfo.defective_seats ?? []), [movieInfo]);
   const warnIfDefective = (seatId: string, proceed: () => void) => {
     if (!defectiveSeats.has(seatId)) return proceed();
@@ -138,7 +147,6 @@ export default function Home() {
   const isPastGrandHall = pastMovie ? pastMovie.venue.includes('대강당') : false;
   const pastRows = useMemo(() => getGridRows(isPastGrandHall), [isPastGrandHall]);
   const pastCols = useMemo(() => getGridCols(isPastGrandHall), [isPastGrandHall]);
-  const getPastSeatId = (rowIndex: number, colIndex: number) => computeSeatId(isPastGrandHall, rowIndex, colIndex);
   const pastVipSeats = useMemo(
     () => (pastMovie ? computeVipSeats(isPastGrandHall, pastRows, pastCols, pastMovie) : new Set<string>()),
     [pastMovie, isPastGrandHall, pastRows, pastCols]
@@ -151,6 +159,7 @@ export default function Home() {
   const goToOlderMovie = () => {
     if (pastMovies.length === 0) return;
     setSelectedSeat(null);
+    setZone(null);
     setNavDirection('older');
     setPastIndex(prev => {
       if (prev === null) return 0;
@@ -161,6 +170,7 @@ export default function Home() {
   // 현재 상영작 방향으로 이동(오른쪽 화살표)
   const goToNewerMovie = () => {
     setSelectedSeat(null);
+    setZone(null);
     setNavDirection('newer');
     setPastIndex(prev => {
       if (prev === null) return null;
@@ -182,6 +192,49 @@ export default function Home() {
   const [isGroupSoloConfirmOpen, setIsGroupSoloConfirmOpen] = useState(false); // 🌟 [추가] 혼자 예매 선택 모달
   const [groupSendingProgress, setGroupSendingProgress] = useState({current: 0, total: 0, sending: false});
   const [isAdmin, setIsAdmin] = useState(false);
+
+  // 🌟 [폰 좌석 구역] zone이 null이면 자동: 내 예매 좌석 > 고른 좌석(로그인 복원 포함) > 첫 구역.
+  // 회차를 옮기면 null로 되돌리고, 상영관이 바뀌어 맞지 않는 구역이면 자동 구역을 쓴다.
+  const isPhone = useSyncExternalStore(subscribePhone, () => window.matchMedia(PHONE_QUERY).matches, () => false);
+  const [zone, setZone] = useState<ZoneKey | null>(null);
+  const gridZones = getZones(viewingPast ? isPastGrandHall : isGrandHall);
+  const autoZone = viewingPast ? gridZones[0].key : initialZone(isGrandHall, myReservation?.seat ?? null, selectedSeat);
+  const activeZone = gridZones.find(z => z.key === zone) ?? gridZones.find(z => z.key === autoZone) ?? gridZones[0];
+
+  const zoneCounts = useMemo(() => {
+    const counts = {} as Record<ZoneKey, number>;
+    for (const z of getZones(isGrandHall)) counts[z.key] = countBookable(isGrandHall, z, takenSeats, vipSeats, viewerIsClubMember);
+    return counts;
+  }, [isGrandHall, takenSeats, vipSeats, viewerIsClubMember]);
+
+  const hasPendingSeats = Object.values(seatStatuses).some(s => s.status === 'pending');
+  const showGroupPendingLegend = isGroupMode || Object.values(seatStatuses).some(s => s.status === 'group_pending');
+
+  const currentSeatState = (seatId: string): SeatState => {
+    const vip = vipSeats.has(seatId);
+    const defective = defectiveSeats.has(seatId);
+    // 🌟 [단체 예매] 로컬 그룹 좌석이 먼저
+    if (isGroupMode && groupLeader?.seat === seatId) return { visual: 'groupLeader', label: groupLeader.name, vip, defective };
+    const member = isGroupMode ? groupMembers.find(m => m.seat === seatId) : undefined;
+    if (member) return { visual: 'groupMember', label: member.name, vip, defective };
+    const data = seatStatuses[seatId];
+    if (data) {
+      const visual = data.status === 'pending' ? 'pending' : data.status === 'group_pending' ? 'groupPending' : 'taken';
+      return { visual, label: data.name || seatId, vip, defective };
+    }
+    if (selectedSeat === seatId) return { visual: 'selected', label: seatId, vip, defective };
+    return { visual: 'empty', label: seatId, vip, defective };
+  };
+
+  // 🌟 개인정보 보호: pastSeatMap은 seat_number -> payment_status만 담고 있으며
+  // 예매자 이름/학번 등은 절대 조회/표시하지 않는다. 좌석엔 seatId만 표시한다.
+  const pastDefectiveSeats = useMemo(() => new Set(pastMovie?.defective_seats ?? []), [pastMovie]);
+  const pastSeatState = (seatId: string): SeatState => {
+    const status = pastSeatMap[seatId];
+    const visual = status === 'confirmed' ? 'taken' : status === 'pending' ? 'pending' : status === 'group_pending' ? 'groupPending' : 'empty';
+    return { visual, label: seatId, vip: pastVipSeats.has(seatId), defective: pastDefectiveSeats.has(seatId) };
+  };
+
 
   // 🌟 [버그 수정] onAuthStateChange 콜백은 supabase-js 내부 exclusive lock을 쥔 채로
   // 실행된다. 콜백 안에서 다시 supabase.auth.* (ensureProfile 내부의 getSession())을
@@ -244,6 +297,7 @@ export default function Home() {
       return;
     }
     const openSeat = () => warnIfDefective(pending, () => {
+      setZone(zoneOf(isGrandHall, pending));
       setSelectedSeat(pending);
       setIsModalOpen(true);
     });
@@ -868,195 +922,59 @@ export default function Home() {
         />
       )}
 
-      {/* 🌟 [과거 상영 회차 열람] 과거 회차를 보고 있을 때는 완전히 별도의 읽기 전용 좌석 배치도를 렌더링한다.
+      {/* 🌟 [과거 상영 회차 열람] 과거 회차를 보고 있을 때는 읽기 전용 좌석 배치도를 렌더링한다(onSeatClick 없음).
           예매/팝콘/자리이동 등 인터랙션은 전부 제거되어 있고, 좌석 점유 표시에는 이름/학번 등 개인정보를 절대 노출하지 않는다. */}
       {viewingPast && pastMovie && isPastSeatLoading ? (
         <div className="w-full py-16 flex items-center justify-center">
-          <span className="text-neutral-300 text-sm">좌석 정보를 불러오는 중...</span>
+          <span className="text-dim text-sm">좌석 정보를 불러오는 중...</span>
         </div>
       ) : viewingPast && pastMovie && !pastHasReservations ? null : viewingPast && pastMovie ? (
-        <>
-          <div className="relative w-full overflow-x-auto pb-8">
-            <div className="flex flex-col items-center gap-1 md:gap-2 min-w-max px-4 pt-6 w-fit mx-auto relative">
-
-              <div className="w-[70%] h-8 md:h-10 rounded-t-3xl flex items-center justify-center mb-8 md:mb-12 border-t border-white/40 bg-neutral-400/70 shadow-[0_-10px_30px_rgba(255,255,255,0.1)]">
-                <span className="font-black text-xs md:text-base ml-2 text-neutral-900 tracking-[0.3em] flex items-center gap-1.5"><History className="w-4 h-4" /> 지난 회차</span>
-              </div>
-
-              <div className="md:hidden absolute top-0 left-6 animate-bounce text-amber-400 font-bold text-xs flex items-center gap-1 z-10 pointer-events-none drop-shadow-md">
-                옆으로 밀어서 확인 <ArrowRight className="w-4 h-4" />
-              </div>
-
-              {pastRows.map((rowChar, rowIndex) => (
-                <div key={rowIndex} className={`flex items-center gap-1 md:gap-2 ${isPastGrandHall && rowChar === 'H' ? 'mb-8 md:mb-12' : ''}`}>
-                  <span className="w-6 md:w-8 text-center font-bold text-neutral-500 text-xs md:text-sm">{rowChar}</span>
-
-                  <div className="flex gap-0.5 md:gap-1">
-                    {pastCols.map((colNum, colIndex) => {
-
-                      const seatId = getPastSeatId(rowIndex, colIndex);
-
-                      const isAisle = isPastGrandHall ? (colNum === 9 || colNum === 18) : (colNum === 7);
-                      const aisleMargin = isPastGrandHall ? 'mr-4 md:mr-8' : 'mr-8 md:mr-12';
-
-                      const btnSize = isPastGrandHall ? 'w-8 h-10 md:w-10 md:h-12' : 'w-10 h-12 md:w-12 md:h-14';
-
-                      if (!seatId) {
-                        return <div key={`empty-${colNum}`} className={`${isAisle ? aisleMargin : ''} ${btnSize}`} />;
-                      }
-
-                      // 🌟 개인정보 보호: pastSeatMap은 seat_number -> payment_status만 담고 있으며
-                      // 예매자 이름/학번 등은 절대 조회/표시하지 않는다. 좌석엔 seatId만 표시한다.
-                      const pastStatus = pastSeatMap[seatId];
-                      const isConfirmed = pastStatus === 'confirmed';
-                      const isGroupPending = pastStatus === 'group_pending';
-                      const isPending = pastStatus === 'pending';
-                      const isVipSeat = pastVipSeats.has(seatId);
-
-                      const textSize = isPastGrandHall ? 'text-[11px] md:text-[12px] tracking-tighter whitespace-nowrap' : 'text-[13px] md:text-[15px] tracking-tighter whitespace-nowrap';
-
-                      return (
-                        <div key={seatId} className={`flex ${isAisle ? aisleMargin : ''}`}>
-                          <button
-                            type="button"
-                            disabled
-                            aria-label={`${seatId} (읽기 전용)`}
-                            className={`${btnSize} ${textSize} rounded-t-xl rounded-b-md flex items-center justify-center font-bold px-0 overflow-hidden cursor-default
-                              ${isGroupPending ? 'bg-teal-900/40 text-teal-300 opacity-70'
-                                : isPending ? 'bg-yellow-600/20 border-yellow-600 text-yellow-500 opacity-80'
-                                : isConfirmed ? 'bg-neutral-800/80 text-neutral-500 opacity-80'
-                                : isVipSeat ? 'bg-amber-900/60 text-amber-300'
-                                : 'bg-white/10 text-neutral-300'}
-                            `}
-                          >
-                            {seatId}
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <span className="w-6 md:w-8 text-center font-bold text-neutral-500 text-xs md:text-sm ml-1 md:ml-2">{rowChar}</span>
-                </div>
-              ))}
-            </div>
+        <section className="flex flex-col gap-3.5 md:gap-7">
+          <div className="flex flex-wrap items-baseline justify-between gap-4 border-b border-ink pb-2 md:pb-3.5">
+            <h2 className="m-0 text-[17px] md:text-[22px] font-black">좌석 배치</h2>
+            {!isPhone && <SeatLegend showVip={pastVipSeats.size > 0} />}
           </div>
-
-          <div className="mt-4 flex flex-wrap justify-center gap-6 text-sm text-neutral-400">
-            <div className="flex items-center gap-2"><div className="w-4 h-4 bg-white/10 border border-white/5 rounded-sm"></div>예매 가능했던 좌석</div>
-            <div className="flex items-center gap-2"><div className="w-4 h-4 border border-amber-500/50 bg-amber-900/60 rounded-sm flex items-center justify-center"><Crown className="w-2.5 h-2.5 text-amber-300" /></div>동아리 전용석</div>
-            <div className="flex items-center gap-2"><div className="w-4 h-4 bg-neutral-800/80 border border-white/5 rounded-sm flex items-center justify-center"><Check className="w-2.5 h-2.5 text-neutral-500" /></div>예매 완료된 좌석</div>
-          </div>
-
-          <div className="mt-8 p-6 bg-white/5 backdrop-blur-xl rounded-2xl w-full max-w-xl text-center shadow-2xl border border-white/10">
-            <p className="text-neutral-300 font-bold mb-1 flex items-center justify-center gap-1.5"><Lock className="w-4 h-4" /> 지난 상영 회차 열람 모드</p>
-            <p className="text-neutral-500 text-sm font-light">좌석 배치도는 읽기 전용이며 예매자 정보는 표시되지 않습니다.<br/>예매 관련 기능은 현재 상영작에서만 이용할 수 있습니다.</p>
-            <button onClick={goToNewerMovie} className="mt-4 py-2.5 px-6 bg-orange-600 hover:bg-orange-500 rounded-lg text-white font-bold text-sm transition-all">현재 상영작으로 돌아가기 ▶</button>
-          </div>
-        </>
+          {isPhone && (
+            <>
+              <ZoneMap isGrandHall={isPastGrandHall} active={activeZone.key} counts={null} onSelect={setZone} />
+              <SeatLegend showVip={pastVipSeats.size > 0} className="justify-end" />
+            </>
+          )}
+          <SeatGrid isGrandHall={isPastGrandHall} zone={isPhone ? activeZone : null} seatState={pastSeatState} size={isPhone ? 'phone' : 'pc'} />
+        </section>
       ) : (
       <>
-      <div className="relative w-full overflow-x-auto pb-8">
-        <div className="flex flex-col items-center gap-1 md:gap-2 min-w-max px-4 pt-6 w-fit mx-auto relative">
-          {isClosed && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-neutral-950/80 rounded-xl">
-              <span className="text-4xl font-black text-rose-500 drop-shadow-[0_0_15px_rgba(244,63,94,0.6)] transform -rotate-12 border-4 border-rose-500 p-4 rounded-xl">예매가 마감되었습니다</span>
-            </div>
+      <section id="seats" className="flex flex-col gap-3.5 md:gap-7 scroll-mt-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-4 border-b border-ink pb-2 md:pb-3.5">
+          <h2 className="m-0 text-[17px] md:text-[22px] font-black">좌석 선택</h2>
+          {isPhone ? (
+            <span className="text-xs text-dim">남은 좌석 <b className="text-ink">{remainingSeats}</b>석</span>
+          ) : (
+            <SeatLegend showVip={vipSeats.size > 0} showPending={hasPendingSeats} showGroupPending={showGroupPendingLegend} showGroup={isGroupMode} />
           )}
-
-          <div className={`w-[70%] h-8 md:h-10 rounded-t-3xl flex items-center justify-center mb-8 md:mb-12 border-t border-white/40 ${isGroupMode ? 'bg-emerald-400/90 shadow-[0_-10px_30px_rgba(16,185,129,0.3)]' : 'bg-neutral-200/90 shadow-[0_-10px_30px_rgba(255,255,255,0.15)]'}`}>
-            <span className={`font-black text-xs md:text-base ml-2 ${isGroupMode ? 'text-emerald-900 tracking-[0.3em] animate-pulse' : 'text-neutral-800 tracking-[1em]'}`}>
-              {isGroupMode ? '단체 예매 중' : 'SCREEN'}
-            </span>
-          </div>
-
-          <div className="md:hidden absolute top-0 left-6 animate-bounce text-amber-400 font-bold text-xs flex items-center gap-1 z-10 pointer-events-none drop-shadow-md">
-            옆으로 밀어서 확인 <ArrowRight className="w-4 h-4" />
-          </div>
-
-          {rows.map((rowChar, rowIndex) => (
-            <div key={rowIndex} className={`flex items-center gap-1 md:gap-2 ${isGrandHall && rowChar === 'H' ? 'mb-8 md:mb-12' : ''}`}>
-              <span className="w-6 md:w-8 text-center font-bold text-neutral-500 text-xs md:text-sm">{rowChar}</span>
-              
-              <div className="flex gap-0.5 md:gap-1">
-                {cols.map((colNum, colIndex) => {
-                  
-                  const seatId = getSeatId(rowIndex, colIndex);
-                  
-                  const isAisle = isGrandHall ? (colNum === 9 || colNum === 18) : (colNum === 7);
-                  const aisleMargin = isGrandHall ? 'mr-4 md:mr-8' : 'mr-8 md:mr-12';
-                  
-                  const btnSize = isGrandHall ? 'w-8 h-10 md:w-10 md:h-12' : 'w-10 h-12 md:w-12 md:h-14';
-
-                  if (!seatId) {
-                    return <div key={`empty-${colNum}`} className={`${isAisle ? aisleMargin : ''} ${btnSize}`} />;
-                  }
-
-                  const isSelected = selectedSeat === seatId;
-                  const seatData = seatStatuses[seatId];
-                  const isConfirmed = seatData?.status === 'confirmed';
-                  const isGroupPending = seatData?.status === 'group_pending';
-                  const isPending = seatData?.status === 'pending';
-                  const isReserved = isConfirmed || isGroupPending || isPending;
-                  
-                  const isVipSeat = vipSeats.has(seatId);
-
-                  // 🌟 [단체 예매] 로컬 그룹 좌석 확인
-                  const isGroupLeaderSeat = isGroupMode && groupLeader?.seat === seatId;
-                  const isGroupMemberSeat = isGroupMode && groupMembers.some(m => m.seat === seatId);
-
-                  const displayText = isGroupLeaderSeat ? groupLeader!.name
-                    : isGroupMemberSeat ? groupMembers.find(m => m.seat === seatId)!.name
-                    : isReserved ? (seatData.name || seatId) : seatId;
-
-                  const textSize = (isReserved || isGroupLeaderSeat || isGroupMemberSeat)
-                    ? (isGrandHall ? 'text-[10px] md:text-[11px] tracking-tighter whitespace-nowrap' : 'text-[12px] md:text-[14px] tracking-tighter whitespace-nowrap') 
-                    : (isGrandHall ? 'text-[11px] md:text-[12px] tracking-tighter whitespace-nowrap' : 'text-[13px] md:text-[15px] tracking-tighter whitespace-nowrap');
-
-                  return (
-                    <div key={seatId} className={`flex ${isAisle ? aisleMargin : ''}`}>
-                      <button
-                        onClick={() => handleSeatClick(seatId)}
-                        disabled={isClosed} 
-                        className={`${btnSize} ${textSize} rounded-t-xl rounded-b-md flex items-center justify-center font-bold px-0 transition-colors overflow-hidden
-                          ${isGroupLeaderSeat ? 'bg-emerald-600 text-white shadow-[0_0_15px_rgba(16,185,129,0.5)] transform -translate-y-1 z-10 font-black ring-2 ring-emerald-400'
-                            : isGroupMemberSeat ? 'bg-sky-600 text-white shadow-[0_0_10px_rgba(14,165,233,0.4)] transform -translate-y-0.5 z-10 font-bold ring-1 ring-sky-400'
-                            : isGroupPending ? 'bg-teal-900/40 text-teal-300 cursor-not-allowed opacity-70'
-                            : isPending ? 'bg-yellow-600/20 border-yellow-600 text-yellow-500 cursor-not-allowed animate-pulse ring-1 ring-yellow-500'
-                            : isConfirmed ? 'bg-neutral-800/80 text-neutral-500 cursor-not-allowed opacity-80'
-                            : isSelected ? 'bg-orange-500 text-neutral-900 shadow-[0_0_15px_rgba(249,115,22,0.6)] transform -translate-y-1 z-10 font-black'
-                            : isVipSeat ? 'bg-amber-900/60 text-amber-300 hover:bg-amber-600/80'
-                            : 'bg-white/10 hover:bg-white/20 text-neutral-300'}
-                        `}
-                      >
-                        {displayText}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-              <span className="w-6 md:w-8 text-center font-bold text-neutral-500 text-xs md:text-sm ml-1 md:ml-2">{rowChar}</span>
-            </div>
-          ))}
         </div>
-      </div>
-
-      <div className="mt-4 flex flex-wrap justify-center gap-6 text-sm text-neutral-400">
-        <div className="flex items-center gap-2"><div className="w-4 h-4 bg-white/10 border border-white/5 rounded-sm"></div>예매 가능</div>
-        <div className="flex items-center gap-2"><div className="w-4 h-4 border border-amber-500/50 bg-amber-900/60 rounded-sm flex items-center justify-center"><Crown className="w-2.5 h-2.5 text-amber-300" /></div>동아리 전용</div>
-        <div className="flex items-center gap-2"><div className="w-4 h-4 bg-neutral-800/80 border border-white/5 rounded-sm flex items-center justify-center"><Check className="w-2.5 h-2.5 text-neutral-500" /></div>예매 완료</div>
-        {(isGroupMode || Object.values(seatStatuses).some(s => s.status === 'group_pending')) && (
-          <div className="flex items-center gap-2"><div className="w-4 h-4 bg-teal-900/40 border border-teal-500/50 rounded-sm"></div>단체 대기 중</div>
-        )}
-        {Object.values(seatStatuses).some(s => s.status === 'pending') && (
-          <div className="flex items-center gap-2"><div className="w-4 h-4 bg-yellow-600/20 border border-yellow-600 rounded-sm animate-pulse"></div>결제 대기 중</div>
-        )}
-        {isGroupMode && (
+        {isPhone && (
           <>
-            <div className="flex items-center gap-2"><div className="w-4 h-4 bg-emerald-600 rounded-sm"></div>리더 (나)</div>
-            <div className="flex items-center gap-2"><div className="w-4 h-4 bg-sky-600 rounded-sm"></div>단체 멤버</div>
+            <ZoneMap isGrandHall={isGrandHall} active={activeZone.key} counts={zoneCounts} onSelect={setZone} />
+            <SeatLegend showVip={vipSeats.size > 0} showPending={hasPendingSeats} showGroupPending={showGroupPendingLegend} showGroup={isGroupMode} className="justify-end" />
           </>
         )}
-      </div>
+        <div className="relative">
+          <SeatGrid
+            isGrandHall={isGrandHall}
+            zone={isPhone ? activeZone : null}
+            seatState={currentSeatState}
+            onSeatClick={handleSeatClick}
+            disabled={isClosed}
+            size={isPhone ? 'phone' : 'pc'}
+          />
+          {isClosed && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-ground/80">
+              <span className="text-sub text-base md:text-lg font-bold">예매가 마감되었어요</span>
+            </div>
+          )}
+        </div>
+      </section>
 
       <div className="mt-8 p-6 bg-white/5 backdrop-blur-xl rounded-2xl w-full max-w-xl text-center shadow-2xl border border-white/10">
         {isGroupMode ? (
