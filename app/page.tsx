@@ -109,12 +109,13 @@ export default function Home() {
   const [isAddPopcornMode, setIsAddPopcornMode] = useState(false); // 🍿 결제 대기 중 팝콘 추가 모드
 
   const [alertInfo, setAlertInfo] = useState<{message: string, isError: boolean} | null>(null);
-  const [confirmInfo, setConfirmInfo] = useState<{message: string, onConfirm: () => void} | null>(null);
+  const [confirmInfo, setConfirmInfo] = useState<{message: string, onConfirm: () => void, danger?: boolean} | null>(null);
   const [successInfo, setSuccessInfo] = useState<{title: string, message: string} | null>(null);
 
   const showAlert = (message: string, isError = true) => setAlertInfo({ message, isError });
   const NOT_INVITED_MESSAGE = "초대받은 분만 예매할 수 있습니다.\n초대가 필요하면 '영화대교' 동아리에 문의해주세요.";
-  const showConfirm = (message: string, onConfirm: () => void) => setConfirmInfo({ message, onConfirm });
+  // danger: 확인 버튼을 위험 동작(빨간 글씨)으로 보여 준다(예매 취소 등).
+  const showConfirm = (message: string, onConfirm: () => void, danger = false) => setConfirmInfo({ message, onConfirm, danger });
   const showSuccess = (title: string, message: string) => setSuccessInfo({ title, message });
 
   const isGrandHall = movieInfo.venue.includes('대강당');
@@ -707,7 +708,7 @@ export default function Home() {
       } catch {
         showAlert("네트워크 오류가 발생했습니다.");
       }
-    });
+    }, true);
   };
 
   const handleLogout = async () => {
@@ -827,7 +828,7 @@ export default function Home() {
       setGroupLeader(null);
       setGroupMembers([]);
       setSelectedSeat(null);
-    });
+    }, true);
   };
 
   // 🌟 [예매 영역] 상태별 하단 바 내용. 분기 순서는 예전 예매 패널과 같다(단체 > 마감 > 내 예매 > 자리 이동 > 고른 좌석).
@@ -1426,7 +1427,7 @@ export default function Home() {
                   setConfirmInfo(null);
                   confirmInfo.onConfirm();
                 }}
-                className={`${BTN_PRIMARY} flex-1`}>확인</button>
+                className={confirmInfo.danger ? `${BTN_SECONDARY.replace('text-ink', 'text-accent')} flex-1` : `${BTN_PRIMARY} flex-1`}>확인</button>
             </div>
           </div>
         </div>

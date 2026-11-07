@@ -35,7 +35,7 @@ function Badge({ isPast, small }: { isPast: boolean; small?: boolean }) {
 }
 
 function Nav({ canGoOlder, canGoNewer, onOlder, onNewer, small }: Pick<Props, 'canGoOlder' | 'canGoNewer' | 'onOlder' | 'onNewer'> & { small?: boolean }) {
-  const cls = `text-sub hover:text-ink transition-colors whitespace-nowrap ${small ? 'text-xs py-2' : 'text-sm py-1'}`;
+  const cls = `text-sub hover:text-ink transition-colors whitespace-nowrap ${small ? 'text-xs min-h-9 py-2.5' : 'text-sm py-1'}`;
   return (
     <div className="flex items-center gap-4">
       {canGoOlder && <button type="button" onClick={onOlder} className={cls}>‹ 지난 상영작</button>}

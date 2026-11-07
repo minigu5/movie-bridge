@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Noto_Sans_KR } from "next/font/google";
 import { preconnect } from "react-dom";
 import "./globals.css";
@@ -16,6 +16,13 @@ export const metadata: Metadata = {
   description: "대구과학고등학교 자율동아리 영화대교 영화 예매",
   // app/icon.png로 두면 Next 메타데이터 라우트라 요청마다 Worker가 응답한다. public/에 두면 static assets가 바로 준다.
   icons: { icon: [{ url: "/icon-16.png", sizes: "16x16" }, { url: "/icon-32.png", sizes: "32x32" }, { url: "/icon.png", sizes: "48x48" }], apple: "/apple-touch-icon.png" },
+};
+
+// 아이폰 홈 표시줄 영역까지 그려야 env(safe-area-inset-bottom)이 0이 아닌 값을 준다(폰 하단 고정 예매 바).
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

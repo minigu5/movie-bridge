@@ -63,8 +63,10 @@ export default function SeatGrid({ isGrandHall, zone, seatState, onSeatClick, di
   const gapsTotal = (cols - 1) * cfg.gap + aisleCount * cfg.aisle;
   // 대강당 전체 배치(27칸)는 본문 폭(1040)보다 넓어 본문 좌우 여백(40씩)까지 쓴다.
   const bleed = size === 'pc' && isGrandHall && !zone;
+  // 폰 대강당 구역(9칸)도 360px 폭에서 36px 칸이 들어가도록 본문 좌우 여백(16씩)을 8씩 더 쓴다.
+  const phoneBleed = size === 'phone' && isGrandHall;
   // 화면이 좁으면 칸 폭을 줄이되 36px 아래로는 내리지 않는다. PC는 본문 좌우 여백(80) + 스크롤바 여유(16).
-  const sidePad = size === 'pc' ? (bleed ? 16 : 96) : 32;
+  const sidePad = size === 'pc' ? (bleed ? 16 : 96) : phoneBleed ? 16 : 32;
   const cellWidth = `max(36px, min(${cfg.w}px, calc((100vw - ${sidePad + gapsTotal}px) / ${cols})))`;
 
   const rows: Cell[][] = [];
@@ -93,7 +95,7 @@ export default function SeatGrid({ isGrandHall, zone, seatState, onSeatClick, di
   const interactive = !!onSeatClick && !disabled;
 
   return (
-    <div className={`overflow-x-auto ${bleed ? '-mx-10' : 'w-full'}`}>
+    <div className={`overflow-x-auto ${bleed ? '-mx-10' : phoneBleed ? '-mx-2' : 'w-full'}`}>
       <div className="w-max mx-auto flex flex-col items-center py-2" style={{ gap: cfg.gap + 1 }}>
         <div
           className={`flex flex-col gap-2 ${zone ? 'w-full mb-2.5' : 'w-[70%] mb-8'} ${side === 'right' ? 'items-start' : side === 'left' ? 'items-end' : 'items-center'}`}

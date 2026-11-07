@@ -17,11 +17,11 @@ export default function BookingBar({ seatLabel, hint, primary, secondary = [] }:
         <div className="min-w-0 flex flex-col md:flex-row md:items-baseline md:gap-4">
           {seatLabel ? (
             <>
-              {hint && <span className="text-[11px] md:text-[13px] text-dim whitespace-nowrap">{hint}</span>}
-              <span className="text-[22px] md:text-[32px] leading-tight font-black tracking-[-0.02em] whitespace-nowrap">{seatLabel}</span>
+              {hint && <span className="text-[11px] md:text-[13px] text-dim whitespace-nowrap truncate">{hint}</span>}
+              <span className="text-[22px] md:text-[32px] leading-tight font-black tracking-[-0.02em] whitespace-nowrap truncate">{seatLabel}</span>
             </>
           ) : (
-            <span className="text-sm md:text-[15px] text-sub break-keep py-3 md:py-0">{hint}</span>
+            <span className="text-sm md:text-[15px] text-sub whitespace-nowrap truncate py-3 md:py-0">{hint}</span>
           )}
         </div>
         {(primary || secondary.length > 0) && (
