@@ -4,13 +4,15 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { ensureProfile, signInWithGoogle, signOutAndClear, authFetch, authFetchGet, DomainNotAllowedError, type AppProfile } from '../lib/supabase-auth';
 import Link from 'next/link'; // 🌟[추가] Next.js Link 임포트
-import { Crown, Check, Ban, Siren, Popcorn, CircleCheck, Sparkles, PartyPopper, Mail, BookOpen, Settings, Printer, LogOut, History, MapPin, Lock, ArrowRight, Hourglass, RefreshCw, User, Users, Lightbulb, ClipboardList, CircleHelp, Ticket, PenLine } from 'lucide-react';
+import { Crown, Check, Ban, Siren, Popcorn, CircleCheck, Sparkles, PartyPopper, Mail, BookOpen, LogOut, History, Lock, ArrowRight, Hourglass, RefreshCw, User, Users, Lightbulb, ClipboardList, CircleHelp, Ticket, PenLine } from 'lucide-react';
 
 import AccountInfo from '@/components/AccountInfo';
 import MovieReviews from '@/components/MovieReviews';
 import PrivacyConsentGate, { type ConsentStatus } from '@/components/PrivacyConsentGate';
 import RequiredReviewModal, { type PendingReview } from '@/components/RequiredReviewModal';
 import { getGridRows, getGridCols, computeSeatId, computeVipSeats } from '@/lib/seatGrid';
+import { countBookable } from '@/lib/seatZones';
+import MovieInfo from '@/components/home/MovieInfo';
 
 // 🌟 [로그인 리다이렉트 복원] 비로그인 좌석 클릭 -> 구글 로그인 -> 복귀 사이에 풀 페이지
 // 리다이렉트로 예매 진행 state가 초기화되는 것을 막기 위한 임시 저장 키
@@ -109,6 +111,11 @@ export default function Home() {
     () => computeVipSeats(isGrandHall, rows, cols, movieInfo),
     [movieInfo, isGrandHall, rows, cols]
   );
+
+  // 남은 좌석 = 보는 사람이 지금 고를 수 있는 좌석 수. 예매 행이 있는 좌석은 빼고, 동아리 전용은 동아리원에게만 센다(DB 가드와 같은 기준).
+  const viewerIsClubMember = !!profile && clubMemberIds.includes(profile.email);
+  const takenSeats = useMemo(() => new Set(Object.keys(seatStatuses)), [seatStatuses]);
+  const remainingSeats = countBookable(isGrandHall, null, takenSeats, vipSeats, viewerIsClubMember);
 
   // 하자 좌석은 좌석표에 표시하지 않고, 클릭 시점에만 경고한다.
   const defectiveSeats = useMemo(() => new Set(movieInfo.defective_seats ?? []), [movieInfo]);
@@ -762,162 +769,94 @@ export default function Home() {
     });
   };
 
-  if (authLoading) {
+  if (authLoading || isLoading) {
     return (
-      <div className="min-h-screen bg-neutral-950 flex items-center justify-center select-none overflow-hidden">
-        <div className="relative flex flex-col items-center justify-center animate-pulse">
-          <div className="absolute w-48 h-48 md:w-64 md:h-64 bg-orange-500/20 rounded-full blur-[80px] pointer-events-none"></div>
-          <div style={{ fontFamily: "var(--font-song-myung), serif" }} className="text-center flex flex-col leading-tight z-10 text-neutral-100">
-            <span className="text-[60px] md:text-[80px] tracking-[0.1em] drop-shadow-[0_0_20px_rgba(255,255,255,0.4)]">영화</span>
-            <span className="text-[60px] md:text-[80px] tracking-[0.1em] drop-shadow-[0_0_20px_rgba(255,255,255,0.4)]">대교</span>
-          </div>
-          <p className="mt-8 text-amber-500/80 text-[10px] md:text-xs tracking-[0.4em] font-bold z-10 uppercase font-sans">로그인 확인 중...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-neutral-950 flex items-center justify-center select-none overflow-hidden">
-        <div className="relative flex flex-col items-center justify-center animate-pulse">
-          <div className="absolute w-48 h-48 md:w-64 md:h-64 bg-orange-500/20 rounded-full blur-[80px] pointer-events-none"></div>
-          <div style={{ fontFamily: "var(--font-song-myung), serif" }} className="text-center flex flex-col leading-tight z-10 text-neutral-100">
-            <span className="text-[60px] md:text-[80px] tracking-[0.1em] drop-shadow-[0_0_20px_rgba(255,255,255,0.4)]">영화</span>
-            <span className="text-[60px] md:text-[80px] tracking-[0.1em] drop-shadow-[0_0_20px_rgba(255,255,255,0.4)]">대교</span>
-          </div>
-          <p className="mt-8 text-amber-500/80 text-[10px] md:text-xs tracking-[0.4em] font-bold z-10 uppercase font-sans">시스템 로딩 중...</p>
+      <div className="min-h-screen bg-ground flex items-center justify-center select-none">
+        <div className="flex flex-col items-center gap-6 animate-pulse">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/logo-horizontal-dark.svg" alt="영화대교" className="w-40 h-auto block" />
+          <p className="text-dim text-sm">{authLoading ? '로그인 확인 중...' : '불러오는 중...'}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 p-4 md:p-8 flex flex-col items-center select-none overflow-x-hidden">
-      
-      <div className="w-full max-w-4xl flex justify-end gap-3 z-20 mt-2 md:mt-0">
-        <button onClick={() => setIsManualOpen(true)} className="px-4 py-2 bg-orange-500/20 hover:bg-orange-500/40 border border-orange-500/50 rounded-lg text-xs md:text-sm text-orange-300 font-bold transition-all shadow-lg flex items-center gap-1.5">
-          <BookOpen className="w-4 h-4" /> 이용 안내
-        </button>
-        {isAdmin && (
-          <>
-            <Link href="/admin" className="px-4 py-2 bg-white/5 backdrop-blur-md hover:bg-white/10 border border-white/10 rounded-lg text-xs md:text-sm text-neutral-300 font-bold transition-all shadow-lg hover:shadow-white/5 flex items-center gap-1.5">
-              <Settings className="w-4 h-4" /> 관리자
-            </Link>
-            <Link href="/print" className="px-4 py-2 bg-white/5 backdrop-blur-md hover:bg-white/10 border border-white/10 rounded-lg text-xs md:text-sm text-neutral-300 font-bold transition-all shadow-lg hover:shadow-white/5 flex items-center gap-1.5">
-              <Printer className="w-4 h-4" /> 발권기
-            </Link>
-          </>
-        )}
-
-        {profile && (
-          <div className="relative">
-            <button
-              onClick={() => setIsProfileMenuOpen(v => !v)}
-              aria-label="프로필 메뉴"
-              className="w-9 h-9 md:w-10 md:h-10 rounded-full overflow-hidden border border-white/20 bg-neutral-800 hover:border-orange-400/60 transition-all shadow-lg flex items-center justify-center shrink-0"
-            >
-              {avatarUrl ? (
-                <img src={avatarUrl} alt={profile.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-              ) : (
-                <span className="text-neutral-300 font-bold text-sm">{profile.name.charAt(0)}</span>
-              )}
-            </button>
-
-            {isProfileMenuOpen && (
+    <div className="min-h-screen bg-ground text-ink select-none overflow-x-hidden">
+      <header className="border-b border-line">
+        <div className="max-w-[1120px] mx-auto px-4 md:px-10 py-2.5 md:py-4 flex items-center justify-between gap-4">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/logo-horizontal-dark.svg" alt="영화대교" className="w-24 md:w-[148px] h-auto block shrink-0" />
+          <nav className="flex items-center gap-4 md:gap-7 text-[13px] md:text-sm font-medium">
+            <button type="button" onClick={() => setIsManualOpen(true)} className="py-2.5 text-ink hover:text-sub transition-colors whitespace-nowrap">이용 안내</button>
+            {isAdmin && (
               <>
-                <div className="fixed inset-0 z-20" onClick={() => setIsProfileMenuOpen(false)} />
-                <div className="absolute right-0 mt-2 w-44 bg-neutral-900 border border-white/10 rounded-xl shadow-2xl z-30 overflow-hidden">
-                  <div className="px-3 py-3 border-b border-white/10">
-                    <p className="text-white text-sm font-bold truncate">{profile.name}</p>
-                    <p className="text-neutral-500 text-xs truncate">{profile.email}</p>
-                  </div>
-                  <button onClick={handleLogout} className="w-full text-left px-3 py-2.5 text-sm text-rose-400 hover:bg-white/5 font-bold transition-colors flex items-center gap-1.5">
-                    <LogOut className="w-4 h-4" /> 로그아웃
-                  </button>
-                </div>
+                <Link href="/admin" className="py-2.5 text-ink hover:text-sub transition-colors whitespace-nowrap">관리자</Link>
+                <Link href="/print" className="py-2.5 text-ink hover:text-sub transition-colors whitespace-nowrap">발권기</Link>
               </>
             )}
+            {profile && (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsProfileMenuOpen(v => !v)}
+                  aria-label="프로필 메뉴"
+                  className="w-8 h-8 rounded-full overflow-hidden border border-line-strong bg-raised hover:border-line-bold transition-colors flex items-center justify-center shrink-0"
+                >
+                  {avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={avatarUrl} alt={profile.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  ) : (
+                    <span className="text-sub font-bold text-sm">{profile.name.charAt(0)}</span>
+                  )}
+                </button>
+
+                {isProfileMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-20" onClick={() => setIsProfileMenuOpen(false)} />
+                    <div className="absolute right-0 mt-2 w-48 bg-card border border-line z-30">
+                      <div className="px-3 py-3 border-b border-line">
+                        <p className="text-ink text-sm font-bold truncate">{profile.name}</p>
+                        <p className="text-dim text-xs truncate">{profile.email}</p>
+                      </div>
+                      <button type="button" onClick={handleLogout} className="w-full text-left px-3 py-2.5 text-sm text-sub hover:text-ink hover:bg-raised font-bold transition-colors flex items-center gap-1.5">
+                        <LogOut className="w-4 h-4" /> 로그아웃
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </nav>
+        </div>
+      </header>
+
+      <main className="max-w-[1120px] mx-auto px-4 md:px-10 pt-[18px] md:pt-14 pb-20 flex flex-col gap-7 md:gap-[72px]">
+      <div className="flex flex-col gap-6">
+        <div key={viewingPast ? `past-${pastIndex}` : 'current'} className={navDirection === 'older' ? 'movie-card-enter-from-left' : 'movie-card-enter-from-right'}>
+          <MovieInfo
+            movie={displayMovie}
+            isPast={viewingPast}
+            canGoOlder={pastMovies.length > 0 && !(pastIndex !== null && pastIndex >= pastMovies.length - 1)}
+            canGoNewer={pastIndex !== null}
+            onOlder={goToOlderMovie}
+            onNewer={goToNewerMovie}
+            remainingSeats={viewingPast ? null : remainingSeats}
+          />
+        </div>
+
+        {/* 직전 상영작을 본 사람은 후기를 남겨야 다음 영화를 예매할 수 있다(0021). */}
+        {!viewingPast && profile && pendingReview && !myReservation && !isClosed && (
+          <div className="border border-line bg-card p-4 flex items-center justify-between gap-3 flex-wrap">
+            <p className="text-ink text-sm md:text-base font-bold flex items-center gap-2 break-keep">
+              <PenLine className="w-4 h-4 shrink-0 text-dim" /> 지난 상영작 「{pendingReview.title}」 후기를 남겨야 예매할 수 있어요.
+            </p>
+            <button type="button" onClick={() => setReviewResume({ next: () => {} })} className="h-10 px-4 bg-ink text-ground hover:bg-white text-sm font-bold transition-colors shrink-0">
+              후기 쓰기
+            </button>
           </div>
         )}
       </div>
-
-      <div className="relative flex flex-col items-center justify-center mb-10 mt-4 select-none group">
-        <div className="absolute w-32 h-32 md:w-40 md:h-40 bg-orange-500/20 rounded-full blur-[60px] pointer-events-none transition-all duration-1000 group-hover:bg-orange-500/30 group-hover:scale-110"></div>
-        <div style={{ fontFamily: "var(--font-song-myung), serif" }} className="text-center flex flex-col leading-tight z-10 text-neutral-100">
-          <span className="text-[40px] md:text-[50px] tracking-[0.1em] drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">영화</span>
-          <span className="text-[40px] md:text-[50px] tracking-[0.1em] drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">대교</span>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-2 md:gap-4 mb-12 w-full max-w-4xl">
-        {/* 🌟 [과거 상영 회차 열람] 왼쪽 화살표: 더 과거 회차로 이동. 가장 오래된 회차거나 과거 이력이 없으면 숨김 */}
-        <button
-          type="button"
-          onClick={goToOlderMovie}
-          disabled={pastMovies.length === 0 || (pastIndex !== null && pastIndex >= pastMovies.length - 1)}
-          aria-label="이전 상영 회차 보기"
-          className="shrink-0 w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/5 text-neutral-300 flex items-center justify-center shadow-[0_1px_2px_rgba(0,0,0,0.3),0_0_0_1px_rgba(255,255,255,0.08)] transition-[transform,opacity,box-shadow,background-color] duration-200 ease-out hover:bg-white/10 hover:text-white hover:shadow-[0_2px_10px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.16)] hover:-translate-x-0.5 active:scale-[0.96] disabled:opacity-0 disabled:pointer-events-none"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
-        </button>
-
-        <div
-          key={viewingPast ? `past-${pastIndex}` : 'current'}
-          className={`flex flex-col md:flex-row items-center gap-6 bg-white/5 backdrop-blur-xl p-6 rounded-2xl w-full shadow-2xl border border-white/10 transition-colors duration-500 hover:border-white/20 hover:bg-white/10 ${navDirection === 'older' ? 'movie-card-enter-from-left' : 'movie-card-enter-from-right'}`}
-        >
-          <img src={(displayMovie as any).poster_cdn_url || displayMovie.poster_url} alt="영화 포스터" fetchPriority="high" decoding="async" className="w-40 h-56 md:w-44 md:h-64 object-cover rounded-xl shadow-[0_0_25px_rgba(0,0,0,0.6)] border border-white/10 bg-neutral-800" />
-          <div className="flex flex-col text-center md:text-left w-full">
-            {viewingPast ? (
-              <span className="text-neutral-400 font-bold mb-1 text-sm tracking-wide bg-neutral-700/40 border border-neutral-600/50 px-2 py-0.5 rounded-sm w-fit mx-auto md:mx-0 flex items-center gap-1"><History className="w-3.5 h-3.5" /> 지난 상영작</span>
-            ) : (
-              <span className="text-orange-400 font-bold mb-1 text-sm tracking-wide">이달의 명작 상영작</span>
-            )}
-            <div className="flex flex-col md:flex-row md:items-end gap-2 mb-2 justify-center md:justify-start">
-              <h2 className="text-2xl md:text-3xl font-bold text-white">{displayMovie.title}</h2>
-              <span className="text-neutral-400 border border-neutral-600/50 bg-neutral-800/50 text-[10px] md:text-xs px-2 py-0.5 rounded-sm whitespace-nowrap w-fit mx-auto md:mx-0 mb-1">
-                관람가: {displayMovie.age_rating}
-              </span>
-            </div>
-            <p className="text-neutral-300 mt-2 text-sm md:text-base font-light flex items-center justify-center md:justify-start gap-1.5"><MapPin className="w-4 h-4 shrink-0" /> 장소: {displayMovie.venue}</p>
-            <p className="text-neutral-300 text-sm md:text-base font-light flex items-center justify-center md:justify-start gap-1.5"><Hourglass className="w-4 h-4 shrink-0" /> 일시: {displayMovie.date_string}</p>
-            <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white/10">
-              {viewingPast ? (
-                <span className="text-neutral-400 font-bold text-xs md:text-sm bg-neutral-700/30 px-2 py-1 rounded-md flex items-center gap-1">
-                  <Lock className="w-3.5 h-3.5" /> 읽기 전용 · 좌석 배치도만 열람 가능
-                </span>
-              ) : (
-                <span className="text-rose-400 font-bold text-xs md:text-sm bg-rose-500/10 px-2 py-1 rounded-md flex items-center gap-1">
-                  <Siren className="w-3.5 h-3.5" /> 마감: {movieInfo.deadline_date ? new Date(movieInfo.deadline_date).toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '미정'}
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* 🌟 [과거 상영 회차 열람] 오른쪽 화살표: 더 최근 회차로 이동. 현재 상영작을 보고 있으면 숨김 */}
-        <button
-          type="button"
-          onClick={goToNewerMovie}
-          disabled={pastIndex === null}
-          aria-label="다음 상영 회차 보기"
-          className="shrink-0 w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/5 text-neutral-300 flex items-center justify-center shadow-[0_1px_2px_rgba(0,0,0,0.3),0_0_0_1px_rgba(255,255,255,0.08)] transition-[transform,opacity,box-shadow,background-color] duration-200 ease-out hover:bg-white/10 hover:text-white hover:shadow-[0_2px_10px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.16)] hover:translate-x-0.5 active:scale-[0.96] disabled:opacity-0 disabled:pointer-events-none"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
-        </button>
-      </div>
-
-      {/* 직전 상영작을 본 사람은 후기를 남겨야 다음 영화를 예매할 수 있다(0021). */}
-      {!viewingPast && profile && pendingReview && !myReservation && !isClosed && (
-        <div className="w-full max-w-4xl -mt-6 mb-10 bg-orange-500/10 border border-orange-500/40 rounded-2xl p-4 flex items-center justify-between gap-3 flex-wrap">
-          <p className="text-orange-200 text-sm md:text-base font-bold flex items-center gap-2">
-            <PenLine className="w-4 h-4 shrink-0" /> 지난 상영작 「{pendingReview.title}」 후기를 남겨야 예매할 수 있어요.
-          </p>
-          <button type="button" onClick={() => setReviewResume({ next: () => {} })} className="py-2 px-4 bg-orange-600 hover:bg-orange-500 rounded-lg text-white text-sm font-bold transition-all shrink-0">
-            후기 쓰기
-          </button>
-        </div>
-      )}
 
       {/* 🌟 [영화 평점/후기] 보관 중인(과거) 회차에 한해 열람은 전체 공개, 작성/수정/삭제는 동아리원·예매자만 */}
       {viewingPast && pastMovie && (
@@ -1217,6 +1156,20 @@ export default function Home() {
       </div>
       </>
       )}
+
+      </main>
+
+      <footer className="border-t border-line">
+        <div className="max-w-[1120px] mx-auto px-4 md:px-10 py-6 flex flex-wrap items-center justify-between gap-3 text-xs text-dim">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/logo-horizontal-dark.svg" alt="영화대교" className="w-[68px] md:w-[88px] h-auto block opacity-80" />
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <a href="/privacy" className="hover:text-sub transition-colors">개인정보처리방침</a>
+            <span className="opacity-40">·</span>
+            <span>© 2026 영화대교</span>
+          </div>
+        </div>
+      </footer>
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-neutral-950/95 flex items-center justify-center p-4 z-50 overflow-y-auto duration-300">
@@ -1597,15 +1550,6 @@ export default function Home() {
 
       <PrivacyConsentGate profile={profile} onStatusChange={setConsentStatus} />
 
-      <footer className="w-full mt-16 border-t border-neutral-800">
-        <div className="bg-neutral-900/50 -mx-4 md:-mx-8 px-4 md:px-8">
-          <div className="py-4 flex items-center justify-center gap-2.5 text-[11px] text-neutral-500 flex-wrap">
-            <a href="/privacy" className="hover:text-neutral-400 transition-colors">개인정보처리방침</a>
-            <span className="opacity-40">·</span>
-            <span>© 2026 영화대교. All rights reserved.</span>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }
