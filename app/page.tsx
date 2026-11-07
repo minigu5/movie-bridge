@@ -4,11 +4,12 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { ensureProfile, signInWithGoogle, signOutAndClear, authFetch, authFetchGet, DomainNotAllowedError, type AppProfile } from '../lib/supabase-auth';
 import Link from 'next/link'; // 🌟[추가] Next.js Link 임포트
-import { Crown, Check, Ban, Siren, Popcorn, CircleCheck, Sparkles, PartyPopper, Mail, BookOpen, Settings, Printer, LogOut, History, MapPin, Lock, ArrowRight, Hourglass, RefreshCw, User, Users, Lightbulb, ClipboardList, CircleHelp, Ticket } from 'lucide-react';
+import { Crown, Check, Ban, Siren, Popcorn, CircleCheck, Sparkles, PartyPopper, Mail, BookOpen, Settings, Printer, LogOut, History, MapPin, Lock, ArrowRight, Hourglass, RefreshCw, User, Users, Lightbulb, ClipboardList, CircleHelp, Ticket, PenLine } from 'lucide-react';
 
 import AccountInfo from '@/components/AccountInfo';
 import MovieReviews from '@/components/MovieReviews';
 import PrivacyConsentGate, { type ConsentStatus } from '@/components/PrivacyConsentGate';
+import RequiredReviewModal, { type PendingReview } from '@/components/RequiredReviewModal';
 import { getGridRows, getGridCols, computeSeatId, computeVipSeats } from '@/lib/seatGrid';
 
 // 🌟 [로그인 리다이렉트 복원] 비로그인 좌석 클릭 -> 구글 로그인 -> 복귀 사이에 풀 페이지
@@ -75,6 +76,12 @@ export default function Home() {
   const [clubMemberIds, setClubMemberIds] = useState<string[]>([]);
   // 예매 자격(초대 명단/동아리원/관리자). null = 아직 확인 전. DB의 can_book()과 같은 기준.
   const [canBook, setCanBook] = useState<boolean | null>(null);
+  // 직전 상영작을 보고 아직 후기를 안 썼으면 그 영화(0021 my_pending_review). undefined = 확인 전, null = 해당 없음.
+  const [pendingReview, setPendingReview] = useState<PendingReview | null | undefined>(undefined);
+  // 후기 작성 창을 띄운 뒤 등록이 끝나면 이어서 할 일(보통 고르려던 좌석 선택). null이면 창 닫힘.
+  const [reviewResume, setReviewResume] = useState<{ next: () => void } | null>(null);
+  // 내가 예매했던 회차 id. 지난 상영작 후기 작성 자격(동아리원 또는 예매자) 표시용.
+  const [myBookedMovieIds, setMyBookedMovieIds] = useState<number[]>([]);
 
   // 🌟 [예매 후 UI] 내 예매 정보 + 자리 이동 모드
   const [myReservation, setMyReservation] = useState<{id: string, seat: string, status: string, popcorn?: string} | null>(null);
@@ -215,7 +222,7 @@ export default function Home() {
   // seatStatuses(로그인 후 fetchInitialData 완료분)로 재검증하고 팝콘 선택 모달을 바로 연다.
   // 개인정보 동의 전에는 복원하지 않는다(동의 모달 뒤에서 팝콘 모달이 열리지 않게).
   useEffect(() => {
-    if (!profile || isLoading || canBook === null || consentStatus !== 'valid') return;
+    if (!profile || isLoading || canBook === null || pendingReview === undefined || consentStatus !== 'valid') return;
     let pending: string | null = null;
     try { pending = sessionStorage.getItem(PENDING_SEAT_KEY); } catch { /* sessionStorage unavailable: skip */ }
     if (!pending) return;
@@ -229,11 +236,13 @@ export default function Home() {
       showAlert('선택하신 좌석은 로그인하는 동안 마감되었거나 이미 예약되었습니다.');
       return;
     }
-    warnIfDefective(pending, () => {
+    const openSeat = () => warnIfDefective(pending, () => {
       setSelectedSeat(pending);
       setIsModalOpen(true);
     });
-  }, [profile, isLoading, canBook, consentStatus]);
+    if (pendingReview) return setReviewResume({ next: openSeat });
+    openSeat();
+  }, [profile, isLoading, canBook, pendingReview, consentStatus]);
 
   useEffect(() => {
     if (!profile) { setCanBook(null); return; }
@@ -247,6 +256,16 @@ export default function Home() {
         return;
       }
       setCanBook(!!data);
+    });
+    return () => { active = false; };
+  }, [profile]);
+
+  useEffect(() => {
+    if (!profile) { setPendingReview(undefined); setMyBookedMovieIds([]); return; }
+    refreshPendingReview();
+    let active = true;
+    supabase.from('reservations').select('movie_settings_id').eq('user_id', profile.id).then(({ data }) => {
+      if (active && data) setMyBookedMovieIds(data.map(r => r.movie_settings_id));
     });
     return () => { active = false; };
   }, [profile]);
@@ -291,6 +310,14 @@ export default function Home() {
       });
     return () => { active = false; };
   }, [viewingPast, pastMovie]);
+
+  const refreshPendingReview = () => {
+    supabase.rpc('my_pending_review').then(({ data, error }) => {
+      // 확인 실패 시 화면은 막지 않는다. 실제 차단은 reservations_require_review 트리거가 한다.
+      if (error) { console.error('my_pending_review 확인 실패:', error); setPendingReview(null); return; }
+      setPendingReview((data as PendingReview[] | null)?.[0] ?? null);
+    });
+  };
 
   const fetchInitialData = async () => {
     const seq = ++fetchSeqRef.current;
@@ -385,6 +412,13 @@ export default function Home() {
 
     // 초대 명단/동아리원/관리자가 아니면 새 예매 불가 (이미 예매한 사람의 자리 이동은 허용)
     if (canBook === false && !myReservation) return showAlert(NOT_INVITED_MESSAGE);
+
+    // 직전 상영작을 봤으면 후기부터. 등록하면 고른 좌석으로 바로 이어간다(이미 예매한 사람의 자리 이동은 제외).
+    if (pendingReview && !myReservation && !isGroupMode) {
+      if (seatStatuses[seatId]) return;
+      setReviewResume({ next: () => warnIfDefective(seatId, () => setSelectedSeat(seatId)) });
+      return;
+    }
 
     // 🌟 [단체 예매] Group Mode에서의 좌석 클릭
     if (isGroupMode) {
@@ -853,9 +887,26 @@ export default function Home() {
         </button>
       </div>
 
-      {/* 🌟 [영화 평점/후기] 보관 중인(과거) 회차에 한해 열람은 전체 공개, 작성/수정/삭제는 동아리원만 */}
+      {/* 직전 상영작을 본 사람은 후기를 남겨야 다음 영화를 예매할 수 있다(0021). */}
+      {!viewingPast && profile && pendingReview && !myReservation && !isClosed && (
+        <div className="w-full max-w-4xl -mt-6 mb-10 bg-orange-500/10 border border-orange-500/40 rounded-2xl p-4 flex items-center justify-between gap-3 flex-wrap">
+          <p className="text-orange-200 text-sm md:text-base font-bold flex items-center gap-2">
+            <PenLine className="w-4 h-4 shrink-0" /> 지난 상영작 「{pendingReview.title}」 후기를 남겨야 예매할 수 있어요.
+          </p>
+          <button type="button" onClick={() => setReviewResume({ next: () => {} })} className="py-2 px-4 bg-orange-600 hover:bg-orange-500 rounded-lg text-white text-sm font-bold transition-all shrink-0">
+            후기 쓰기
+          </button>
+        </div>
+      )}
+
+      {/* 🌟 [영화 평점/후기] 보관 중인(과거) 회차에 한해 열람은 전체 공개, 작성/수정/삭제는 동아리원·예매자만 */}
       {viewingPast && pastMovie && (
-        <MovieReviews movieSettingsId={pastMovie.id} profile={profile} isClubMember={!!profile && clubMemberIds.includes(profile.email)} />
+        <MovieReviews
+          movieSettingsId={pastMovie.id}
+          profile={profile}
+          canWrite={!!profile && (clubMemberIds.includes(profile.email) || myBookedMovieIds.includes(pastMovie.id))}
+          onChange={refreshPendingReview}
+        />
       )}
 
       {/* 🌟 [과거 상영 회차 열람] 과거 회차를 보고 있을 때는 완전히 별도의 읽기 전용 좌석 배치도를 렌더링한다.
@@ -1507,6 +1558,21 @@ export default function Home() {
             </div>
           </div>
         </div>
+      )}
+
+      {reviewResume && profile && pendingReview && consentStatus === 'valid' && (
+        <RequiredReviewModal
+          movie={pendingReview}
+          profile={profile}
+          onClose={() => setReviewResume(null)}
+          onDone={() => {
+            const { next } = reviewResume;
+            setReviewResume(null);
+            setPendingReview(null);
+            showAlert('후기가 등록되었습니다. 감사합니다!', false);
+            next();
+          }}
+        />
       )}
 
       <PrivacyConsentGate profile={profile} onStatusChange={setConsentStatus} />

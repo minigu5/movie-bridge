@@ -13,7 +13,7 @@ interface MovieReview {
   created_at: string;
 }
 
-function StarRating({ value, onChange, size }: { value: number; onChange?: (v: number) => void; size?: string }) {
+export function StarRating({ value, onChange, size }: { value: number; onChange?: (v: number) => void; size?: string }) {
   return (
     <div className={`flex gap-0.5 ${size ?? 'text-lg'}`}>
       {[1, 2, 3, 4, 5].map((s) => {
@@ -35,7 +35,9 @@ function StarRating({ value, onChange, size }: { value: number; onChange?: (v: n
   );
 }
 
-export default function MovieReviews({ movieSettingsId, profile, isClubMember }: { movieSettingsId: number; profile: AppProfile | null; isClubMember: boolean }) {
+// canWrite: 동아리원이거나 이 회차를 예매했던 사람(DB 정책 movie_reviews_insert_member_or_viewer와 같은 기준).
+// onChange: 내 후기를 등록/수정/삭제한 뒤 호출. 다음 영화 예매 전 후기 필수 여부를 다시 확인하는 데 쓴다.
+export default function MovieReviews({ movieSettingsId, profile, canWrite, onChange }: { movieSettingsId: number; profile: AppProfile | null; canWrite: boolean; onChange?: () => void }) {
   const [reviews, setReviews] = useState<MovieReview[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -86,9 +88,10 @@ export default function MovieReviews({ movieSettingsId, profile, isClubMember }:
       .single();
     setIsSaving(false);
 
-    if (upsertError) { setError('저장에 실패했습니다.'); return false; }
+    if (upsertError) { setError(upsertError.code === 'P0001' ? upsertError.message : '저장에 실패했습니다.'); return false; }
     setReviews(prev => [data as any, ...prev.filter(r => r.user_id !== profile.id)]
       .sort((a, b) => b.created_at.localeCompare(a.created_at)));
+    onChange?.();
     return true;
   };
 
@@ -120,6 +123,7 @@ export default function MovieReviews({ movieSettingsId, profile, isClubMember }:
     if (deleteError) return setError('삭제에 실패했습니다.');
     setReviews(prev => prev.filter(r => r.id !== myReview.id));
     setIsEditing(false);
+    onChange?.();
   };
 
   return (
@@ -148,13 +152,13 @@ export default function MovieReviews({ movieSettingsId, profile, isClubMember }:
         </div>
       )}
 
-      {profile && !isClubMember && (
+      {profile && !canWrite && (
         <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-4">
-          <p className="text-neutral-400 text-sm">동아리원만 후기를 남길 수 있어요.</p>
+          <p className="text-neutral-400 text-sm">동아리원이나 이 영화를 예매했던 분만 후기를 남길 수 있어요.</p>
         </div>
       )}
 
-      {isClubMember && profile && !myReview && (
+      {canWrite && profile && !myReview && (
         <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-4">
           <p className="text-neutral-300 text-sm font-bold mb-2">후기 작성</p>
           <StarRating value={newRating} onChange={setNewRating} />
