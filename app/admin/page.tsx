@@ -12,7 +12,8 @@ import ReservationsTab from './_components/ReservationsTab';
 import MovieTab from './_components/MovieTab';
 import MailTab from './_components/MailTab';
 import { scheduleUndoable } from '../../lib/undoable';
-import MembersTab from './_components/MembersTab';
+import PeopleTab, { type PersonToggle, type AddTarget } from './_components/PeopleTab';
+import { mergePeople, type PersonRow } from '../../lib/adminPeople';
 import HistoryTab from './_components/HistoryTab';
 
 // 옛 탭 키(?tab=settings 등)로 들어와도 같은 메뉴를 연다.
@@ -93,20 +94,15 @@ function AdminPageInner() {
   const [cancelToastIds, setCancelToastIds] = useState<Record<string, string>>({});
 
   const [blacklist, setBlacklist] = useState<{email: string, created_at: string}[]>([]);
-  const [newBlacklistText, setNewBlacklistText] = useState('');
+  // 이메일 → 차단 되돌리기 알림 id. 알림이 살아 있는 동안 그 사람은 차단된 것처럼 보인다.
+  const [blockToastIds, setBlockToastIds] = useState<Record<string, string>>({});
 
   const [admins, setAdmins] = useState<{email: string, added_by: string | null, created_at: string}[]>([]);
-  const [newAdminEmail, setNewAdminEmail] = useState('');
   const [clubMembers, setClubMembers] = useState<{email: string, added_by: string | null, created_at: string}[]>([]);
-  const [newClubMembersText, setNewClubMembersText] = useState('');
   const [invitedEmails, setInvitedEmails] = useState<{email: string, added_by: string | null, source: string, created_at: string}[]>([]);
-  const [newInvitedText, setNewInvitedText] = useState('');
   const [nameByEmail, setNameByEmail] = useState<Record<string, string>>({});
-  const [loginProfiles, setLoginProfiles] = useState<{email: string, name: string, student_id: string | null, role: string, created_at: string}[]>([]);
+  const [loginProfiles, setLoginProfiles] = useState<{id?: string, email: string, name: string, student_id: string | null, role: string, created_at: string}[]>([]);
   const [kioskPasswordInput, setKioskPasswordInput] = useState('');
-  const [profileSearchQuery, setProfileSearchQuery] = useState('');
-  const [profileSearchResults, setProfileSearchResults] = useState<{id: string, email: string, student_id: string | null, name: string, role: string}[]>([]);
-  const [editingProfile, setEditingProfile] = useState<{id: string, email: string, student_id: string, name: string, role: string} | null>(null);
 
   // 상영작 홍보 메일
   const [promoSources, setPromoSources] = useState({ club: true, invited: false, g1: false, g2: false, g3: false });
@@ -136,9 +132,6 @@ function AdminPageInner() {
     return { original, consomme, caramel, none, cash };
   }, [reservations]);
 
-  const clubEmailPreviewCount = useMemo(() => extractSchoolEmails(newClubMembersText).length, [newClubMembersText]);
-  const invitedEmailPreviewCount = useMemo(() => extractSchoolEmails(newInvitedText).length, [newInvitedText]);
-  const blacklistEmailPreviewCount = useMemo(() => extractSchoolEmails(newBlacklistText).length, [newBlacklistText]);
   const promoManualPreviewCount = useMemo(() => extractSchoolEmails(promoManualText).length, [promoManualText]);
 
   useEffect(() => {
@@ -366,85 +359,93 @@ function AdminPageInner() {
     notify(`${ticket.seat_number} ${ticket.student_name} 발권을 되돌렸어요. 발권기에서 다시 뽑을 수 있어요.`);
   };
 
-  const handleAddBlacklistBulk = async () => {
-    const emails = extractSchoolEmails(newBlacklistText);
-    if (emails.length === 0) return notify("추가할 @ts.hs.kr 이메일이 없습니다.", 'error');
-    if (!confirm(`${emails.length}명을 블랙리스트에 추가하시겠습니까?\n(주의: 현재 진행 중이거나 완료된 예매 내역이 있다면 자동으로 취소됩니다.)`)) return;
+  const callAction = async (action: string, payload: any) => {
+    const res = await authFetch('/api/admin/action', { action, payload });
+    return res.json();
+  };
+  const now = () => new Date().toISOString();
 
-    const res = await authFetch('/api/admin/action', { action: 'ADD_BLACKLIST_BULK', payload: { emails, movieDate: movieInfo.db_date } });
-    const data = await res.json();
-    if (!data.success) return notify("추가 실패: " + (data.error || ''), 'error');
+  // 권한 켜고 끄기: 화면을 먼저 바꾸고, 실패하면 되돌린 뒤 알린다.
+  const handleTogglePerson = async (person: PersonRow, kind: PersonToggle, on: boolean) => {
+    const email = person.email;
+    const me = profile!.email;
+    const drop = <T extends { email: string }>(list: T[]) => list.filter((x) => x.email.toLowerCase() !== email);
+    const plan = {
+      book: { set: setInvitedEmails as any, row: { email, added_by: me, source: 'manual', created_at: now() }, add: ['ADD_INVITED_EMAILS', { emails: [email] }], remove: ['REMOVE_INVITED_EMAIL', { email }], label: '예매' },
+      club: { set: setClubMembers as any, row: { email, added_by: me, created_at: now() }, add: ['ADD_CLUB_MEMBERS', { emails: [email] }], remove: ['REMOVE_CLUB_MEMBER', { email }], label: '동아리원' },
+      admin: { set: setAdmins as any, row: { email, added_by: me, created_at: now() }, add: ['ADD_ADMIN', { email }], remove: ['REMOVE_ADMIN', { email }], label: '관리자' },
+    }[kind];
+    const apply = (turnOn: boolean) => plan.set((prev: any[]) => (turnOn ? [plan.row, ...drop(prev)] : drop(prev)));
+    apply(on);
+    try {
+      const [action, payload] = (on ? plan.add : plan.remove) as [string, any];
+      const data = await callAction(action, payload);
+      if (!data.success) throw new Error(data.error);
+    } catch (err: any) {
+      apply(!on);
+      notify(`${person.name ?? email} ${plan.label} ${on ? '켜기' : '끄기'} 실패: ${err?.message ?? ''}`, 'error');
+    }
+  };
 
-    // 예매 취소 메일과 블랙리스트 안내 메일은 /api/admin/action이 서버에서 보낸다.
-    setNewBlacklistText('');
+  // 차단은 5초 되돌리기(ADD_BLACKLIST_BULK는 예매를 지우고 메일을 보낸다).
+  const blockWithUndo = (emails: string[], text: string) => {
+    const handle = undoable(text, async () => {
+      setBlacklist((prev) => [...emails.map((email) => ({ email, created_at: now() })), ...prev.filter((b) => !emails.includes(b.email.toLowerCase()))]);
+      const data = await callAction('ADD_BLACKLIST_BULK', { emails, movieDate: movieInfo?.db_date });
+      fetchAdminData();
+      if (!data.success) throw new Error('차단 실패: ' + (data.error || ''));
+    });
+    setBlockToastIds((prev) => ({ ...prev, ...Object.fromEntries(emails.map((e) => [e, handle.id])) }));
+  };
+
+  const handleUnblock = async (person: PersonRow) => {
+    const removed = blacklist.filter((b) => b.email.toLowerCase() === person.email);
+    setBlacklist((prev) => prev.filter((b) => b.email.toLowerCase() !== person.email));
+    const data = await callAction('REMOVE_BLACKLIST', { email: person.email });
+    if (!data.success) {
+      setBlacklist((prev) => [...removed, ...prev]);
+      return notify('차단 풀기 실패: ' + (data.error || ''), 'error');
+    }
+    notify(`${person.name ?? person.email} 차단을 풀었어요. 안내 메일을 보냈어요.`);
+  };
+
+  // 학번이 비면 교직원, 있으면 학생(4자리).
+  const handleSaveProfile = async (person: PersonRow, next: { name: string; studentId: string }): Promise<boolean> => {
+    if (!person.profileId) return false;
+    const role = next.studentId ? 'student' : 'staff';
+    if (role === 'student' && !/^\d{4}$/.test(next.studentId)) { notify('학번은 4자리 숫자예요. 교직원은 비워 두세요.', 'error'); return false; }
+    const data = await callAction('UPDATE_PROFILE', { id: person.profileId, studentId: next.studentId, name: next.name, role });
+    if (!data.success) { notify('저장 실패: ' + data.error, 'error'); return false; }
+    setLoginProfiles((prev) => prev.map((p) => (p.id === person.profileId ? { ...p, name: next.name, student_id: role === 'staff' ? null : next.studentId, role } : p)));
+    setNameByEmail((prev) => ({ ...prev, [person.email]: next.name }));
+    notify('저장했어요');
+    return true;
+  };
+
+  // "사람 넣기": 예매·동아리원·관리자는 바로, 차단은 5초 되돌리기.
+  const handleAddPeople = async (target: AddTarget, emails: string[]): Promise<boolean> => {
+    if (target === 'block') {
+      blockWithUndo(emails, `${emails.length}명을 차단했어요`);
+      return true;
+    }
+    if (target === 'admin') {
+      const existing = new Set(admins.map((a) => a.email.toLowerCase()));
+      const failed: string[] = [];
+      for (const email of emails.filter((e) => !existing.has(e))) {
+        const data = await callAction('ADD_ADMIN', { email }).catch(() => ({ success: false }));
+        if (!data.success) failed.push(email);
+      }
+      fetchAdminData();
+      if (failed.length) { notify(`관리자 넣기 실패 ${failed.length}명: ${failed.join(', ')}`, 'error'); return false; }
+      notify(`${emails.length}명을 관리자로 넣었어요`);
+      return true;
+    }
+    const [action, label] = target === 'book' ? ['ADD_INVITED_EMAILS', '예매할 수 있게'] : ['ADD_CLUB_MEMBERS', '동아리원으로'];
+    const data = await callAction(action, { emails });
+    if (!data.success) { notify('넣기 실패: ' + data.error, 'error'); return false; }
     fetchAdminData();
-    notify(`${emails.length}명 블랙리스트 추가 및 예매 자동 취소 처리가 완료되었습니다!`);
-  };
-
-  const handleRemoveBlacklist = async (email: string) => {
-    if (!confirm(`${email} 블랙리스트를 해제하시겠습니까?`)) return;
-    const res = await authFetch('/api/admin/action', { action: 'REMOVE_BLACKLIST', payload: { email } });
-    const data = await res.json();
-    if (!data.success) return notify("해제 실패", 'error');
-    fetchAdminData();
-    notify("해제 완료 및 안내 메일 발송!");
-  };
-
-  const handleAddAdmin = async () => {
-    const email = newAdminEmail.trim().toLowerCase();
-    if (!email.endsWith('@ts.hs.kr')) return notify("@ts.hs.kr 이메일만 등록할 수 있습니다.", 'error');
-    const res = await authFetch('/api/admin/action', { action: 'ADD_ADMIN', payload: { email } });
-    const data = await res.json();
-    if (!data.success) return notify("추가 실패: " + data.error, 'error');
-    setAdmins(prev => [{ email, added_by: profile!.email, created_at: new Date().toISOString() }, ...prev]);
-    setNewAdminEmail('');
-  };
-
-  const handleRemoveAdmin = async (email: string) => {
-    if (email === profile!.email) return notify("본인 계정은 스스로 제거할 수 없습니다.", 'error');
-    if (!confirm(`${email}의 관리자 권한을 제거하시겠습니까?`)) return;
-    const res = await authFetch('/api/admin/action', { action: 'REMOVE_ADMIN', payload: { email } });
-    const data = await res.json();
-    if (!data.success) return notify("제거 실패: " + data.error, 'error');
-    setAdmins(prev => prev.filter(a => a.email !== email));
-  };
-
-  const handleAddClubMembers = async () => {
-    const emails = extractSchoolEmails(newClubMembersText);
-    if (emails.length === 0) return notify("추가할 @ts.hs.kr 이메일이 없습니다.", 'error');
-    const res = await authFetch('/api/admin/action', { action: 'ADD_CLUB_MEMBERS', payload: { emails } });
-    const data = await res.json();
-    if (!data.success) return notify("추가 실패: " + data.error, 'error');
-    setNewClubMembersText('');
-    fetchAdminData();
-    notify(`${emails.length}명 동아리원(VIP)으로 추가되었습니다.`);
-  };
-
-  const handleRemoveClubMember = async (email: string) => {
-    if (!confirm(`${email} 학생을 동아리원(VIP)에서 제거하시겠습니까?`)) return;
-    const res = await authFetch('/api/admin/action', { action: 'REMOVE_CLUB_MEMBER', payload: { email } });
-    const data = await res.json();
-    if (!data.success) return notify("제거 실패: " + data.error, 'error');
-    fetchAdminData();
-  };
-
-  const handleAddInvitedEmails = async () => {
-    const emails = extractSchoolEmails(newInvitedText);
-    if (emails.length === 0) return notify("추가할 @ts.hs.kr 이메일이 없습니다.", 'error');
-    const res = await authFetch('/api/admin/action', { action: 'ADD_INVITED_EMAILS', payload: { emails } });
-    const data = await res.json();
-    if (!data.success) return notify("추가 실패: " + data.error, 'error');
-    setNewInvitedText('');
-    fetchAdminData();
-    notify(`${emails.length}명이 초대 명단에 추가되었습니다.`);
-  };
-
-  const handleRemoveInvitedEmail = async (email: string) => {
-    if (!confirm(`${email}을(를) 초대 명단에서 제거하시겠습니까?\n(이미 한 예매는 유지되고, 새 예매만 막힙니다.)`)) return;
-    const res = await authFetch('/api/admin/action', { action: 'REMOVE_INVITED_EMAIL', payload: { email } });
-    const data = await res.json();
-    if (!data.success) return notify("제거 실패: " + data.error, 'error');
-    fetchAdminData();
+    notify(`${emails.length}명을 ${label} 넣었어요`);
+    return true;
   };
 
   const handleUpdateKioskPassword = async (): Promise<boolean> => {
@@ -454,29 +455,6 @@ function AdminPageInner() {
     if (!data.success) { notify("변경 실패: " + data.error, 'error'); return false; }
     notify("발권기 비밀번호를 바꿨어요.");
     return true;
-  };
-
-  const handleSearchProfile = async () => {
-    const res = await authFetch('/api/admin/action', { action: 'SEARCH_PROFILE', payload: { query: profileSearchQuery } });
-    const data = await res.json();
-    if (data.success) setProfileSearchResults(data.data);
-  };
-
-  const handleSaveProfile = async () => {
-    if (!editingProfile) return;
-    if (editingProfile.role === 'student' && !/^\d{4}$/.test(editingProfile.student_id)) {
-      return notify("학생은 학번 4자리가 필요합니다.", 'error');
-    }
-    const res = await authFetch('/api/admin/action', {
-      action: 'UPDATE_PROFILE',
-      payload: { id: editingProfile.id, studentId: editingProfile.student_id, name: editingProfile.name, role: editingProfile.role }
-    });
-    const data = await res.json();
-    if (!data.success) return notify("저장 실패: " + data.error, 'error');
-    notify("저장되었습니다.");
-    setEditingProfile(null);
-    setProfileSearchResults([]);
-    setProfileSearchQuery('');
   };
 
   // 체크·붙여넣기가 바뀌면 500ms 뒤 받는 사람을 다시 센다(겹침·차단 제외는 서버가 한다).
@@ -620,6 +598,15 @@ function AdminPageInner() {
     const toastId = cancelToastIds[reservationId];
     return toastId ? toasts.find(t => t.id === toastId && t.undo) : undefined;
   };
+  const aliveUndoToast = (toastId: string | undefined) => (toastId ? toasts.find(t => t.id === toastId && t.undo) : undefined);
+  const pendingBlockEmails = Object.keys(blockToastIds).filter(e => aliveUndoToast(blockToastIds[e]));
+  const peopleRows = mergePeople({
+    profiles: loginProfiles,
+    invited: invitedEmails,
+    club: clubMembers,
+    admins,
+    blacklist: [...blacklist, ...pendingBlockEmails.map(email => ({ email }))],
+  });
   const pendingCancelIds = new Set(Object.keys(cancelToastIds).filter(id => cancelUndoToast(id)));
 
   const signOut = () => signOutAndClear().then(() => window.location.reload());
@@ -739,39 +726,19 @@ function AdminPageInner() {
       )}
 
       {activeTab === 'people' && (
-        <MembersTab
-          admins={admins}
-          newAdminEmail={newAdminEmail}
-          setNewAdminEmail={setNewAdminEmail}
-          onAddAdmin={handleAddAdmin}
-          onRemoveAdmin={handleRemoveAdmin}
-          clubMembers={clubMembers}
-          newClubMembersText={newClubMembersText}
-          setNewClubMembersText={setNewClubMembersText}
-          clubEmailPreviewCount={clubEmailPreviewCount}
-          onAddClubMembers={handleAddClubMembers}
-          onRemoveClubMember={handleRemoveClubMember}
-          nameByEmail={nameByEmail}
-          invitedEmails={invitedEmails}
-          loginProfiles={loginProfiles}
-          newInvitedText={newInvitedText}
-          setNewInvitedText={setNewInvitedText}
-          invitedEmailPreviewCount={invitedEmailPreviewCount}
-          onAddInvitedEmails={handleAddInvitedEmails}
-          onRemoveInvitedEmail={handleRemoveInvitedEmail}
-          profileSearchQuery={profileSearchQuery}
-          setProfileSearchQuery={setProfileSearchQuery}
-          onSearchProfile={handleSearchProfile}
-          profileSearchResults={profileSearchResults}
-          editingProfile={editingProfile}
-          setEditingProfile={setEditingProfile}
+        <PeopleTab
+          rows={peopleRows}
+          selfEmail={profile.email}
+          onToggle={handleTogglePerson}
+          onUnblock={(person) => {
+            // 되돌리기 중인 차단이면 풀기 = 되돌리기
+            const pending = aliveUndoToast(blockToastIds[person.email]);
+            if (pending) pending.undo?.onUndo();
+            else handleUnblock(person);
+          }}
+          onBlock={(person) => blockWithUndo([person.email], `${person.name ?? person.email}을(를) 차단했어요`)}
           onSaveProfile={handleSaveProfile}
-          blacklist={blacklist}
-          newBlacklistText={newBlacklistText}
-          setNewBlacklistText={setNewBlacklistText}
-          blacklistEmailPreviewCount={blacklistEmailPreviewCount}
-          onAddBlacklistBulk={handleAddBlacklistBulk}
-          onRemoveBlacklist={handleRemoveBlacklist}
+          onAdd={handleAddPeople}
         />
       )}
 

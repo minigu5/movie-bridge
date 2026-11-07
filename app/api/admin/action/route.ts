@@ -60,7 +60,7 @@ export async function POST(req: Request) {
           supabaseAdmin.from('kiosk_settings').select('password').eq('id', 1).single(),
           supabaseAdmin.from('invited_emails').select('email, added_by, source, created_at').order('created_at', { ascending: false }),
           // 로그인 이력이 있는 사람: 이름 표시 + 회원/권한 탭의 로그인 명단(조회 전용)
-          supabaseAdmin.from('profiles').select('email, name, student_id, role, created_at').order('created_at', { ascending: false })
+          supabaseAdmin.from('profiles').select('id, email, name, student_id, role, created_at').order('created_at', { ascending: false })
         ]);
 
         if (resQ.error) throw resQ.error;
