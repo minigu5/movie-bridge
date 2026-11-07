@@ -89,9 +89,10 @@ export default function SeatZoneEditor({ isGrandHall, vipEnabled, onVipEnabledCh
     onDefectiveChange(defectiveSet.has(seatId) ? defective.filter((id) => id !== seatId) : [...defective, seatId]);
   };
 
-  const cell = isGrandHall ? 'w-[18px] h-[18px] rounded-[4px_4px_2px_2px]' : 'w-7 h-7 rounded-[7px_7px_3px_3px]';
-  const gap = isGrandHall ? 'gap-0.5' : 'gap-1';
-  const aisle = isGrandHall ? 'mr-3' : 'mr-5';
+  // 중강당은 폰(sm 미만)에서도 한 화면에 들어오게 칸을 줄인다. 대강당은 가로로 밀어 본다.
+  const cell = isGrandHall ? 'w-[18px] h-[18px] rounded-[4px_4px_2px_2px]' : 'w-[19px] h-[19px] rounded-[5px_5px_2px_2px] sm:w-7 sm:h-7 sm:rounded-[7px_7px_3px_3px]';
+  const gap = isGrandHall ? 'gap-0.5' : 'gap-[3px] sm:gap-1';
+  const aisle = isGrandHall ? 'mr-3' : 'mr-4 sm:mr-5';
 
   return (
     <div className="flex flex-wrap gap-8 items-start">
@@ -177,8 +178,10 @@ function ToolButton({ on, onClick, swatch, label, detail }: { on: boolean; onCli
       className={`h-12 flex items-center gap-3 px-3.5 text-left text-sm font-bold border ${on ? 'bg-ink border-ink text-ground' : 'border-line-strong text-sub'}`}
     >
       <span className={`block w-4 h-4 box-border rounded-[5px_5px_2px_2px] shrink-0 ${swatch}`} />
-      <span className="flex-1">{label}</span>
-      <span className={`text-xs font-normal ${on ? 'text-line-bold' : 'text-mute'}`}>{detail}</span>
+      <span className="flex-1 min-w-0 flex flex-col leading-tight">
+        <span className="truncate">{label}</span>
+        <span className={`text-[11px] font-normal ${on ? 'text-line-bold' : 'text-mute'}`}>{detail}</span>
+      </span>
     </button>
   );
 }
