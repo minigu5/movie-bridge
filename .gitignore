@@ -54,3 +54,8 @@ next-env.d.ts
 
 # supabase CLI local cache
 supabase/.temp/
+
+# 브랜드 로고 생성용 폰트 캐시
+scripts/brand/.cache/
+__pycache__/
+.venv-brand/
