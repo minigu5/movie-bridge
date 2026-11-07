@@ -1,6 +1,6 @@
 // 폰 좌석 화면의 구역 나누기와 남은 좌석 계산(순수 함수).
 // 좌석 번호는 seatGrid.ts computeSeatId만 쓴다. 구역은 칸을 거르기만 한다.
-import { computeSeatId, getGridCols, getGridRows } from './seatGrid.ts';
+import { computeSeatId, getGridRows } from './seatGrid.ts';
 
 export type ZoneKey = 'L' | 'R' | 'FL' | 'FC' | 'FR' | 'BL' | 'BC' | 'BR';
 export type Zone = {

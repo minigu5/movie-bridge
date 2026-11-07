@@ -3,6 +3,7 @@
 import { type Dispatch, type SetStateAction } from 'react';
 import { X } from 'lucide-react';
 import { activeAdmissionYears, gradeEmails } from '../../../lib/schoolEmails';
+import type { PromoRecipient } from '../../../lib/promoRecipients';
 
 export type PromoSources = { club: boolean; invited: boolean; g1: boolean; g2: boolean; g3: boolean };
 
@@ -16,8 +17,11 @@ export interface MailTabProps {
   manualPreviewCount: number;
   isSending: boolean;
   progress: { current: number; total: number };
-  recipients: { email: string; name: string | null }[];
-  onRemoveRecipient: (email: string) => void;
+  recipients: PromoRecipient[]; // X로 뺀 사람은 이미 걸러져 있다
+  onRemoveRecipient: (r: PromoRecipient) => void;
+  // X로 뺀 사람(다시 세도 남는다). "다시 넣기"로 돌린다.
+  removedRecipients: PromoRecipient[];
+  onRestoreRecipient: (email: string) => void;
   recipientCount: number | null;
   // 겹침·차단으로 빠진 수(서버가 계산해 준 경우만)
   excluded: { overlap: number; blocked: number } | null;
@@ -114,7 +118,7 @@ export default function MailTab(p: MailTabProps) {
                   <span className="truncate" title={r.email}>{r.name || r.email}</span>
                   <button
                     type="button"
-                    onClick={() => p.onRemoveRecipient(r.email)}
+                    onClick={() => p.onRemoveRecipient(r)}
                     disabled={locked}
                     aria-label={`${r.name || r.email} 받는 사람에서 빼기`}
                     className="shrink-0 p-1.5 text-mute hover:text-ink disabled:opacity-40"
@@ -124,6 +128,27 @@ export default function MailTab(p: MailTabProps) {
                 </li>
               ))}
             </ul>
+          )}
+
+          {p.removedRecipients.length > 0 && (
+            <div className="flex flex-col gap-1.5 border-t border-line pt-3.5">
+              <span className="text-[13px] text-sub">직접 뺀 사람 {p.removedRecipients.length}명 · 보내지 않아요</span>
+              <ul className="max-h-40 overflow-y-auto border border-line divide-y divide-line">
+                {p.removedRecipients.map((r) => (
+                  <li key={r.email} className="flex items-center justify-between gap-2 pl-3 pr-1 py-1 text-[13px] text-mute">
+                    <span className="truncate" title={r.email}>{r.name || r.email}</span>
+                    <button
+                      type="button"
+                      onClick={() => p.onRestoreRecipient(r.email)}
+                      disabled={locked}
+                      className="shrink-0 h-8 px-2.5 text-xs font-bold text-sub hover:text-ink disabled:opacity-40"
+                    >
+                      다시 넣기
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
 
           {p.isSending ? (

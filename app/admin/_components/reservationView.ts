@@ -1,3 +1,16 @@
+// 관리자 예매 탭이 읽는 reservations 행의 칸
+export type AdminReservation = {
+  id: string;
+  seat_number: string;
+  student_name: string;
+  student_id: string | null;
+  email?: string | null;
+  payment_status: string;
+  is_printed?: boolean | null;
+  is_group_leader?: boolean | null;
+  popcorn_order?: string | null;
+};
+
 export const POPCORN_NAMES: Record<string, string> = {
   original: '오리지널',
   consomme: '콘소메',

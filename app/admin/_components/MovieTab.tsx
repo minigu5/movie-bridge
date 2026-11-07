@@ -1,19 +1,36 @@
 "use client";
 
-import { useState, type ReactNode } from 'react';
+import { useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 import SeatZoneEditor, { type Zone } from './SeatZoneEditor';
 import PosterPicker from './PosterPicker';
 import { getSchedule, buildDerivedFields, validateMovieForm, type Schedule } from './screeningSchedule';
+import { resolveVipZone, type VipConfig } from '../../../lib/seatGrid';
+
+// 상영 폼(movie_settings 행 + 화면에서 고친 값)
+export type MovieForm = VipConfig & {
+  id?: number;
+  title?: string;
+  date_string?: string;
+  db_date?: string;
+  venue?: string;
+  poster_url?: string;
+  poster_cdn_url?: string | null;
+  deadline_date?: string | null;
+  age_rating?: string;
+  defective_seats?: string[];
+  [key: string]: unknown;
+};
+type SetForm = Dispatch<SetStateAction<MovieForm>>;
 
 const VENUE_MID = '대구과학고등학교 중강당';
 const VENUE_GRAND = '대구과학고등학교 대강당';
-const isGrand = (form: any) => String(form.venue ?? '').includes('대강당');
+const isGrand = (form: MovieForm) => String(form.venue ?? '').includes('대강당');
 
 interface Props {
-  movieInfo: any;
-  baseline: any; // movieInfo로 만든 폼(바뀐 곳 비교용)
-  editForm: any;
-  setEditForm: (updater: any) => void;
+  movieInfo: MovieForm | null;
+  baseline: MovieForm | null; // movieInfo로 만든 폼(바뀐 곳 비교용)
+  editForm: MovieForm;
+  setEditForm: SetForm;
   onResetForm: () => void;
   onSave: () => Promise<boolean>;
   posterStatus: string | null;
@@ -22,8 +39,8 @@ interface Props {
   isStartingNewMovie: boolean;
   onOpenNewMovie: () => void;
   onCloseNewMovie: () => void;
-  newMovieForm: any;
-  setNewMovieForm: (updater: any) => void;
+  newMovieForm: MovieForm;
+  setNewMovieForm: SetForm;
   newPosterStatus: string | null;
   onNewPosterFile: (file: File) => Promise<void>;
   onSubmitNewMovie: () => Promise<boolean>;
@@ -33,17 +50,10 @@ interface Props {
   onUpdateKioskPassword: () => Promise<boolean>;
 }
 
-const zoneFromForm = (form: any): Zone => {
-  const p = isGrand(form) ? 'grand' : 'mid';
-  return {
-    startRow: form[`${p}_vip_start_row`] ?? 'A',
-    endRow: form[`${p}_vip_end_row`] ?? 'C',
-    startCol: form[`${p}_vip_start_col`] ?? 1,
-    endCol: form[`${p}_vip_end_col`] ?? 1,
-  };
-};
+// 빈 칸 기본값은 lib/seatGrid.ts computeVipSeats와 같은 resolveVipZone을 쓴다(홈 화면과 같은 네모).
+const zoneFromForm = (form: MovieForm): Zone => resolveVipZone(isGrand(form), form);
 
-const zonePatch = (form: any, z: Zone) => {
+const zonePatch = (form: MovieForm, z: Zone): Partial<MovieForm> => {
   const p = isGrand(form) ? 'grand' : 'mid';
   return {
     [`${p}_vip_start_row`]: z.startRow,
@@ -54,16 +64,16 @@ const zonePatch = (form: any, z: Zone) => {
 };
 
 const VIP_KEYS = ['start_row', 'end_row', 'start_col', 'end_col'].flatMap((k) => [`mid_vip_${k}`, `grand_vip_${k}`]);
-const sameTime = (a: any, b: any) => {
+const sameTime = (a?: string | null, b?: string | null) => {
   if (!a && !b) return true;
-  const ta = new Date(a).getTime();
-  const tb = new Date(b).getTime();
+  const ta = new Date(a ?? '').getTime();
+  const tb = new Date(b ?? '').getTime();
   return Number.isNaN(ta) || Number.isNaN(tb) ? a === b : ta === tb;
 };
-const sortedJoin = (v: any) => [...(v ?? [])].sort().join(',');
+const sortedJoin = (v?: string[]) => [...(v ?? [])].sort().join(',');
 
 // 저장 바에 보일 "바뀐 곳" 이름 목록
-export function changedLabels(base: any, form: any): string[] {
+export function changedLabels(base: MovieForm | null, form: MovieForm): string[] {
   if (!base) return [];
   const out: string[] = [];
   if ((form.title ?? '') !== (base.title ?? '')) out.push('영화 제목');
@@ -78,8 +88,8 @@ export function changedLabels(base: any, form: any): string[] {
 }
 
 // 검증 후 실행. 경고는 한 번 더 누르면 진행한다(확인창 대신).
-function useCheckedSubmit(form: any, submit: () => Promise<boolean>) {
-  const [notice, setNotice] = useState<{ kind: 'error' | 'warn'; text: string; form: any } | null>(null);
+function useCheckedSubmit(form: MovieForm, submit: () => Promise<boolean>) {
+  const [notice, setNotice] = useState<{ kind: 'error' | 'warn'; text: string; form: MovieForm } | null>(null);
   const [busy, setBusy] = useState(false);
   // 폼이 바뀌면 지난 검증 문구는 버린다.
   const current = notice && notice.form === form ? notice : null;
@@ -106,11 +116,11 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 
 const inputCls = 'w-full h-11 bg-transparent text-[15px] font-medium text-ink outline-none focus:bg-card px-1 -mx-1';
 
-function MovieFields({ form, setForm }: { form: any; setForm: (u: any) => void }) {
-  const set = (patch: any) => setForm((prev: any) => ({ ...prev, ...patch }));
+function MovieFields({ form, setForm }: { form: MovieForm; setForm: SetForm }) {
+  const set = (patch: Partial<MovieForm>) => setForm((prev) => ({ ...prev, ...patch }));
   const sched = getSchedule(form);
   // 입력이 바뀌면 date_string / db_date / deadline_date 를 항상 같이 다시 만든다.
-  const setSched = (patch: Partial<Schedule>) => setForm((prev: any) => ({ ...prev, ...buildDerivedFields({ ...getSchedule(prev), ...patch }) }));
+  const setSched = (patch: Partial<Schedule>) => setForm((prev) => ({ ...prev, ...buildDerivedFields({ ...getSchedule(prev), ...patch }) }));
   return (
     <div className="flex flex-col border-t border-ink">
       <Row label="영화 제목"><input type="text" value={form.title ?? ''} onChange={e => set({ title: e.target.value })} className={inputCls} /></Row>
@@ -136,7 +146,7 @@ function MovieFields({ form, setForm }: { form: any; setForm: (u: any) => void }
   );
 }
 
-function SeatSection({ form, setForm }: { form: any; setForm: (u: any) => void }) {
+function SeatSection({ form, setForm }: { form: MovieForm; setForm: SetForm }) {
   return (
     <section className="flex flex-col gap-[18px]">
       <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-ink pb-2.5">
@@ -146,11 +156,11 @@ function SeatSection({ form, setForm }: { form: any; setForm: (u: any) => void }
       <SeatZoneEditor
         isGrandHall={isGrand(form)}
         vipEnabled={form.vip_enabled ?? true}
-        onVipEnabledChange={(v) => setForm((prev: any) => ({ ...prev, vip_enabled: v }))}
+        onVipEnabledChange={(v) => setForm((prev) => ({ ...prev, vip_enabled: v }))}
         zone={zoneFromForm(form)}
-        onZoneChange={(z) => setForm((prev: any) => ({ ...prev, ...zonePatch(prev, z) }))}
+        onZoneChange={(z) => setForm((prev) => ({ ...prev, ...zonePatch(prev, z) }))}
         defective={form.defective_seats ?? []}
-        onDefectiveChange={(ids) => setForm((prev: any) => ({ ...prev, defective_seats: ids }))}
+        onDefectiveChange={(ids) => setForm((prev) => ({ ...prev, defective_seats: ids }))}
       />
     </section>
   );
@@ -176,9 +186,10 @@ export default function MovieTab(p: Props) {
           <PosterPicker
             posterUrl={f.poster_url ?? ''}
             posterCdnUrl={f.poster_cdn_url ?? undefined}
-            onUrlChange={(url) => p.setNewMovieForm((prev: any) => ({ ...prev, poster_url: url, poster_cdn_url: null }))}
+            onUrlChange={(url) => p.setNewMovieForm((prev) => ({ ...prev, poster_url: url, poster_cdn_url: null }))}
             onFile={p.onNewPosterFile}
             status={p.newPosterStatus}
+            hint={'주소나 파일은 "새 회차 시작"을 누르면 들어가요.'}
           />
           <div className="flex-1 min-w-0 w-full flex flex-col gap-3.5">
             <span className="text-xs font-bold tracking-[0.2em] text-dim">다음 상영</span>
@@ -218,7 +229,7 @@ export default function MovieTab(p: Props) {
             <PosterPicker
               posterUrl={f.poster_url ?? ''}
               posterCdnUrl={posterUnchanged ? f.poster_cdn_url ?? undefined : undefined}
-              onUrlChange={(url) => p.setEditForm((prev: any) => ({ ...prev, poster_url: url }))}
+              onUrlChange={(url) => p.setEditForm((prev) => ({ ...prev, poster_url: url }))}
               onFile={p.onPosterFile}
               status={p.posterStatus}
             />

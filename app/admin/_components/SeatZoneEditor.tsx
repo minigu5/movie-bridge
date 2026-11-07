@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
-import { getGridRows, getGridCols, computeSeatId } from '@/lib/seatGrid';
+import { getGridRows, getGridCols, computeSeatId, computeVipSeats } from '@/lib/seatGrid';
 
 export type Zone = { startRow: string; endRow: string; startCol: number; endCol: number };
 type Cell = { row: string; col: number };
@@ -54,8 +54,13 @@ export default function SeatZoneEditor({ isGrandHall, vipEnabled, onVipEnabledCh
     ci < cols.length - 1 && computeSeatId(isGrandHall, 0, ci)?.[0] !== computeSeatId(isGrandHall, 0, ci + 1)?.[0]
   )), [cols, isGrandHall]);
 
-  let vipCount = 0;
-  rows.forEach((r, ri) => cols.forEach((c, ci) => { if (inZone(z, r, c) && computeSeatId(isGrandHall, ri, ci)) vipCount++; }));
+  // 홈 화면과 같은 계산(computeVipSeats)으로 센다. 끝이 시작보다 앞인 저장값(예: A3~A2)은 0석이다.
+  const p = isGrandHall ? 'grand' : 'mid';
+  const vipCount = computeVipSeats(isGrandHall, rows, cols, {
+    [`${p}_vip_start_row`]: z.startRow, [`${p}_vip_end_row`]: z.endRow,
+    [`${p}_vip_start_col`]: z.startCol, [`${p}_vip_end_col`]: z.endCol,
+  }).size;
+  const vipDetail = vipCount > 0 ? `${vipCount}석 · ${z.startRow}${z.startCol}~${z.endRow}${z.endCol}` : '0석 · 범위 없음';
 
   const cellFromPoint = (x: number, y: number): Cell | null => {
     const el = (document.elementFromPoint(x, y) as HTMLElement | null)?.closest('[data-cell]') as HTMLElement | null;
@@ -113,7 +118,7 @@ export default function SeatZoneEditor({ isGrandHall, vipEnabled, onVipEnabledCh
         <span className="text-[13px] text-sub">무엇을 지정할까요?</span>
         <div className="flex flex-col gap-1.5">
           {vipEnabled && (
-            <ToolButton on={tool === 'vip'} onClick={() => setTool('vip')} swatch="border-2 border-current" label="동아리 전용 좌석" detail={`${vipCount}석 · ${z.startRow}${z.startCol}~${z.endRow}${z.endCol}`} />
+            <ToolButton on={tool === 'vip'} onClick={() => setTool('vip')} swatch="border-2 border-current" label="동아리 전용 좌석" detail={vipDetail} />
           )}
           <ToolButton on={tool === 'defective'} onClick={() => setTool('defective')} swatch="border border-dashed border-current" label="불편 좌석" detail={`${hallDefective.length}석`} />
         </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { extractSchoolEmails } from '../../../lib/parseEmails';
 import { filterPeople, countByFilter, type PersonRow, type PeopleFilter } from '../../../lib/adminPeople';
@@ -11,7 +11,7 @@ export type AddTarget = PersonToggle | 'block';
 interface Props {
   rows: PersonRow[];
   selfEmail: string;
-  onToggle(person: PersonRow, kind: PersonToggle, on: boolean): void;
+  onToggle(person: PersonRow, kind: PersonToggle, on: boolean): Promise<void>;
   onUnblock(person: PersonRow): void;
   onBlock(person: PersonRow): void;
   onSaveProfile(person: PersonRow, next: { name: string; studentId: string }): Promise<boolean>;
@@ -29,7 +29,9 @@ const CHIPS: { key: PeopleFilter; label: string }[] = [
 
 const COLS = 'lg:grid-cols-[100px_64px_minmax(0,1fr)_236px]';
 
-function Toggles({ person, selfEmail, onToggle, onUnblock }: { person: PersonRow; selfEmail: string; onToggle: Props['onToggle']; onUnblock: Props['onUnblock'] }) {
+const isSelfEmail = (email: string, selfEmail: string) => email.toLowerCase() === selfEmail.toLowerCase();
+
+function Toggles({ person, selfEmail, onToggle, onUnblock, isBusy }: { person: PersonRow; selfEmail: string; onToggle: Props['onToggle']; onUnblock: Props['onUnblock']; isBusy(kind: PersonToggle): boolean }) {
   if (person.blocked) {
     return (
       <button type="button" onClick={() => onUnblock(person)} className="h-8 px-2.5 border border-accent text-accent text-xs font-bold whitespace-nowrap">
@@ -38,7 +40,7 @@ function Toggles({ person, selfEmail, onToggle, onUnblock }: { person: PersonRow
     );
   }
   const autoBook = person.club || person.admin;
-  const isSelf = person.email === selfEmail.toLowerCase();
+  const isSelf = isSelfEmail(person.email, selfEmail);
   const items: { kind: PersonToggle; label: string; on: boolean; disabled?: boolean; title?: string }[] = [
     { kind: 'book', label: '예매', on: autoBook || person.canBookDirect, disabled: autoBook, title: autoBook ? '동아리원·관리자는 자동으로 예매할 수 있어요' : undefined },
     { kind: 'club', label: '동아리원', on: person.club },
@@ -46,24 +48,30 @@ function Toggles({ person, selfEmail, onToggle, onUnblock }: { person: PersonRow
   ];
   return (
     <span className="flex gap-1.5">
-      {items.map((t) => (
-        <button
-          key={t.kind}
-          type="button"
-          aria-pressed={t.on}
-          disabled={t.disabled}
-          title={t.title}
-          onClick={() => onToggle(person, t.kind, !t.on)}
-          className={`h-8 px-2.5 border text-xs font-bold whitespace-nowrap disabled:cursor-not-allowed ${t.on ? 'bg-ink border-ink text-ground' : 'border-line-strong text-mute hover:text-sub'} ${t.disabled ? 'opacity-70' : ''}`}
-        >
-          {t.label}
-        </button>
-      ))}
+      {items.map((t) => {
+        // 요청이 끝날 때까지 그 버튼은 잠근다(두 번 눌러 켜기·끄기가 엇갈리지 않게).
+        const busy = isBusy(t.kind);
+        return (
+          <button
+            key={t.kind}
+            type="button"
+            aria-pressed={t.on}
+            aria-busy={busy || undefined}
+            disabled={t.disabled || busy}
+            title={t.title}
+            onClick={() => onToggle(person, t.kind, !t.on)}
+            className={`h-8 px-2.5 border text-xs font-bold whitespace-nowrap disabled:cursor-not-allowed ${t.on ? 'bg-ink border-ink text-ground' : 'border-line-strong text-mute hover:text-sub'} ${t.disabled ? 'opacity-70' : busy ? 'opacity-50' : ''}`}
+          >
+            {t.label}
+          </button>
+        );
+      })}
     </span>
   );
 }
 
-function PersonPanel({ person, onClose, onSaveProfile, onBlock }: { person: PersonRow; onClose(): void; onSaveProfile: Props['onSaveProfile']; onBlock: Props['onBlock'] }) {
+function PersonPanel({ person, selfEmail, onClose, onSaveProfile, onBlock }: { person: PersonRow; selfEmail: string; onClose(): void; onSaveProfile: Props['onSaveProfile']; onBlock: Props['onBlock'] }) {
+  const isSelf = isSelfEmail(person.email, selfEmail);
   const [name, setName] = useState(person.name ?? '');
   const [studentId, setStudentId] = useState(person.studentId ?? '');
   const save = () => {
@@ -97,7 +105,15 @@ function PersonPanel({ person, onClose, onSaveProfile, onBlock }: { person: Pers
       )}
       {!person.blocked && (
         <div className="mt-2 flex flex-col gap-1.5 border-t border-line pt-4">
-          <button type="button" onClick={() => onBlock(person)} className="self-start h-9 text-accent text-[13px] font-bold">이 사람 차단하기</button>
+          <button
+            type="button"
+            onClick={() => onBlock(person)}
+            disabled={isSelf}
+            title={isSelf ? '본인은 차단할 수 없어요' : undefined}
+            className="self-start h-9 text-accent text-[13px] font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            이 사람 차단하기
+          </button>
           <span className="text-xs leading-relaxed text-mute break-keep">차단하면 예매도, 초대 메일도 막혀요. 누르면 바로 차단되고 몇 초 동안 되돌릴 수 있어요.</span>
         </div>
       )}
@@ -112,6 +128,21 @@ export default function PeopleTab({ rows, selfEmail, onToggle, onUnblock, onBloc
   const [addOpen, setAddOpen] = useState(false);
   const [addText, setAddText] = useState('');
   const [adding, setAdding] = useState(false);
+  // 요청 중인 권한 버튼("이메일:종류"). ref는 같은 틱 두 번 누름도 막는다.
+  const inFlight = useRef(new Set<string>());
+  const [busyToggles, setBusyToggles] = useState<ReadonlySet<string>>(() => new Set());
+  const toggle: Props['onToggle'] = async (person, kind, on) => {
+    const key = `${person.email}:${kind}`;
+    if (inFlight.current.has(key)) return;
+    inFlight.current.add(key);
+    setBusyToggles(new Set(inFlight.current));
+    try {
+      await onToggle(person, kind, on);
+    } finally {
+      inFlight.current.delete(key);
+      setBusyToggles(new Set(inFlight.current));
+    }
+  };
 
   const counts = useMemo(() => countByFilter(rows), [rows]);
   const visible = useMemo(() => filterPeople(rows, filter, query), [rows, filter, query]);
@@ -130,6 +161,7 @@ export default function PeopleTab({ rows, selfEmail, onToggle, onUnblock, onBloc
     <PersonPanel
       key={selected.email}
       person={selected}
+      selfEmail={selfEmail}
       onClose={() => setSelectedEmail(null)}
       onSaveProfile={onSaveProfile}
       onBlock={(p) => { onBlock(p); }}
@@ -213,7 +245,7 @@ export default function PeopleTab({ rows, selfEmail, onToggle, onUnblock, onBloc
               </button>
               <span className="text-[13px] text-sub text-right lg:text-left whitespace-nowrap">{p.studentId ?? (p.isStaff ? '교직원' : p.profileId ? '' : '—')}</span>
               <span className="text-[13px] text-dim truncate min-w-0" title={p.email}>{p.email}</span>
-              <span className="justify-self-end lg:justify-self-start"><Toggles person={p} selfEmail={selfEmail} onToggle={onToggle} onUnblock={onUnblock} /></span>
+              <span className="justify-self-end lg:justify-self-start"><Toggles person={p} selfEmail={selfEmail} onToggle={toggle} onUnblock={onUnblock} isBusy={(kind) => busyToggles.has(`${p.email}:${kind}`)} /></span>
             </div>
           ))}
         </div>

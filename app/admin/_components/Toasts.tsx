@@ -46,8 +46,8 @@ export function useToasts() {
       remove(id);
       try {
         await run();
-      } catch (err: any) {
-        notify(err?.message || '실패했어요', 'error');
+      } catch (err) {
+        notify((err instanceof Error && err.message) || '실패했어요', 'error');
       }
     }, delayMs);
     const onUndo = () => { if (handle.cancel()) remove(id); };

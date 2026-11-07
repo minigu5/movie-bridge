@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from 'react';
-import { analyzePopcorn, parseSeat, POPCORN_NAMES, STATUS_WEIGHT } from './reservationView';
+import { analyzePopcorn, parseSeat, POPCORN_NAMES, STATUS_WEIGHT, type AdminReservation } from './reservationView';
 
 type SortKey = 'seat' | 'name' | 'status' | 'printed';
 type SortDir = 'asc' | 'desc';
@@ -12,15 +12,15 @@ interface PopcornStats {
 }
 
 interface Props {
-  reservations: any[];
+  reservations: AdminReservation[];
   popcornStats: PopcornStats;
   clubMembers: { email: string }[];
   nameByEmail: Record<string, string>;
   movieTitle?: string;
   deadline?: string | null;
-  onApprove: (ticket: any) => void;
-  onCancel: (ticket: any) => void;
-  onResetPrint: (ticket: any) => void;
+  onApprove: (ticket: AdminReservation) => void;
+  onCancel: (ticket: AdminReservation) => void;
+  onResetPrint: (ticket: AdminReservation) => void;
   // 취소를 누르고 5초 되돌리기 중인 예약
   pendingCancelIds: Set<string>;
   cancelSecondsLeft: (id: string) => number;
@@ -84,7 +84,7 @@ export default function ReservationsTab(props: Props) {
   const sorted = useMemo(() => {
     const dir = sortDir === 'asc' ? 1 : -1;
     const q = query.trim().toLowerCase();
-    const bySeat = (a: any, b: any) => {
+    const bySeat = (a: AdminReservation, b: AdminReservation) => {
       const [as, an] = parseSeat(a.seat_number);
       const [bs, bn] = parseSeat(b.seat_number);
       return as.localeCompare(bs) || an - bn;
@@ -126,7 +126,7 @@ export default function ReservationsTab(props: Props) {
   ];
   const subtitle = [movieTitle ? `「${movieTitle}」` : null, deadlineText(deadline)].filter(Boolean).join(' · ');
 
-  const UndoRow = ({ ticket }: { ticket: any }) => (
+  const UndoRow = ({ ticket }: { ticket: AdminReservation }) => (
     <div className="flex items-center justify-between gap-3 min-h-[52px] px-3 py-2 bg-card border-b border-line">
       <span className="text-[13px] text-sub min-w-0 break-keep">
         <b className="text-ink">{ticket.seat_number} {ticket.student_name}</b> 예매를 취소했어요. 취소 메일은 5초 뒤 나가요.
@@ -137,7 +137,7 @@ export default function ReservationsTab(props: Props) {
     </div>
   );
 
-  const Actions = ({ ticket, phone }: { ticket: any; phone?: boolean }) => (
+  const Actions = ({ ticket, phone }: { ticket: AdminReservation; phone?: boolean }) => (
     <>
       {ticket.payment_status === 'pending' && (
         <button type="button" onClick={() => onApprove(ticket)} className={`${phone ? 'h-10 px-3.5 text-sm' : 'h-9 px-4 text-[13px]'} bg-ink text-ground font-bold whitespace-nowrap`}>승인</button>

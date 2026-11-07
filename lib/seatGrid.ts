@@ -44,6 +44,26 @@ export type VipConfig = {
   vip_enabled?: boolean;
 };
 
+export type VipZone = { startRow: string; endRow: string; startCol: number; endCol: number };
+
+// 상영관의 동아리 전용 네모. 칸이 비었으면(null·''·0) 기본 네모를 쓴다.
+// 저장된 값은 그대로 둔다: 끝이 시작보다 앞이면(예: 3~2) 0석이다.
+export function resolveVipZone(isGrandHall: boolean, vipConfig: VipConfig): VipZone {
+  return isGrandHall
+    ? {
+        startRow: vipConfig.grand_vip_start_row || 'A',
+        endRow: vipConfig.grand_vip_end_row || 'C',
+        startCol: vipConfig.grand_vip_start_col || 10,
+        endCol: vipConfig.grand_vip_end_col || 18,
+      }
+    : {
+        startRow: vipConfig.mid_vip_start_row || 'A',
+        endRow: vipConfig.mid_vip_end_row || 'C',
+        startCol: vipConfig.mid_vip_start_col || 5,
+        endCol: vipConfig.mid_vip_end_col || 10,
+      };
+}
+
 export function computeVipSeats(
   isGrandHall: boolean,
   rows: string[],
@@ -51,18 +71,15 @@ export function computeVipSeats(
   vipConfig: VipConfig
 ): Set<string> {
   if (vipConfig.vip_enabled === false) return new Set();
+  const z = resolveVipZone(isGrandHall, vipConfig);
   const vips = new Set<string>();
   rows.forEach((rowChar, rowIndex) => {
     cols.forEach((colNum, colIndex) => {
-      const isVip = isGrandHall
-        ? rowChar.charCodeAt(0) >= (vipConfig.grand_vip_start_row || 'A').charCodeAt(0) &&
-          rowChar.charCodeAt(0) <= (vipConfig.grand_vip_end_row || 'C').charCodeAt(0) &&
-          colNum >= (vipConfig.grand_vip_start_col || 10) &&
-          colNum <= (vipConfig.grand_vip_end_col || 18)
-        : rowChar.charCodeAt(0) >= (vipConfig.mid_vip_start_row || 'A').charCodeAt(0) &&
-          rowChar.charCodeAt(0) <= (vipConfig.mid_vip_end_row || 'C').charCodeAt(0) &&
-          colNum >= (vipConfig.mid_vip_start_col || 5) &&
-          colNum <= (vipConfig.mid_vip_end_col || 10);
+      const isVip =
+        rowChar.charCodeAt(0) >= z.startRow.charCodeAt(0) &&
+        rowChar.charCodeAt(0) <= z.endRow.charCodeAt(0) &&
+        colNum >= z.startCol &&
+        colNum <= z.endCol;
 
       if (isVip) {
         const seatId = computeSeatId(isGrandHall, rowIndex, colIndex);

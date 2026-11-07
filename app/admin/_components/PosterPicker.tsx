@@ -8,10 +8,11 @@ interface Props {
   onUrlChange(url: string): void;
   onFile(file: File): Promise<void>;
   status: string | null;
+  hint?: string; // 상태 문구가 없을 때 보일 안내
 }
 
 // 포스터 168×240 + "포스터 바꾸기". 누르면 이 자리에서 주소 칸과 파일 고르기가 펼쳐진다(모달 아님).
-export default function PosterPicker({ posterUrl, posterCdnUrl, onUrlChange, onFile, status }: Props) {
+export default function PosterPicker({ posterUrl, posterCdnUrl, onUrlChange, onFile, status, hint = '파일은 고르면 바로 올라가요. 주소는 넣은 뒤 저장을 눌러야 바뀌어요.' }: Props) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const preview = posterCdnUrl || posterUrl;
@@ -63,7 +64,7 @@ export default function PosterPicker({ posterUrl, posterCdnUrl, onUrlChange, onF
         </div>
       )}
       <span className={`text-[11px] leading-normal break-keep ${status ? 'text-sub' : 'text-mute'}`}>
-        {status ?? '파일은 고르면 바로 올라가요. 주소는 넣은 뒤 저장을 눌러야 바뀌어요.'}
+        {status ?? hint}
       </span>
     </div>
   );

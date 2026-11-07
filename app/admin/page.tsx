@@ -14,6 +14,7 @@ import MailTab from './_components/MailTab';
 import { scheduleUndoable } from '../../lib/undoable';
 import PeopleTab, { type PersonToggle, type AddTarget } from './_components/PeopleTab';
 import { mergePeople, type PersonRow } from '../../lib/adminPeople';
+import { applyPromoExclusions, removePromoRecipient, restorePromoRecipient, type PromoRecipient } from '../../lib/promoRecipients';
 import LogTab from './_components/LogTab';
 
 // 옛 탭 키(?tab=settings 등)로 들어와도 같은 메뉴를 연다.
@@ -44,6 +45,8 @@ const moviePayload = (f: any) => ({
   defective_seats: f.defective_seats ?? [],
   vip_enabled: f.vip_enabled ?? true,
 });
+
+const NO_REMOVED: ReadonlyMap<string, PromoRecipient> = new Map();
 
 const LEGACY_TAB: Record<string, AdminSection> = { settings: 'movie', members: 'people', history: 'log' };
 const parseSection = (raw: string | null): AdminSection => {
@@ -117,6 +120,10 @@ function AdminPageInner() {
   const [promoCountdown, setPromoCountdown] = useState<number | null>(null);
   const promoSendRef = useRef<{ cancel(): boolean; interval: ReturnType<typeof setInterval> } | null>(null);
   const promoResolveSeq = useRef(0);
+  // 마지막으로 다 센 입력. 같은 입력이면 메뉴를 오가도 다시 세지 않는다.
+  const promoResolvedKey = useRef<string | null>(null);
+  // X로 뺀 사람. 다시 세도 남고, "다시 넣기"를 누르거나 회차가 바뀌면(movieId가 다르면) 비워진다.
+  const [promoRemovedState, setPromoRemovedState] = useState<{ movieId: number | null; removed: ReadonlyMap<string, PromoRecipient> }>({ movieId: null, removed: NO_REMOVED });
 
   // 팝콘 통계(확정 기준)
   const popcornStats = useMemo(() => {
@@ -149,7 +156,7 @@ function AdminPageInner() {
     };
     bootstrap();
     return () => { active = false; };
-  }, []);
+  }, [notify]);
 
   useEffect(() => {
     if (profile) checkAdminAndLoad();
@@ -223,7 +230,8 @@ function AdminPageInner() {
     try {
       const r = await uploadPosterFile(file, editForm.id);
       if (!r.url) { setPosterStatus(null); notify(`포스터 올리기 실패: ${r.error}`, 'error'); return; }
-      setEditForm((prev: any) => ({ ...prev, poster_cdn_url: r.url }));
+      // 파일이 이긴다: 고치던 주소는 저장된 값으로 돌려, 나중에 저장해도 주소를 다시 올려 파일을 덮지 않게 한다.
+      setEditForm((prev: any) => ({ ...prev, poster_cdn_url: r.url, poster_url: movieInfo?.poster_url ?? '' }));
       setMovieInfo((prev: any) => ({ ...prev, poster_cdn_url: r.url }));
       setPosterStatus(r.warning ?? '포스터를 바꿨어요.');
     } catch (err: any) {
@@ -372,6 +380,7 @@ function AdminPageInner() {
   };
 
   const now = () => new Date().toISOString();
+  const isSelfEmail = (email: string) => !!profile && email.trim().toLowerCase() === profile.email.toLowerCase();
 
   // 권한 켜고 끄기: 화면을 먼저 바꾸고, 실패하면 되돌린 뒤 알린다.
   const handleTogglePerson = async (person: PersonRow, kind: PersonToggle, on: boolean) => {
@@ -459,7 +468,10 @@ function AdminPageInner() {
   // "사람 넣기": 예매·동아리원·관리자는 바로, 차단은 5초 되돌리기.
   const handleAddPeople = async (target: AddTarget, emails: string[]): Promise<boolean> => {
     if (target === 'block') {
-      blockWithUndo(emails, `${emails.length}명을 차단했어요`);
+      const targets = emails.filter((e) => !isSelfEmail(e));
+      if (targets.length < emails.length) notify('본인은 차단할 수 없어 뺐어요.', 'error');
+      if (targets.length === 0) return false;
+      blockWithUndo(targets, `${targets.length}명을 차단했어요`);
       return true;
     }
     if (target === 'admin') {
@@ -491,9 +503,12 @@ function AdminPageInner() {
     return true;
   };
 
-  // 체크·붙여넣기가 바뀌면 500ms 뒤 받는 사람을 다시 센다(겹침·차단 제외는 서버가 한다).
+  // 체크·붙여넣기(와 명단 크기)가 바뀌면 500ms 뒤 받는 사람을 다시 센다(겹침·차단 제외는 서버가 한다).
   useEffect(() => {
     if (!isAdmin || activeTab !== 'mail') return;
+    const key = JSON.stringify([promoSources, promoManualText, clubMembers.length, invitedEmails.length, blacklist.length]);
+    if (key === promoResolvedKey.current) return;
+    promoResolvedKey.current = null;
     const grades = (['g1', 'g2', 'g3'] as const).filter((g) => promoSources[g]);
     const hasTarget = promoSources.club || promoSources.invited || grades.length > 0 || promoManualText.trim() !== '';
     const seq = ++promoResolveSeq.current;
@@ -501,6 +516,7 @@ function AdminPageInner() {
       setPromoRecipients([]);
       setPromoExcluded(null);
       setIsResolvingPromo(false);
+      promoResolvedKey.current = key;
       return;
     }
     setIsResolvingPromo(true);
@@ -516,6 +532,7 @@ function AdminPageInner() {
         if (!data.success) { setPromoRecipients(null); setPromoExcluded(null); notify('받는 사람 계산 실패: ' + data.error, 'error'); return; }
         setPromoRecipients(data.data.recipients);
         setPromoExcluded(typeof data.data.overlap === 'number' ? { overlap: data.data.overlap, blocked: data.data.blocked } : null);
+        promoResolvedKey.current = key;
       } catch (err) {
         console.error(err);
         if (seq === promoResolveSeq.current) { setPromoRecipients(null); setPromoExcluded(null); notify('받는 사람 계산 중 오류가 났어요.', 'error'); }
@@ -524,7 +541,18 @@ function AdminPageInner() {
       }
     }, 500);
     return () => clearTimeout(timer);
-  }, [isAdmin, activeTab, promoSources, promoManualText]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isAdmin, activeTab, promoSources, promoManualText, clubMembers.length, invitedEmails.length, blacklist.length, notify]);
+
+  const promoMovieId: number | null = movieInfo?.id ?? null;
+  const promoRemoved = promoRemovedState.movieId === promoMovieId ? promoRemovedState.removed : NO_REMOVED;
+  const updatePromoRemoved = (fn: (cur: ReadonlyMap<string, PromoRecipient>) => ReadonlyMap<string, PromoRecipient>) =>
+    setPromoRemovedState((prev) => ({ movieId: promoMovieId, removed: fn(prev.movieId === promoMovieId ? prev.removed : NO_REMOVED) }));
+  // 화면·숫자·발송 모두 뺀 사람을 거른 이 명단을 쓴다.
+  const visiblePromoRecipients = useMemo(
+    () => (promoRecipients ? applyPromoExclusions(promoRecipients, promoRemoved) : null),
+    [promoRecipients, promoRemoved],
+  );
+  const removedPromoList = useMemo(() => [...promoRemoved.values()], [promoRemoved]);
 
   const stopPromoCountdown = () => {
     const h = promoSendRef.current;
@@ -538,7 +566,7 @@ function AdminPageInner() {
   // 보내기: 5초 카운트다운 뒤 발송 시작. 그 사이엔 멈출 수 있다.
   const handleSendPromo = () => {
     if (!movieInfo?.title) return notify('지금 상영작 정보가 없어요. 상영 메뉴에서 먼저 저장해 주세요.', 'error');
-    const recipients = promoRecipients ?? [];
+    const recipients = visiblePromoRecipients ?? [];
     if (recipients.length === 0) return notify('보낼 사람이 없어요.', 'error');
     if (promoSendRef.current || isSendingPromo || isResolvingPromo) return;
     const startedAt = Date.now();
@@ -558,7 +586,7 @@ function AdminPageInner() {
   // 메일 메뉴를 떠나면 카운트다운 중인 발송은 멈춘다(보내기 시작한 뒤에는 그대로 간다).
   useEffect(() => {
     if (activeTab !== 'mail') stopPromoCountdown();
-  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeTab]);
   useEffect(() => () => {
     const h = promoSendRef.current;
     if (h) { h.cancel(); clearInterval(h.interval); promoSendRef.current = null; }
@@ -632,14 +660,15 @@ function AdminPageInner() {
   // 되돌리기 알림이 살아 있으면 그 동작은 아직 기다리는 중이다.
   const aliveUndoToast = (toastId: string | undefined) => (toastId ? toasts.find(t => t.id === toastId && t.undo) : undefined);
   const cancelUndoToast = (reservationId: string) => aliveUndoToast(cancelToastIds[reservationId]);
-  const pendingBlockEmails = Object.keys(blockToastIds).filter(e => aliveUndoToast(blockToastIds[e]));
-  const peopleRows = mergePeople({
+  // 알림 초읽기는 1초마다 toasts를 바꾸므로, 기다리는 차단 명단은 문자열 키로 바꿔 memo가 매초 다시 돌지 않게 한다.
+  const pendingBlockKey = Object.keys(blockToastIds).filter(e => aliveUndoToast(blockToastIds[e])).sort().join('\n');
+  const peopleRows = useMemo(() => mergePeople({
     profiles: loginProfiles,
     invited: invitedEmails,
     club: clubMembers,
     admins,
-    blacklist: [...blacklist, ...pendingBlockEmails.map(email => ({ email }))],
-  });
+    blacklist: [...blacklist, ...(pendingBlockKey ? pendingBlockKey.split('\n') : []).map(email => ({ email }))],
+  }), [loginProfiles, invitedEmails, clubMembers, admins, blacklist, pendingBlockKey]);
   const pendingCancelIds = new Set(Object.keys(cancelToastIds).filter(id => cancelUndoToast(id)));
 
   const signOut = () => signOutAndClear().then(() => window.location.reload());
@@ -745,9 +774,11 @@ function AdminPageInner() {
           manualPreviewCount={promoManualPreviewCount}
           isSending={isSendingPromo}
           progress={promoProgress}
-          recipients={promoRecipients ?? []}
-          onRemoveRecipient={(email: string) => setPromoRecipients((prev) => (prev ?? []).filter((r) => r.email !== email))}
-          recipientCount={promoRecipients ? promoRecipients.length : null}
+          recipients={visiblePromoRecipients ?? []}
+          onRemoveRecipient={(r) => updatePromoRemoved((cur) => removePromoRecipient(cur, r))}
+          removedRecipients={removedPromoList}
+          onRestoreRecipient={(email) => updatePromoRemoved((cur) => restorePromoRecipient(cur, email))}
+          recipientCount={visiblePromoRecipients ? visiblePromoRecipients.length : null}
           excluded={promoExcluded}
           isResolving={isResolvingPromo}
           onSend={handleSendPromo}
@@ -767,7 +798,10 @@ function AdminPageInner() {
             // 되돌리기 중인 차단이면 그 사람만 차단 묶음에서 뺀다(서버 호출 없음).
             if (!cancelPendingBlock(person.email)) handleUnblock(person);
           }}
-          onBlock={(person) => blockWithUndo([person.email], `${person.name ?? person.email}을(를) 차단했어요`)}
+          onBlock={(person) => {
+            if (isSelfEmail(person.email)) return notify('본인은 차단할 수 없어요.', 'error');
+            blockWithUndo([person.email], `${person.name ?? person.email}을(를) 차단했어요`);
+          }}
           onSaveProfile={handleSaveProfile}
           onAdd={handleAddPeople}
         />

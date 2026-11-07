@@ -2,21 +2,25 @@
 
 import { useEffect, type ReactNode } from 'react';
 import { Star } from 'lucide-react';
-import { analyzePopcorn, POPCORN_NAMES } from './reservationView';
+import { analyzePopcorn, POPCORN_NAMES, type AdminReservation } from './reservationView';
+
+export type HistoryMovie = { id: number; title: string; date_string?: string | null; venue?: string | null };
+export type HistoryReview = { id: string | number; user_name?: string | null; profiles?: { email?: string | null } | null; rating: number; content: string };
+export type AdminLog = { id: string | number; created_at: string; student_id?: string | null; student_name?: string | null; description: string };
 
 interface Props {
   onLoad: () => void;
-  movieHistory: any[];
-  selectedHistoryMovie: any;
-  onSelectHistoryMovie: (movie: any) => void;
-  historyReservations: any[];
-  historyReviews: any[];
-  onDeleteReview: (review: any) => void;
+  movieHistory: HistoryMovie[];
+  selectedHistoryMovie: HistoryMovie | null;
+  onSelectHistoryMovie: (movie: HistoryMovie) => void;
+  historyReservations: AdminReservation[];
+  historyReviews: HistoryReview[];
+  onDeleteReview: (review: HistoryReview) => void;
   // 지우기를 누르고 5초 되돌리기 중인 후기
   pendingDeleteIds: Set<string>;
   deleteSecondsLeft: (id: string) => number;
   onUndoDelete: (id: string) => void;
-  logs: any[];
+  logs: AdminLog[];
 }
 
 const COLS = 'grid-cols-[56px_120px_minmax(120px,1fr)_100px_64px]';
@@ -119,7 +123,7 @@ export default function LogTab(props: Props) {
           <Heading sub={`${historyReviews.length}개`}>「{selectedHistoryMovie.title}」 후기</Heading>
           <div className="flex flex-col">
             {historyReviews.length === 0 && <p className="py-8 text-center text-sm text-mute border-b border-line">후기가 없어요.</p>}
-            {historyReviews.map((review: any) => {
+            {historyReviews.map((review) => {
               const who = review.user_name ?? review.profiles?.email ?? '알 수 없음';
               if (pendingDeleteIds.has(String(review.id))) {
                 return (
