@@ -9,7 +9,7 @@ import AdminShell, { ADMIN_SECTIONS, type AdminSection } from './_components/Adm
 import { useToasts, ToastStack } from './_components/Toasts';
 import { buildDerivedFields } from './_components/screeningSchedule';
 import ReservationsTab from './_components/ReservationsTab';
-import MovieTab from './_components/MovieTab';
+import MovieTab, { changedLabels } from './_components/MovieTab';
 import MailTab from './_components/MailTab';
 import { scheduleUndoable } from '../../lib/undoable';
 import PeopleTab, { type PersonToggle, type AddTarget } from './_components/PeopleTab';
@@ -396,14 +396,40 @@ function AdminPageInner() {
   };
 
   // 차단은 5초 되돌리기(ADD_BLACKLIST_BULK는 예매를 지우고 메일을 보낸다).
+  // 되돌리기 중인 차단 묶음(알림 id → 이메일). 묶음 안 한 사람만 "풀기"하면 그 사람만 뺀다.
+  const pendingBlockBatches = useRef(new Map<string, Set<string>>());
   const blockWithUndo = (emails: string[], text: string) => {
+    const batch = new Set(emails);
     const handle = undoable(text, async () => {
-      setBlacklist((prev) => [...emails.map((email) => ({ email, created_at: now() })), ...prev.filter((b) => !emails.includes(b.email.toLowerCase()))]);
-      const data = await callAction('ADD_BLACKLIST_BULK', { emails, movieDate: movieInfo?.db_date });
+      const targets = [...batch];
+      pendingBlockBatches.current.delete(handle.id);
+      if (targets.length === 0) return;
+      setBlacklist((prev) => [...targets.map((email) => ({ email, created_at: now() })), ...prev.filter((b) => !targets.includes(b.email.toLowerCase()))]);
+      const data = await callAction('ADD_BLACKLIST_BULK', { emails: targets, movieDate: movieInfo?.db_date });
       fetchAdminData();
       if (!data.success) throw new Error('차단 실패: ' + (data.error || ''));
     });
+    pendingBlockBatches.current.set(handle.id, batch);
     setBlockToastIds((prev) => ({ ...prev, ...Object.fromEntries(emails.map((e) => [e, handle.id])) }));
+  };
+
+  // 되돌리기 중인 차단에서 한 사람만 뺀다. 혼자 남은 묶음이면 묶음 전체를 되돌린다.
+  const cancelPendingBlock = (email: string): boolean => {
+    const toast = aliveUndoToast(blockToastIds[email]);
+    const batch = toast && pendingBlockBatches.current.get(toast.id);
+    if (!toast || !batch) return false;
+    if (batch.size <= 1) {
+      toast.undo?.onUndo();
+      pendingBlockBatches.current.delete(toast.id);
+    } else {
+      batch.delete(email);
+    }
+    setBlockToastIds((prev) => {
+      const next = { ...prev };
+      delete next[email];
+      return next;
+    });
+    return true;
   };
 
   const handleUnblock = async (person: PersonRow) => {
@@ -486,12 +512,13 @@ function AdminPageInner() {
         });
         const data = await res.json();
         if (seq !== promoResolveSeq.current) return;
-        if (!data.success) { notify('받는 사람 계산 실패: ' + data.error, 'error'); return; }
+        // 실패하면 지난 명단으로 보내지 않게 비운다.
+        if (!data.success) { setPromoRecipients(null); setPromoExcluded(null); notify('받는 사람 계산 실패: ' + data.error, 'error'); return; }
         setPromoRecipients(data.data.recipients);
         setPromoExcluded(typeof data.data.overlap === 'number' ? { overlap: data.data.overlap, blocked: data.data.blocked } : null);
       } catch (err) {
         console.error(err);
-        if (seq === promoResolveSeq.current) notify('받는 사람 계산 중 오류가 났어요.', 'error');
+        if (seq === promoResolveSeq.current) { setPromoRecipients(null); setPromoExcluded(null); notify('받는 사람 계산 중 오류가 났어요.', 'error'); }
       } finally {
         if (seq === promoResolveSeq.current) setIsResolvingPromo(false);
       }
@@ -513,7 +540,7 @@ function AdminPageInner() {
     if (!movieInfo?.title) return notify('지금 상영작 정보가 없어요. 상영 메뉴에서 먼저 저장해 주세요.', 'error');
     const recipients = promoRecipients ?? [];
     if (recipients.length === 0) return notify('보낼 사람이 없어요.', 'error');
-    if (promoSendRef.current || isSendingPromo) return;
+    if (promoSendRef.current || isSendingPromo || isResolvingPromo) return;
     const startedAt = Date.now();
     setPromoCountdown(5);
     const interval = setInterval(() => {
@@ -737,10 +764,8 @@ function AdminPageInner() {
           selfEmail={profile.email}
           onToggle={handleTogglePerson}
           onUnblock={(person) => {
-            // 되돌리기 중인 차단이면 풀기 = 되돌리기
-            const pending = aliveUndoToast(blockToastIds[person.email]);
-            if (pending) pending.undo?.onUndo();
-            else handleUnblock(person);
+            // 되돌리기 중인 차단이면 그 사람만 차단 묶음에서 뺀다(서버 호출 없음).
+            if (!cancelPendingBlock(person.email)) handleUnblock(person);
           }}
           onBlock={(person) => blockWithUndo([person.email], `${person.name ?? person.email}을(를) 차단했어요`)}
           onSaveProfile={handleSaveProfile}
@@ -764,7 +789,10 @@ function AdminPageInner() {
         />
       )}
 
-      <ToastStack toasts={toasts} />
+      <ToastStack
+        toasts={toasts}
+        aboveSaveBar={activeTab === 'movie' && !isStartingNewMovie && changedLabels(movieBaseline, editForm).length > 0}
+      />
     </AdminShell>
   );
 }

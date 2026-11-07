@@ -29,10 +29,10 @@ export interface MailTabProps {
   onToggleRecipients(): void;
 }
 
-function SourceRow({ checked, onChange, title, detail, count }: { checked: boolean; onChange(): void; title: string; detail: string; count: number }) {
+function SourceRow({ checked, onChange, title, detail, count, disabled }: { checked: boolean; onChange(): void; title: string; detail: string; count: number; disabled: boolean }) {
   return (
-    <label className="flex items-center gap-3.5 min-h-[54px] border-b border-line cursor-pointer">
-      <input type="checkbox" checked={checked} onChange={onChange} className="w-5 h-5 m-0 shrink-0 accent-[#F2F2F0]" />
+    <label className={`flex items-center gap-3.5 min-h-[54px] border-b border-line ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+      <input type="checkbox" checked={checked} onChange={onChange} disabled={disabled} className="w-5 h-5 m-0 shrink-0 accent-[#F2F2F0]" />
       <span className="flex-1 min-w-0 flex flex-col gap-0.5">
         <span className="text-[15px] font-bold">{title}</span>
         <span className="text-xs text-dim break-keep">{detail}</span>
@@ -47,7 +47,9 @@ export default function MailTab(p: MailTabProps) {
   const toggle = (key: keyof PromoSources) => p.setSources((prev) => ({ ...prev, [key]: !prev[key] }));
   const pct = p.progress.total > 0 ? Math.round((p.progress.current / p.progress.total) * 100) : 0;
   const gradeDetail = (yy: number) => `${yy}학번 · 학번 ${yy === 25 ? '0001~0110' : '001~110'} 학교 이메일`;
-  const canSend = !p.isSending && p.sendCountdown === null && !!p.recipientCount;
+  // 보내기 직전·보내는 중에는 대상을 못 바꾸게 잠근다(보이는 명단 = 보내는 명단).
+  const locked = p.isSending || p.sendCountdown !== null;
+  const canSend = !locked && !p.isResolving && !!p.recipientCount;
 
   return (
     <div className="max-w-[1020px] flex flex-col gap-9">
@@ -61,11 +63,11 @@ export default function MailTab(p: MailTabProps) {
           <div className="flex flex-col gap-3">
             <h2 className="text-base font-black border-b border-ink pb-2.5">1 · 누구에게 보낼까요</h2>
             <div className="flex flex-col">
-              <SourceRow checked={p.sources.club} onChange={() => toggle('club')} title="동아리원" detail="사람 메뉴의 동아리원 전체" count={p.sourceCounts.club} />
-              <SourceRow checked={p.sources.invited} onChange={() => toggle('invited')} title="초대 명단" detail="전에 초대 메일을 받았거나 직접 넣은 사람" count={p.sourceCounts.invited} />
-              <SourceRow checked={p.sources.g1} onChange={() => toggle('g1')} title="1학년" detail={gradeDetail(yy1)} count={gradeEmails(yy1).length} />
-              <SourceRow checked={p.sources.g2} onChange={() => toggle('g2')} title="2학년" detail={gradeDetail(yy2)} count={gradeEmails(yy2).length} />
-              <SourceRow checked={p.sources.g3} onChange={() => toggle('g3')} title="3학년" detail={gradeDetail(yy3)} count={gradeEmails(yy3).length} />
+              <SourceRow checked={p.sources.club} onChange={() => toggle('club')} title="동아리원" detail="사람 메뉴의 동아리원 전체" count={p.sourceCounts.club} disabled={locked} />
+              <SourceRow checked={p.sources.invited} onChange={() => toggle('invited')} title="초대 명단" detail="전에 초대 메일을 받았거나 직접 넣은 사람" count={p.sourceCounts.invited} disabled={locked} />
+              <SourceRow checked={p.sources.g1} onChange={() => toggle('g1')} title="1학년" detail={gradeDetail(yy1)} count={gradeEmails(yy1).length} disabled={locked} />
+              <SourceRow checked={p.sources.g2} onChange={() => toggle('g2')} title="2학년" detail={gradeDetail(yy2)} count={gradeEmails(yy2).length} disabled={locked} />
+              <SourceRow checked={p.sources.g3} onChange={() => toggle('g3')} title="3학년" detail={gradeDetail(yy3)} count={gradeEmails(yy3).length} disabled={locked} />
             </div>
           </div>
           <div className="flex flex-col gap-2.5">
@@ -77,7 +79,8 @@ export default function MailTab(p: MailTabProps) {
               value={p.manualText}
               onChange={(e) => p.setManualText(e.target.value)}
               placeholder="예) 2208 신민규 <ts250024@ts.hs.kr>"
-              className="w-full px-3.5 py-3 bg-card border border-line text-ink text-sm resize-y outline-none focus:border-line-bold placeholder:text-mute"
+              disabled={locked}
+              className="w-full px-3.5 py-3 bg-card border border-line text-ink text-sm resize-y outline-none focus:border-line-bold placeholder:text-mute disabled:opacity-50"
             />
             <span className="text-xs text-sub">이메일 <b className="text-ink">{p.manualPreviewCount}</b>개 찾음</span>
           </div>
@@ -112,7 +115,7 @@ export default function MailTab(p: MailTabProps) {
                   <button
                     type="button"
                     onClick={() => p.onRemoveRecipient(r.email)}
-                    disabled={p.isSending || p.sendCountdown !== null}
+                    disabled={locked}
                     aria-label={`${r.name || r.email} 받는 사람에서 빼기`}
                     className="shrink-0 p-1.5 text-mute hover:text-ink disabled:opacity-40"
                   >

@@ -63,12 +63,13 @@ export function useToasts() {
   return { toasts, notify, undoable };
 }
 
-export function ToastStack({ toasts }: { toasts: Toast[] }) {
+// aboveSaveBar: 상영 저장 바가 떠 있으면 그 위로 올려 저장·되돌리기를 가리지 않는다.
+export function ToastStack({ toasts, aboveSaveBar = false }: { toasts: Toast[]; aboveSaveBar?: boolean }) {
   if (toasts.length === 0) return null;
   return (
     <div
       aria-live="polite"
-      className="fixed z-[200] left-3 right-3 bottom-[84px] md:left-auto md:right-8 md:bottom-8 md:w-[420px] flex flex-col gap-2 pointer-events-none"
+      className={`fixed z-[200] left-3 right-3 md:left-auto md:right-8 md:w-[420px] flex flex-col gap-2 pointer-events-none ${aboveSaveBar ? 'bottom-[230px] sm:bottom-[170px] md:bottom-[124px]' : 'bottom-[84px] md:bottom-8'}`}
     >
       {toasts.map((t) => (
         <div

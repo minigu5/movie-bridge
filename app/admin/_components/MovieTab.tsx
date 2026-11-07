@@ -63,7 +63,7 @@ const sameTime = (a: any, b: any) => {
 const sortedJoin = (v: any) => [...(v ?? [])].sort().join(',');
 
 // 저장 바에 보일 "바뀐 곳" 이름 목록
-function changedLabels(base: any, form: any): string[] {
+export function changedLabels(base: any, form: any): string[] {
   if (!base) return [];
   const out: string[] = [];
   if ((form.title ?? '') !== (base.title ?? '')) out.push('영화 제목');

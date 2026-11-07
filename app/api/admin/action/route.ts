@@ -9,6 +9,10 @@ import { admissionYearForGrade, gradeEmails } from '@/lib/schoolEmails';
 import { loadTicketMailMovie, sendTicketMail, type TicketMailReservation } from '@/lib/ticketMail';
 import { sendBlacklistMail } from '@/lib/blacklistMail';
 
+// 이메일 행 지우기는 대소문자를 가리지 않는다(옛 행에 대문자가 섞여 있을 수 있다).
+// ilike 패턴의 %, _, \ 는 글자 그대로 비교되게 이스케이프한다.
+const emailPattern = (email: unknown) => String(email ?? '').trim().replace(/[\\%_]/g, (c) => `\\${c}`);
+
 // 처리 결과 메일. 메일이 실패해도 이미 끝난 DB 작업은 되돌리지 않고 로그만 남긴다.
 async function sendMailSafely(label: string, send: () => Promise<void>): Promise<boolean> {
   try {
@@ -270,10 +274,10 @@ export async function POST(req: Request) {
 
       case 'REMOVE_BLACKLIST': {
         const { email } = payload;
-        const { error } = await supabaseAdmin.from('blacklist').delete().eq('email', email);
+        const { error } = await supabaseAdmin.from('blacklist').delete().ilike('email', emailPattern(email));
         if (error) throw error;
 
-        const { data: prof } = await supabaseAdmin.from('profiles').select('name').eq('email', email).maybeSingle();
+        const { data: prof } = await supabaseAdmin.from('profiles').select('name').ilike('email', emailPattern(email)).limit(1).maybeSingle();
         const name = prof?.name ?? email;
         await sendMailSafely('Blacklist removed', () => sendBlacklistMail({ email, name, added: false }));
         return NextResponse.json({ success: true, name });
@@ -298,10 +302,10 @@ export async function POST(req: Request) {
 
       case 'REMOVE_ADMIN': {
         const { email } = payload;
-        if (email === adminEmail) {
+        if (String(email ?? '').trim().toLowerCase() === adminEmail.toLowerCase()) {
           return NextResponse.json({ success: false, error: '본인 계정은 스스로 제거할 수 없습니다.' }, { status: 400 });
         }
-        const { error } = await supabaseAdmin.from('admins').delete().eq('email', email);
+        const { error } = await supabaseAdmin.from('admins').delete().ilike('email', emailPattern(email));
         if (error) throw error;
         return NextResponse.json({ success: true });
       }
@@ -331,7 +335,7 @@ export async function POST(req: Request) {
 
       case 'REMOVE_CLUB_MEMBER': {
         const { email } = payload;
-        const { error } = await supabaseAdmin.from('club_members').delete().eq('email', email);
+        const { error } = await supabaseAdmin.from('club_members').delete().ilike('email', emailPattern(email));
         if (error) throw error;
         return NextResponse.json({ success: true });
       }
@@ -358,7 +362,7 @@ export async function POST(req: Request) {
 
       case 'REMOVE_INVITED_EMAIL': {
         const { email } = payload;
-        const { error } = await supabaseAdmin.from('invited_emails').delete().eq('email', String(email).toLowerCase());
+        const { error } = await supabaseAdmin.from('invited_emails').delete().ilike('email', emailPattern(email));
         if (error) throw error;
         return NextResponse.json({ success: true });
       }

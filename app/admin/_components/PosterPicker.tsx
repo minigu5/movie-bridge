@@ -63,7 +63,7 @@ export default function PosterPicker({ posterUrl, posterCdnUrl, onUrlChange, onF
         </div>
       )}
       <span className={`text-[11px] leading-normal break-keep ${status ? 'text-sub' : 'text-mute'}`}>
-        {status ?? '이미지 파일이나 주소를 넣으면 알아서 저장해요.'}
+        {status ?? '파일은 고르면 바로 올라가요. 주소는 넣은 뒤 저장을 눌러야 바뀌어요.'}
       </span>
     </div>
   );
