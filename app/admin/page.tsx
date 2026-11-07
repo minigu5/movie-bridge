@@ -4,16 +4,45 @@ import { useState, useEffect, useMemo, Suspense, type ReactNode } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ensureProfile, signInWithGoogle, signOutAndClear, authFetch, DomainNotAllowedError, type AppProfile } from '../../lib/supabase-auth';
 import { extractSchoolEmails } from '../../lib/parseEmails';
-import { renderTicketBackground, renderTicketBackgroundFromFile, blobToDataUri, fetchPosterDataUri, MIN_POSTER_WIDTH } from '../../lib/ticketBackgroundCanvas';
+import { blobToDataUri, readImageSize, lowResWarning } from '../../lib/posterUpload';
 import AdminShell, { ADMIN_SECTIONS, type AdminSection } from './_components/AdminShell';
 import { useToasts, ToastStack } from './_components/Toasts';
-import { buildDerivedFields, validateMovieForm } from './_components/screeningSchedule';
+import { buildDerivedFields } from './_components/screeningSchedule';
 import ReservationsTab from './_components/ReservationsTab';
-import SettingsTab, { PromoMailSection } from './_components/SettingsTab';
+import MovieTab from './_components/MovieTab';
+import PromoMailSection from './_components/MailTab';
 import MembersTab from './_components/MembersTab';
 import HistoryTab from './_components/HistoryTab';
 
 // 옛 탭 키(?tab=settings 등)로 들어와도 같은 메뉴를 연다.
+// movie_settings 행 → 상영 폼. VIP 칸이 비어 있으면 기본 네모를 채운다(lib/seatGrid.ts와 같은 기본값).
+const formFromMovie = (m: any) => ({
+  ...m,
+  age_rating: m.age_rating || '전체관람가',
+  mid_vip_start_row: m.mid_vip_start_row || 'A',
+  mid_vip_end_row: m.mid_vip_end_row || 'C',
+  mid_vip_start_col: m.mid_vip_start_col || 5,
+  mid_vip_end_col: m.mid_vip_end_col || 10,
+  grand_vip_start_row: m.grand_vip_start_row || 'A',
+  grand_vip_end_row: m.grand_vip_end_row || 'C',
+  grand_vip_start_col: m.grand_vip_start_col || 10,
+  grand_vip_end_col: m.grand_vip_end_col || 18,
+  defective_seats: m.defective_seats ?? [],
+  vip_enabled: m.vip_enabled ?? true,
+});
+
+// UPDATE_SETTINGS / START_NEW_MOVIE 공용 페이로드
+const moviePayload = (f: any) => ({
+  title: f.title, date_string: f.date_string, db_date: f.db_date,
+  venue: f.venue, poster_url: f.poster_url, deadline_date: f.deadline_date, age_rating: f.age_rating,
+  mid_vip_start_row: f.mid_vip_start_row, mid_vip_end_row: f.mid_vip_end_row,
+  mid_vip_start_col: f.mid_vip_start_col, mid_vip_end_col: f.mid_vip_end_col,
+  grand_vip_start_row: f.grand_vip_start_row, grand_vip_end_row: f.grand_vip_end_row,
+  grand_vip_start_col: f.grand_vip_start_col, grand_vip_end_col: f.grand_vip_end_col,
+  defective_seats: f.defective_seats ?? [],
+  vip_enabled: f.vip_enabled ?? true,
+});
+
 const LEGACY_TAB: Record<string, AdminSection> = { settings: 'movie', members: 'people', history: 'log' };
 const parseSection = (raw: string | null): AdminSection => {
   const key = raw ? (LEGACY_TAB[raw] ?? raw) : 'reservations';
@@ -44,11 +73,14 @@ function AdminPageInner() {
   const [isLoadingUI, setIsLoadingUI] = useState(true); // 🌟 [추가됨] 로딩 상태 관리
 
   const [editForm, setEditForm] = useState<any>({});
-  const [bgGenerating, setBgGenerating] = useState(false);
-  const [bgStatus, setBgStatus] = useState<string | null>(null);
+  const [posterStatus, setPosterStatus] = useState<string | null>(null);
+  const movieBaseline = useMemo(() => (movieInfo ? formFromMovie(movieInfo) : null), [movieInfo]);
 
   const [isStartingNewMovie, setIsStartingNewMovie] = useState(false);
   const [newMovieForm, setNewMovieForm] = useState<any>({});
+  // 새 회차 포스터 파일은 회차 id가 생긴 뒤(START_NEW_MOVIE 성공 후) 올린다.
+  const [newPosterFile, setNewPosterFile] = useState<File | null>(null);
+  const [newPosterStatus, setNewPosterStatus] = useState<string | null>(null);
 
   const [movieHistory, setMovieHistory] = useState<any[]>([]);
   const [selectedHistoryMovie, setSelectedHistoryMovie] = useState<any>(null);
@@ -131,7 +163,8 @@ function AdminPageInner() {
     setCheckingAdmin(false);
   };
 
-  const fetchAdminData = async (): Promise<boolean> => {
+  // resetForm: 상영 폼을 서버 값으로 덮는다. 다른 동작 뒤 다시 불러올 때는 저장 안 한 상영 수정을 지키려고 덮지 않는다.
+  const fetchAdminData = async ({ resetForm = false }: { resetForm?: boolean } = {}): Promise<boolean> => {
     setIsLoadingUI(true);
     try {
       const res = await authFetch('/api/admin/action', { action: 'FETCH_INITIAL_DATA' });
@@ -147,19 +180,7 @@ function AdminPageInner() {
       const { movieData, resData, blData, logData, adminData, clubData, kioskPassword, invitedData, profileNames } = data;
       if (movieData) {
         setMovieInfo(movieData);
-        setEditForm({
-          ...movieData,
-          age_rating: movieData.age_rating || '전체관람가',
-          mid_vip_start_row: movieData.mid_vip_start_row || 'A',
-          mid_vip_end_row: movieData.mid_vip_end_row || 'C',
-          mid_vip_start_col: movieData.mid_vip_start_col || 5,
-          mid_vip_end_col: movieData.mid_vip_end_col || 10,
-          grand_vip_start_row: movieData.grand_vip_start_row || 'A',
-          grand_vip_end_row: movieData.grand_vip_end_row || 'C',
-          grand_vip_start_col: movieData.grand_vip_start_col || 10,
-          grand_vip_end_col: movieData.grand_vip_end_col || 18,
-          defective_seats: movieData.defective_seats ?? [],
-        });
+        setEditForm((prev: any) => (resetForm || prev.id !== movieData.id ? formFromMovie(movieData) : prev));
       }
       if (resData) setReservations(resData);
       if (blData) setBlacklist(blData);
@@ -185,134 +206,81 @@ function AdminPageInner() {
     }
   };
 
-  // target은 저장/새 회차 직후 자동 생성처럼 editForm 상태가 아직 갱신되기 전에
-  // 호출할 때 쓴다. 생략하면 현재 editForm 기준으로 생성한다.
-  const handleGenerateTicketBackground = async (posterFile?: File, target?: { id: number; posterSource: string }) => {
-    const movieId = target?.id ?? editForm.id;
-    const posterSource = target?.posterSource ?? (editForm.poster_url || editForm.poster_cdn_url);
-    if (!posterFile && !posterSource) { notify('포스터 주소를 먼저 입력하세요.', 'error'); return; }
-    if (!movieId) { notify('영화 정보를 먼저 불러와야 합니다.', 'error'); return; }
+  // 포스터 파일 → Cloudinary(poster_cdn_url). 서버가 못 받는 주소(나무위키·movist)는 이 길이 해법이다.
+  const uploadPosterFile = async (file: File, movieId: number): Promise<{ url: string | null; warning: string | null; error?: string }> => {
+    const { width, height } = await readImageSize(file).catch(() => ({ width: 0, height: 0 }));
+    const res = await authFetch('/api/admin/action', {
+      action: 'UPLOAD_POSTER_CDN',
+      payload: { movieId, imageBase64: await blobToDataUri(file) },
+    });
+    const data = await res.json();
+    const warning = width > 0 ? lowResWarning(width, height) : null;
+    return data.success ? { url: data.url, warning } : { url: null, warning, error: data.error };
+  };
 
-    setBgGenerating(true);
-    setBgStatus(null);
+  const handlePosterFile = async (file: File) => {
+    if (!editForm.id) { notify('영화 정보를 먼저 불러와야 합니다.', 'error'); return; }
+    setPosterStatus('올리는 중');
     try {
-      const { blob, posterWidth, posterHeight } = posterFile
-        ? await renderTicketBackgroundFromFile(posterFile)
-        : await renderTicketBackground(posterSource);
-      const lowResNote = posterWidth < MIN_POSTER_WIDTH
-        ? ` — 포스터 해상도가 낮음(${posterWidth}x${posterHeight}). 원본 이미지를 받아 "파일 직접 업로드"로 다시 생성하세요.`
-        : '';
-      const dataUri = await blobToDataUri(blob);
-      const res = await authFetch('/api/admin/action', {
-        action: 'UPLOAD_TICKET_BACKGROUND',
-        payload: { movieId, imageBase64: dataUri },
-      });
-      const data = await res.json();
-      if (!data.success) {
-        setBgStatus(`실패: ${data.error}`);
-        return;
-      }
-      setEditForm((prev: any) => ({ ...prev, background_template_url: data.url }));
-      setMovieInfo((prev: any) => ({ ...prev, background_template_url: data.url }));
-
-      // 원본 포스터도 Cloudinary에 복사해 둔다 (원본 호스트가 프로덕션에서
-      // 서버발 요청을 막는 경우가 있어, 메일은 이 CDN URL을 우선 사용한다).
-      // 파일을 직접 올린 경우 이미 로컬에 있는 바이트를 그대로 쓰고, 다시
-      // 원본 호스트로 프록시 fetch를 시도하지 않는다.
-      try {
-        const posterDataUri = posterFile ? await blobToDataUri(posterFile) : await fetchPosterDataUri(posterSource);
-        const posterRes = await authFetch('/api/admin/action', {
-          action: 'UPLOAD_POSTER_CDN',
-          payload: { movieId, imageBase64: posterDataUri },
-        });
-        const posterData = await posterRes.json();
-        if (posterData.success) {
-          setEditForm((prev: any) => ({ ...prev, poster_cdn_url: posterData.url }));
-          setMovieInfo((prev: any) => ({ ...prev, poster_cdn_url: posterData.url }));
-          setBgStatus('생성 완료 (배경 + 포스터 CDN)' + lowResNote);
-        } else {
-          setBgStatus('배경 생성 완료 (포스터 CDN 저장 실패 — 다시 시도해보세요)' + lowResNote);
-        }
-      } catch {
-        setBgStatus('배경 생성 완료 (포스터 CDN 저장 실패 — 다시 시도해보세요)' + lowResNote);
-      }
+      const r = await uploadPosterFile(file, editForm.id);
+      if (!r.url) { setPosterStatus(null); notify(`포스터 올리기 실패: ${r.error}`, 'error'); return; }
+      setEditForm((prev: any) => ({ ...prev, poster_cdn_url: r.url }));
+      setMovieInfo((prev: any) => ({ ...prev, poster_cdn_url: r.url }));
+      setPosterStatus(r.warning ?? '포스터를 바꿨어요.');
     } catch (err: any) {
-      setBgStatus(`실패: ${err.message || '알 수 없는 오류'}`);
-    } finally {
-      setBgGenerating(false);
+      setPosterStatus(null);
+      notify(`포스터 올리기 실패: ${err?.message ?? '알 수 없는 오류'}`, 'error');
     }
   };
 
-  // 저장 전 검증: 하드 오류는 막고, 경고는 확인을 받는다. 계속 진행해도 되면 true.
-  const checkMovieForm = (form: any): boolean => {
-    const result = validateMovieForm(form);
-    if (result?.error) { notify(result.error, 'error'); return false; }
-    if (result?.warn && !confirm(result.warn)) return false;
-    return true;
+  const handleNewPosterFile = async (file: File) => {
+    const { width, height } = await readImageSize(file).catch(() => ({ width: 0, height: 0 }));
+    setNewPosterFile(file);
+    setNewMovieForm((prev: any) => ({ ...prev, poster_url: '', poster_cdn_url: URL.createObjectURL(file) }));
+    setNewPosterStatus((width > 0 ? lowResWarning(width, height) : null) ?? '새 회차를 시작할 때 올려요.');
   };
 
-  const handleSaveSettingsClick = async () => {
-    if (!checkMovieForm(editForm)) return;
-    const payload = {
-      title: editForm.title, date_string: editForm.date_string, db_date: editForm.db_date,
-      venue: editForm.venue, poster_url: editForm.poster_url, deadline_date: editForm.deadline_date, age_rating: editForm.age_rating,
-      mid_vip_start_row: editForm.mid_vip_start_row, mid_vip_end_row: editForm.mid_vip_end_row,
-      mid_vip_start_col: editForm.mid_vip_start_col, mid_vip_end_col: editForm.mid_vip_end_col,
-      grand_vip_start_row: editForm.grand_vip_start_row, grand_vip_end_row: editForm.grand_vip_end_row,
-      grand_vip_start_col: editForm.grand_vip_start_col, grand_vip_end_col: editForm.grand_vip_end_col,
-      defective_seats: editForm.defective_seats ?? []
-    };
-
-    const posterChanged = Boolean(editForm.poster_url) && editForm.poster_url !== movieInfo?.poster_url;
-    const res = await authFetch('/api/admin/action', { action: 'UPDATE_SETTINGS', payload });
-
+  // 검증은 MovieTab이 한다(오류·경고는 저장 바 안 문구).
+  const handleSaveSettingsClick = async (): Promise<boolean> => {
+    const res = await authFetch('/api/admin/action', { action: 'UPDATE_SETTINGS', payload: moviePayload(editForm) });
     const data = await res.json();
     if (!data.success) {
       notify("설정 저장 실패: " + data.error, 'error');
-    } else {
-      notify(posterChanged ? "설정이 저장되었습니다! 새 포스터로 티켓 배경을 자동 생성합니다." : "설정이 성공적으로 저장되었습니다!");
-      await fetchAdminData();
-      // 포스터가 바뀌면 서버가 옛 배경 템플릿을 비운다. 수동 버튼을 깜빡하면
-      // 메일 티켓이 블러 없는 포스터 단독 카드로 나가므로 바로 다시 만든다.
-      if (posterChanged) handleGenerateTicketBackground(undefined, { id: editForm.id, posterSource: editForm.poster_url });
+      return false;
     }
+    notify("저장했어요");
+    await fetchAdminData({ resetForm: true });
+    return true;
   };
 
   const handleStartNewMovieClick = () => {
-    if (!confirm(`현재 회차 [${movieInfo?.title}]를 이력으로 보존하고 새로운 영화 예매를 시작합니다.\n계속하시겠습니까?`)) return;
     setNewMovieForm({
-      ...movieInfo,
-      title: '', poster_url: '',
+      ...formFromMovie(movieInfo ?? {}),
+      title: '', poster_url: '', poster_cdn_url: null, vip_enabled: true,
       ...buildDerivedFields({ start: '', end: '', deadline: '' }),
     });
+    setNewPosterFile(null);
+    setNewPosterStatus(null);
     setIsStartingNewMovie(true);
   };
 
-  const handleSubmitNewMovie = async () => {
-    if (!checkMovieForm(newMovieForm)) return;
-    const payload = {
-      title: newMovieForm.title, date_string: newMovieForm.date_string, db_date: newMovieForm.db_date,
-      venue: newMovieForm.venue, poster_url: newMovieForm.poster_url, deadline_date: newMovieForm.deadline_date, age_rating: newMovieForm.age_rating,
-      mid_vip_start_row: newMovieForm.mid_vip_start_row, mid_vip_end_row: newMovieForm.mid_vip_end_row,
-      mid_vip_start_col: newMovieForm.mid_vip_start_col, mid_vip_end_col: newMovieForm.mid_vip_end_col,
-      grand_vip_start_row: newMovieForm.grand_vip_start_row, grand_vip_end_row: newMovieForm.grand_vip_end_row,
-      grand_vip_start_col: newMovieForm.grand_vip_start_col, grand_vip_end_col: newMovieForm.grand_vip_end_col,
-      defective_seats: newMovieForm.defective_seats ?? []
-    };
-
-    const res = await authFetch('/api/admin/action', { action: 'START_NEW_MOVIE', payload });
-
+  const handleSubmitNewMovie = async (): Promise<boolean> => {
+    const res = await authFetch('/api/admin/action', { action: 'START_NEW_MOVIE', payload: moviePayload(newMovieForm) });
     const data = await res.json();
     if (!data.success) {
       notify("새 회차 시작 실패: " + data.error, 'error');
-    } else {
-      notify(newMovieForm.poster_url ? "새 회차가 시작되었습니다! 티켓 배경을 자동 생성합니다." : "새 회차가 시작되었습니다!");
-      setIsStartingNewMovie(false);
-      await fetchAdminData();
-      if (data.data?.id && newMovieForm.poster_url) {
-        handleGenerateTicketBackground(undefined, { id: data.data.id, posterSource: newMovieForm.poster_url });
-      }
+      return false;
     }
+    // 파일을 고른 뒤 주소를 다시 넣었으면(poster_cdn_url이 비워짐) 파일은 버린다.
+    if (newPosterFile && newMovieForm.poster_cdn_url && data.data?.id) {
+      const r = await uploadPosterFile(newPosterFile, data.data.id).catch((err) => ({ url: null, warning: null, error: err?.message }));
+      if (!r.url) notify(`새 회차는 시작했지만 포스터를 올리지 못했어요. 상영 메뉴에서 다시 올려 주세요. (${r.error})`, 'error');
+    }
+    setIsStartingNewMovie(false);
+    setNewPosterFile(null);
+    await fetchAdminData({ resetForm: true });
+    notify(`새 회차「${newMovieForm.title}」를 시작했어요`);
+    return true;
   };
 
   const loadMovieHistory = async () => {
@@ -474,12 +442,13 @@ function AdminPageInner() {
     fetchAdminData();
   };
 
-  const handleUpdateKioskPassword = async () => {
-    if (!kioskPasswordInput.trim()) return notify("키오스크 비밀번호를 입력해주세요.", 'error');
+  const handleUpdateKioskPassword = async (): Promise<boolean> => {
+    if (!kioskPasswordInput.trim()) { notify("발권기 비밀번호를 입력해 주세요.", 'error'); return false; }
     const res = await authFetch('/api/admin/action', { action: 'UPDATE_KIOSK_PASSWORD', payload: { password: kioskPasswordInput.trim() } });
     const data = await res.json();
-    if (!data.success) return notify("변경 실패: " + data.error, 'error');
-    notify("키오스크 잠금 비밀번호가 변경되었습니다.");
+    if (!data.success) { notify("변경 실패: " + data.error, 'error'); return false; }
+    notify("발권기 비밀번호를 바꿨어요.");
+    return true;
   };
 
   const handleSearchProfile = async () => {
@@ -678,20 +647,26 @@ function AdminPageInner() {
       )}
 
       {activeTab === 'movie' && (
-        <SettingsTab
+        <MovieTab
           movieInfo={movieInfo}
+          baseline={movieBaseline}
           editForm={editForm}
           setEditForm={setEditForm}
-          onSaveSettings={handleSaveSettingsClick}
-          bgGenerating={bgGenerating}
-          bgStatus={bgStatus}
-          onGenerateBg={handleGenerateTicketBackground}
-          onStartNewMovieClick={handleStartNewMovieClick}
+          onResetForm={() => { if (movieInfo) setEditForm(formFromMovie(movieInfo)); }}
+          onSave={handleSaveSettingsClick}
+          posterStatus={posterStatus}
+          onPosterFile={handlePosterFile}
           isStartingNewMovie={isStartingNewMovie}
+          onOpenNewMovie={handleStartNewMovieClick}
+          onCloseNewMovie={() => setIsStartingNewMovie(false)}
           newMovieForm={newMovieForm}
           setNewMovieForm={setNewMovieForm}
+          newPosterStatus={newPosterStatus}
+          onNewPosterFile={handleNewPosterFile}
           onSubmitNewMovie={handleSubmitNewMovie}
-          onCancelNewMovie={() => setIsStartingNewMovie(false)}
+          kioskPassword={kioskPasswordInput}
+          setKioskPassword={setKioskPasswordInput}
+          onUpdateKioskPassword={handleUpdateKioskPassword}
         />
       )}
 
@@ -738,9 +713,6 @@ function AdminPageInner() {
           invitedEmailPreviewCount={invitedEmailPreviewCount}
           onAddInvitedEmails={handleAddInvitedEmails}
           onRemoveInvitedEmail={handleRemoveInvitedEmail}
-          kioskPasswordInput={kioskPasswordInput}
-          setKioskPasswordInput={setKioskPasswordInput}
-          onUpdateKioskPassword={handleUpdateKioskPassword}
           profileSearchQuery={profileSearchQuery}
           setProfileSearchQuery={setProfileSearchQuery}
           onSearchProfile={handleSearchProfile}

@@ -91,35 +91,12 @@ export async function POST(req: Request) {
             .select('poster_url').eq('is_active', true).single();
           if (current?.poster_url !== updatePayload.poster_url) {
             updatePayload.poster_cdn_url = await rehostPosterUrl(updatePayload.poster_url);
-            // 옛 포스터로 합성된 배경이 남아 있으면 메일에 엉뚱한 포스터가 나간다.
-            // 비워 두면 관리자 페이지가 저장 직후 새 포스터로 다시 생성한다.
-            updatePayload.background_template_url = null;
           }
         }
 
         const { error } = await supabaseAdmin.from('movie_settings').update(updatePayload).eq('is_active', true);
         if (error) throw error;
         return NextResponse.json({ success: true });
-      }
-
-      case 'UPLOAD_TICKET_BACKGROUND': {
-        const { movieId, imageBase64 } = payload;
-        if (!movieId || typeof imageBase64 !== 'string' || !imageBase64.startsWith('data:image/')) {
-          return NextResponse.json({ success: false, error: 'movieId와 이미지 데이터가 필요합니다.' }, { status: 400 });
-        }
-
-        const url = await uploadImageDataUri(imageBase64);
-        if (!url) {
-          return NextResponse.json({ success: false, error: 'Cloudinary 업로드에 실패했습니다.' }, { status: 502 });
-        }
-
-        const { error } = await supabaseAdmin
-          .from('movie_settings')
-          .update({ background_template_url: url })
-          .eq('id', movieId);
-        if (error) throw error;
-
-        return NextResponse.json({ success: true, url });
       }
 
       // 원본 포스터를 Cloudinary에 복사해 두고 URL을 저장한다. 원본 호스트가

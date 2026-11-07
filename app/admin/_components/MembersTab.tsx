@@ -1,6 +1,6 @@
 "use client";
 
-import { Crown, Ticket, Printer, Wrench, Ban, UserCheck, LogIn } from 'lucide-react';
+import { Crown, Ticket, Wrench, Ban, UserCheck, LogIn } from 'lucide-react';
 
 interface ProfileRow { id: string; email: string; student_id: string | null; name: string; role: string }
 interface EditingProfile { id: string; email: string; student_id: string; name: string; role: string }
@@ -45,10 +45,6 @@ interface Props {
   invitedEmailPreviewCount: number;
   onAddInvitedEmails: () => void;
   onRemoveInvitedEmail: (email: string) => void;
-
-  kioskPasswordInput: string;
-  setKioskPasswordInput: (v: string) => void;
-  onUpdateKioskPassword: () => void;
 
   profileSearchQuery: string;
   setProfileSearchQuery: (v: string) => void;
@@ -112,16 +108,6 @@ export default function MembersTab(props: Props) {
               </div>
             ))}
           </div>
-        </div>
-
-        {/* 키오스크 잠금 비밀번호 */}
-        <div className="bg-neutral-800 rounded-xl border border-neutral-700 p-4 flex flex-col min-w-0">
-          <h2 className="text-lg font-bold text-yellow-400 mb-3 flex items-center gap-1.5"><Printer className="w-5 h-5" /> 키오스크 잠금 비밀번호</h2>
-          <div className="flex gap-2">
-            <input type="text" value={p.kioskPasswordInput} onChange={e => p.setKioskPasswordInput(e.target.value)} className="flex-1 min-w-0 p-2 bg-neutral-700 rounded border border-neutral-600 outline-none text-white text-sm" />
-            <button onClick={p.onUpdateKioskPassword} className="bg-yellow-600 hover:bg-yellow-500 px-3 py-2 rounded font-bold text-sm text-black">변경</button>
-          </div>
-          <p className="text-neutral-500 text-xs mt-2">현장 키오스크(/print) 진입 시 입력하는 비밀번호입니다.</p>
         </div>
 
         {/* 사용자 프로필 수정 */}
