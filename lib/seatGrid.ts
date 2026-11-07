@@ -40,6 +40,8 @@ export function computeSeatId(isGrandHall: boolean, rowIndex: number, colIndex: 
 export type VipConfig = {
   mid_vip_start_row?: string; mid_vip_end_row?: string; mid_vip_start_col?: number; mid_vip_end_col?: number;
   grand_vip_start_row?: string; grand_vip_end_row?: string; grand_vip_start_col?: number; grand_vip_end_col?: number;
+  // false면 이 회차는 동아리 전용 좌석이 없다. undefined/null은 켜짐(옛 행·과거 회차 호환).
+  vip_enabled?: boolean;
 };
 
 export function computeVipSeats(
@@ -48,6 +50,7 @@ export function computeVipSeats(
   cols: number[],
   vipConfig: VipConfig
 ): Set<string> {
+  if (vipConfig.vip_enabled === false) return new Set();
   const vips = new Set<string>();
   rows.forEach((rowChar, rowIndex) => {
     cols.forEach((colNum, colIndex) => {
