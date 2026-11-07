@@ -56,6 +56,8 @@ function AdminPageInner() {
   const [historyReviews, setHistoryReviews] = useState<any[]>([]);
 
   const [logs, setLogs] = useState<any[]>([]);
+  // 예약 id → 되돌리기 알림 id. 알림이 살아 있는 동안 그 줄은 "취소했어요 · 되돌리기"로 보인다.
+  const [cancelToastIds, setCancelToastIds] = useState<Record<string, string>>({});
 
   const [blacklist, setBlacklist] = useState<{email: string, created_at: string}[]>([]);
   const [newBlacklistText, setNewBlacklistText] = useState('');
@@ -341,11 +343,6 @@ function AdminPageInner() {
   };
 
   const handleApprove = async (ticket: any) => {
-    const popcorns = ticket.popcorn_order !== 'none' ? ticket.popcorn_order.split(',') : [];
-    const totalPrice = popcorns.length * 2500;
-
-    if (!confirm(`${ticket.student_name}님의 예매를 확정하시겠습니까?\n(입금 확인 금액: ${totalPrice.toLocaleString()}원)`)) return;
-
     const res = await authFetch('/api/admin/action', {
       action: 'APPROVE_RESERVATION',
       payload: { id: ticket.id, studentId: ticket.student_id, studentName: ticket.student_name, seatNumber: ticket.seat_number }
@@ -357,29 +354,29 @@ function AdminPageInner() {
     // 확정 메일은 /api/admin/action이 승인 직후 서버에서 보낸다.
     setReservations(prev => prev.map(r => r.id === ticket.id ? { ...r, payment_status: 'confirmed' } : r));
     fetchAdminData();
-    notify(data.mailSent ? "승인 완료 및 이메일 발송됨!" : "승인 완료 (이메일은 발송되지 않았습니다)");
+    if (data.mailSent) notify(`${ticket.seat_number} ${ticket.student_name} 예매를 승인했어요. 확정 메일을 보냈어요.`);
+    else notify(`${ticket.seat_number} ${ticket.student_name} 예매를 승인했어요. 확정 메일은 보내지 못했어요.`, 'error');
   };
 
-  const handleCancel = async (ticket: any) => {
-    if (!confirm(`정말 ${ticket.student_name}님의 예매를 취소하시겠습니까?`)) return;
-
-    const res = await authFetch('/api/admin/action', {
-      action: 'CANCEL_RESERVATION',
-      payload: { id: ticket.id, studentId: ticket.student_id, studentName: ticket.student_name, seatNumber: ticket.seat_number }
+  // 취소는 5초 되돌리기: 그동안 줄이 "취소했어요 · 되돌리기"로 바뀌고, 시간이 지나야 실제 취소(와 메일)가 나간다.
+  const handleCancel = (ticket: any) => {
+    const label = `${ticket.seat_number} ${ticket.student_name}`;
+    const handle = undoable(`${label} 예매를 취소했어요`, async () => {
+      setReservations(prev => prev.filter(r => r.id !== ticket.id));
+      const res = await authFetch('/api/admin/action', {
+        action: 'CANCEL_RESERVATION',
+        payload: { id: ticket.id, studentId: ticket.student_id, studentName: ticket.student_name, seatNumber: ticket.seat_number }
+      });
+      const data = await res.json();
+      fetchAdminData();
+      if (!data.success) throw new Error(`${label} 취소 실패: ${data.error}`);
+      // 취소 메일은 /api/admin/action이 취소 직후 서버에서 보낸다.
+      if (!data.mailSent) notify(`${label} 취소 메일은 보내지 못했어요.`, 'error');
     });
-
-    const data = await res.json();
-    if (!data.success) return notify("취소 실패: " + data.error, 'error');
-
-    // 취소 메일은 /api/admin/action이 취소 직후 서버에서 보낸다.
-    setReservations(prev => prev.filter(r => r.id !== ticket.id));
-    fetchAdminData();
-    notify(data.mailSent ? "취소 완료 및 이메일 발송됨!" : "취소 완료 (이메일은 발송되지 않았습니다)");
+    setCancelToastIds(prev => ({ ...prev, [ticket.id]: handle.id }));
   };
 
   const handleResetPrint = async (ticket: any) => {
-    if (!confirm(`${ticket.student_name}님의 티켓 발권 상태를 '미발권'으로 초기화하시겠습니까?\n(학생이 현장 키오스크에서 다시 티켓을 출력할 수 있게 됩니다.)`)) return;
-
     const res = await authFetch('/api/admin/action', {
       action: 'RESET_PRINT',
       payload: { id: ticket.id, studentId: ticket.student_id, studentName: ticket.student_name, seatNumber: ticket.seat_number }
@@ -387,13 +384,13 @@ function AdminPageInner() {
 
     const data = await res.json();
     if (!data.success) {
-      notify("초기화 실패: " + data.error, 'error');
+      notify("발권 되돌리기 실패: " + data.error, 'error');
       return;
     }
 
     setReservations(prev => prev.map(r => r.id === ticket.id ? { ...r, is_printed: false } : r));
     fetchAdminData();
-    notify("발권 상태가 초기화되었습니다.");
+    notify(`${ticket.seat_number} ${ticket.student_name} 발권을 되돌렸어요. 발권기에서 다시 뽑을 수 있어요.`);
   };
 
   const handleAddBlacklistBulk = async () => {
@@ -606,6 +603,12 @@ function AdminPageInner() {
     fetchAdminData();
   };
 
+  const cancelUndoToast = (reservationId: string) => {
+    const toastId = cancelToastIds[reservationId];
+    return toastId ? toasts.find(t => t.id === toastId && t.undo) : undefined;
+  };
+  const pendingCancelIds = new Set(Object.keys(cancelToastIds).filter(id => cancelUndoToast(id)));
+
   const signOut = () => signOutAndClear().then(() => window.location.reload());
 
   const gate = (body: ReactNode) => (
@@ -663,9 +666,14 @@ function AdminPageInner() {
           popcornStats={popcornStats}
           clubMembers={clubMembers}
           nameByEmail={nameByEmail}
+          movieTitle={movieInfo?.title}
+          deadline={movieInfo?.deadline_date}
           onApprove={handleApprove}
           onCancel={handleCancel}
           onResetPrint={handleResetPrint}
+          pendingCancelIds={pendingCancelIds}
+          cancelSecondsLeft={(id) => cancelUndoToast(id)?.undo?.secondsLeft ?? 5}
+          onUndoCancel={(id) => cancelUndoToast(id)?.undo?.onUndo()}
         />
       )}
 
