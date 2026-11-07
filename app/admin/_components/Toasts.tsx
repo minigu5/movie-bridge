@@ -13,6 +13,8 @@ export type Toast = {
 };
 
 const INFO_MS = 4000;
+const ERROR_MS = 10000;
+const MAX_PLAIN = 2;
 let seq = 0;
 const nextId = () => `t${++seq}`;
 
@@ -33,10 +35,17 @@ export function useToasts() {
     return () => { map.forEach(clearInterval); map.clear(); };
   }, []);
 
+  // 알림이 쌓여 화면을 덮지 않게: 같은 문구는 하나만, 되돌리기 없는 알림은 최근 MAX_PLAIN개만 남기고,
+  // 오류도 ERROR_MS 뒤 사라진다(닫기 버튼으로 먼저 닫을 수 있음). 되돌리기 알림은 건드리지 않는다.
   const notify = useCallback((text: string, tone: 'info' | 'error' = 'info') => {
     const id = nextId();
-    setToasts((prev) => [...prev, { id, text, tone, onClose: () => remove(id) }]);
-    if (tone === 'info') setTimeout(() => remove(id), INFO_MS);
+    setToasts((prev) => {
+      const rest = prev.filter((t) => t.undo || t.text !== text);
+      const plain = rest.filter((t) => !t.undo);
+      const drop = new Set(plain.slice(0, Math.max(0, plain.length - (MAX_PLAIN - 1))).map((t) => t.id));
+      return [...rest.filter((t) => !drop.has(t.id)), { id, text, tone, onClose: () => remove(id) }];
+    });
+    setTimeout(() => remove(id), tone === 'info' ? INFO_MS : ERROR_MS);
   }, [remove]);
 
   // 되돌리기 핸들을 돌려준다(화면 안 다른 곳에서도 같은 되돌리기를 부를 수 있게).

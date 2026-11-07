@@ -846,6 +846,24 @@ export default function Home() {
   // 🌟 [예매 영역] 상태별 하단 바 내용. 분기 순서는 예전 예매 패널과 같다(단체 > 마감 > 내 예매 > 자리 이동 > 고른 좌석).
   const myPopcorns = myReservation?.popcorn && myReservation.popcorn !== 'none' ? myReservation.popcorn.split(',') : [];
   const cancelLocked = myReservation?.status === 'confirmed' && myPopcorns.length > 0;
+  // 팝업은 한 번에 하나만 보인다. 여러 개가 동시에 열려 있어도(예: 팝콘 창 위의 확인 창, 후기 등록 알림 뒤의 팝콘 창)
+  // 가장 위의 것만 그리고, 그것을 닫으면 아래 것이 나타난다. 각 팝업 상태는 그대로 두므로 흐름은 바뀌지 않는다.
+  const reviewDialogOpen = !!(reviewResume && profile && pendingReview && consentStatus === 'valid');
+  const topDialog =
+    profile && consentStatus === 'needed' ? 'consent'
+    : groupSendingProgress.sending ? 'groupSending'
+    : confirmInfo ? 'confirm'
+    : alertInfo ? 'alert'
+    : successInfo ? 'success'
+    : reviewDialogOpen ? 'review'
+    : isPaymentModalOpen ? 'payment'
+    : isGroupSummaryOpen && groupLeader ? 'groupSummary'
+    : isGroupMemberModal && selectedSeat ? 'groupMember'
+    : isGroupSoloConfirmOpen && groupLeader ? 'groupSolo'
+    : isModalOpen ? 'popcorn'
+    : isManualOpen ? 'manual'
+    : null;
+
   const bookingBar: ComponentProps<typeof BookingBar> = isGroupMode ? {
     seatLabel: groupLeader?.seat ?? null,
     hint: `리더 · 멤버 ${groupMembers.length}명`,
@@ -1112,7 +1130,7 @@ export default function Home() {
         </div>
       </footer>
 
-      {isModalOpen && (
+      {topDialog === 'popcorn' && (
         <div className={`${OVERLAY} z-50 overflow-y-auto`}>
           <div className={`${BOX} p-6 w-full max-w-md my-8`}>
             <h2 className="text-2xl font-black text-ink mb-6 flex items-center gap-2">{isAddPopcornMode ? <><Popcorn className="w-5 h-5" /> 팝콘 추가</> : '예매 정보 입력'}</h2>
@@ -1170,7 +1188,7 @@ export default function Home() {
           </div>
         </div>
       )}
-      {isPaymentModalOpen && (
+      {topDialog === 'payment' && (
         <div className={`${OVERLAY} z-[60]`}>
           <div className={`${BOX} p-8 max-w-sm w-full text-center`}>
             <h2 className="text-2xl font-black text-ink mb-2">결제 대기 중</h2>
@@ -1188,7 +1206,7 @@ export default function Home() {
       )}
 
       {/* 🌟 [신규] 단체 멤버 없이 완료 시 선택 모달 */}
-      {isGroupSoloConfirmOpen && groupLeader && (
+      {topDialog === 'groupSolo' && groupLeader && (
         <div className={`${OVERLAY} z-50`}>
           <div className={`${BOX} p-8 w-full max-w-sm text-center`}>
             <CircleHelp className="w-10 h-10 text-sub mx-auto mb-4" />
@@ -1230,7 +1248,7 @@ export default function Home() {
         </div>
       )}
 
-      {isManualOpen && (
+      {topDialog === 'manual' && (
         <div className={`${OVERLAY} z-50`}>
           <div className={`${BOX} p-6 md:p-8 w-full max-w-lg max-h-[90vh] overflow-y-auto`}>
             <h2 className="text-2xl font-black text-ink mb-6 flex items-center gap-2"><BookOpen className="w-6 h-6" /> 영화대교 예매 가이드</h2>
@@ -1322,7 +1340,7 @@ export default function Home() {
         </div>
       )}
 
-      {isGroupMemberModal && selectedSeat && (
+      {topDialog === 'groupMember' && selectedSeat && (
         <div className={`${OVERLAY} z-50`}>
           <div className={`${BOX} p-6 w-full max-w-md`}>
             <h2 className="text-2xl font-black text-ink mb-2">단체 멤버 추가</h2>
@@ -1365,7 +1383,7 @@ export default function Home() {
         </div>
       )}
 
-      {isGroupSummaryOpen && groupLeader && (
+      {topDialog === 'groupSummary' && groupLeader && (
         <div className={`${OVERLAY} z-50 overflow-y-auto`}>
           <div className={`${BOX} p-6 md:p-8 w-full max-w-lg my-8`}>
             <h2 className="text-2xl font-black text-ink mb-6 flex items-center gap-2"><ClipboardList className="w-6 h-6" /> 단체 예매 최종 확인</h2>
@@ -1405,7 +1423,7 @@ export default function Home() {
         </div>
       )}
 
-      {groupSendingProgress.sending && (
+      {topDialog === 'groupSending' && (
         <div className={`${OVERLAY} z-[100]`}>
           <div className={`${BOX} p-8 w-full max-w-md text-center`}>
             <div className="mb-4 flex justify-center text-ink"><Mail className="w-12 h-12" /></div>
@@ -1421,7 +1439,7 @@ export default function Home() {
 
       {/* ===== 웹 자체 팝업 UI ===== */}
 
-      {alertInfo && (
+      {topDialog === 'alert' && alertInfo && (
         <div className={`${OVERLAY} z-[80]`}>
           <div className={`${BOX} p-6 w-full max-w-sm text-center`}>
             <div className="mb-4 flex justify-center text-sub">
@@ -1433,7 +1451,7 @@ export default function Home() {
         </div>
       )}
 
-      {confirmInfo && (
+      {topDialog === 'confirm' && confirmInfo && (
         <div className={`${OVERLAY} z-[90]`}>
           <div className={`${BOX} p-6 w-full max-w-sm text-center`}>
             <div className="mb-4 flex justify-center text-sub"><CircleHelp className="w-10 h-10" /></div>
@@ -1453,7 +1471,7 @@ export default function Home() {
         </div>
       )}
 
-      {successInfo && (
+      {topDialog === 'success' && successInfo && (
         <div className={`${OVERLAY} z-[100]`}>
           <div className={`${BOX} p-8 w-full max-w-md text-center`}>
             <div className="mb-4 flex justify-center text-ink"><PartyPopper className="w-14 h-14" /></div>
@@ -1471,7 +1489,7 @@ export default function Home() {
         </div>
       )}
 
-      {reviewResume && profile && pendingReview && consentStatus === 'valid' && (
+      {topDialog === 'review' && reviewResume && profile && pendingReview && (
         <RequiredReviewModal
           movie={pendingReview}
           profile={profile}
