@@ -68,7 +68,7 @@ export default function MovieInfo({ movie, isPast, canGoOlder, canGoNewer, onOld
             <Badge isPast={isPast} />
             <Nav {...nav} />
           </div>
-          <h1 className="m-0 text-[56px] leading-[1.08] font-black tracking-[-0.02em] break-keep">{movie.title}</h1>
+          <h1 className="m-0 font-title text-[56px] leading-[1.08] font-bold tracking-[-0.02em] break-keep">{movie.title}</h1>
           <dl className="grid grid-cols-2 border-t border-ink">
             {pcCells.map((c, i) => (
               <div key={c.label} className={`py-3.5 border-b border-line flex gap-5 ${i % 2 === 1 ? 'pl-5' : ''}`}>
@@ -108,7 +108,7 @@ export default function MovieInfo({ movie, isPast, canGoOlder, canGoNewer, onOld
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={poster} alt="영화 포스터" decoding="async" className="w-[84px] h-[120px] shrink-0 object-cover border border-line bg-seat" />
           <div className="flex-1 min-w-0 flex flex-col justify-between gap-2">
-            <h1 className="m-0 text-2xl leading-[1.15] font-black tracking-[-0.02em] break-keep">{movie.title}</h1>
+            <h1 className="m-0 font-title text-2xl leading-[1.15] font-bold tracking-[-0.02em] break-keep">{movie.title}</h1>
             <dl className="flex flex-col border-t border-ink text-[13px]">
               <div className="py-1.5 border-b border-line flex gap-2.5">
                 <dt className="w-12 shrink-0 text-dim text-xs leading-5">일시</dt>

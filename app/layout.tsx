@@ -1,14 +1,23 @@
 import type { Metadata, Viewport } from "next";
-import { Noto_Sans_KR } from "next/font/google";
+import { Hahmlet, IBM_Plex_Sans_KR } from "next/font/google";
 import { preconnect } from "react-dom";
 import "./globals.css";
 
-// 가변 폰트라 weight를 생략하면 @font-face가 슬라이스당 1개(100~900 범위)로 생성된다.
-// 굵기를 배열로 나열하면 슬라이스 124개 x 4굵기 = 496개 규칙이 렌더 차단 CSS에 들어간다.
-const notoSansKr = Noto_Sans_KR({
-  variable: "--font-noto-sans-kr",
+// 본문은 IBM Plex Sans KR. 가변 폰트가 아니라 굵기마다 한글 슬라이스(약 90개)별 @font-face가 생겨
+// 렌더 차단 CSS가 굵기 수에 비례해 커진다. 그래서 400·700 두 굵기만 받는다(500은 400, 900은 700으로 보인다).
+const plexSansKr = IBM_Plex_Sans_KR({
+  variable: "--font-plex-sans-kr",
+  weight: ["400", "700"],
   subsets: ["latin"],
   display: "swap",
+});
+
+// 영화 제목에만 쓰는 함렛(가변). weight를 생략해 슬라이스당 규칙 1개로 둔다. 첫 화면 본문보다 덜 급해 미리 받지 않는다.
+const hahmlet = Hahmlet({
+  variable: "--font-hahmlet",
+  subsets: ["latin"],
+  display: "swap",
+  preload: false,
 });
 
 export const metadata: Metadata = {
@@ -40,7 +49,7 @@ export default function RootLayout({
   return (
     <html
       lang="ko"
-      className={`${notoSansKr.variable} h-full antialiased`}
+      className={`${plexSansKr.variable} ${hahmlet.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans">
         {children}

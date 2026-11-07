@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef, useSyncExternalStore, type Compon
 import { supabase } from '../lib/supabase';
 import { ensureProfile, signInWithGoogle, signOutAndClear, authFetch, authFetchGet, DomainNotAllowedError, type AppProfile } from '../lib/supabase-auth';
 import Link from 'next/link'; // 🌟[추가] Next.js Link 임포트
-import { Crown, Popcorn, Sparkles, PartyPopper, Mail, BookOpen, LogOut, Hourglass, RefreshCw, User, Users, Lightbulb, ClipboardList, CircleHelp, Ticket, PenLine, TriangleAlert } from 'lucide-react';
+import { Crown, Popcorn, Sparkles, PartyPopper, Mail, BookOpen, LogOut, Hourglass, RefreshCw, User, Users, Lightbulb, ClipboardList, CircleHelp, Ticket, PenLine, TriangleAlert, Minus, Plus } from 'lucide-react';
 
 import AccountInfo from '@/components/AccountInfo';
 import MovieReviews from '@/components/MovieReviews';
@@ -27,6 +27,12 @@ const PHONE_QUERY = '(max-width: 767px)';
 // 창(모달) 공통 모양: 덮개, 상자, 흰 주버튼(각진 모서리), 테두리 보조버튼
 const OVERLAY = 'fixed inset-0 bg-ground/90 flex items-center justify-center p-4';
 const BOX = 'bg-card border border-line rounded-lg';
+// 팝콘 맛(예매 popcorn_order에 저장되는 키와 같음)
+const POPCORN_FLAVORS = [
+  { key: 'original', label: '오리지널 버터' },
+  { key: 'consomme', label: '콘소메' },
+  { key: 'caramel', label: '카라멜' },
+] as const;
 const BTN_PRIMARY = 'h-12 px-4 bg-ink text-ground font-bold hover:bg-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed';
 const BTN_SECONDARY = 'h-12 px-4 border border-line-strong text-ink font-bold hover:border-line-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed';
 
@@ -538,12 +544,18 @@ export default function Home() {
     warnIfDefective(seatId, () => setSelectedSeat(seatId));
   };
 
-  const handlePopcornChange = (index: number, value: string) => {
-    let newList = [...popcornList];
-    newList[index] = value;
-    const filtered = newList.filter(p => p !== 'none');
-    filtered.push('none');
-    setPopcornList(filtered);
+  // 맛별 개수를 한 번 눌러 늘리고 줄인다. 기존 순서를 지키려고 늘릴 땐 끝에 붙이고 줄일 땐 마지막 하나를 뺀다
+  // (팝콘 추가 모드의 "변경 없음" 판정이 문자열 비교라 순서가 바뀌면 안 된다).
+  const changePopcornCount = (flavor: string, delta: 1 | -1) => {
+    const picked = popcornList.filter(p => p !== 'none');
+    if (delta === 1) {
+      picked.push(flavor);
+    } else {
+      const last = picked.lastIndexOf(flavor);
+      if (last === -1) return;
+      picked.splice(last, 1);
+    }
+    setPopcornList([...picked, 'none']);
   };
 
   const handleAddPopcornSubmit = async () => {
@@ -1104,27 +1116,25 @@ export default function Home() {
               )}
 
               <div className="bg-raised p-4 border border-line">
-                <label className="flex items-center gap-1.5 text-ink mb-3 text-sm font-bold"><Popcorn className="w-4 h-4" /> 팝콘 선택 (개당 2,500원)</label>
+                <label className="flex items-center gap-1.5 text-ink mb-3 text-sm font-bold"><Popcorn className="w-4 h-4" /> 팝콘 <span className="font-normal text-dim">· 고르면 입금이 필요해요</span></label>
 
-                {popcornList.map((pop, idx) => (
-                  <div key={idx} className="mb-3 flex items-center gap-2">
-                    <span className="text-dim text-xs w-12 text-center">
-                      {pop === 'none' ? '추가' : `선택 ${idx + 1}`}
-                    </span>
-                    <select
-                      value={pop}
-                      onChange={(e) => handlePopcornChange(idx, e.target.value)}
-                      className="flex-1 min-w-0 p-2 bg-ground border border-line-strong outline-none text-sm text-ink focus:border-line-bold"
-                    >
-                      <option value="none">{pop === 'none' ? '+ 팝콘 추가하기 (선택 시 결제 필요)' : '선택 취소'}</option>
-                      <option value="original">오리지널 버터 팝콘 (2,500원)</option>
-                      <option value="consomme">콘소메맛 팝콘 (2,500원)</option>
-                      <option value="caramel">카라멜맛 팝콘 (2,500원)</option>
-                    </select>
-                  </div>
-                ))}
+                <div className="flex flex-col border-t border-line">
+                  {POPCORN_FLAVORS.map(({ key, label }) => {
+                    const count = popcornList.filter(p => p === key).length;
+                    return (
+                      <div key={key} className="flex items-center justify-between gap-3 min-h-[52px] border-b border-line">
+                        <span className="text-sm text-ink">{label}</span>
+                        <div className="flex items-center gap-1">
+                          <button type="button" onClick={() => changePopcornCount(key, -1)} disabled={count === 0} aria-label={`${label} 하나 빼기`} className="w-9 h-9 flex items-center justify-center border border-line-strong text-ink disabled:text-mute disabled:border-line"><Minus className="w-4 h-4" /></button>
+                          <span className="w-8 text-center text-base font-bold tabular-nums" aria-live="polite">{count}</span>
+                          <button type="button" onClick={() => changePopcornCount(key, 1)} aria-label={`${label} 하나 더`} className="w-9 h-9 flex items-center justify-center border border-line-strong text-ink"><Plus className="w-4 h-4" /></button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
 
-                <p className="text-xs text-dim mt-2">* 팝콘은 여러 개 추가할 수 있습니다. (음료는 배부하지 않습니다.)</p>
+                <p className="text-xs text-dim mt-3">팝콘은 하나에 2,500원이고, 음료는 없어요.</p>
 
                 {(popcornList.filter(p => p !== 'none').length * 2500) > 0 && (
                   <div className="mt-4 pt-3 border-t border-ink flex justify-between items-center">

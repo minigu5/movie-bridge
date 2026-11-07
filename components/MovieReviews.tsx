@@ -139,9 +139,9 @@ export default function MovieReviews({ movieSettingsId, profile, canWrite, onCha
   };
 
   return (
-    <div className="w-full max-w-xl">
-      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-        <h3 className="text-ink font-black text-lg">관람 후기</h3>
+    <section className="w-full flex flex-col">
+      <div className="flex items-baseline justify-between flex-wrap gap-2 border-b border-ink pb-2.5 md:pb-3.5">
+        <h2 className="m-0 text-[17px] md:text-[22px] font-black">관람 후기</h2>
         {reviews.length > 0 && (
           <div className="flex items-center gap-2">
             <StarRating value={average} size="text-base" />
@@ -152,7 +152,7 @@ export default function MovieReviews({ movieSettingsId, profile, canWrite, onCha
       </div>
 
       {!profile && (
-        <div className="bg-card border border-line rounded-lg p-4 mb-4 flex items-center justify-between gap-3 flex-wrap">
+        <div className="border-b border-line py-4 flex items-center justify-between gap-3 flex-wrap">
           <p className="text-sub text-sm">로그인하면 후기를 남길 수 있어요.</p>
           <button
             type="button"
@@ -165,13 +165,13 @@ export default function MovieReviews({ movieSettingsId, profile, canWrite, onCha
       )}
 
       {profile && !canWrite && (
-        <div className="bg-card border border-line rounded-lg p-4 mb-4">
+        <div className="border-b border-line py-4">
           <p className="text-sub text-sm">동아리원이나 이 영화를 예매했던 분만 후기를 남길 수 있어요.</p>
         </div>
       )}
 
       {canWrite && profile && !myReview && (
-        <div className="bg-card border border-line rounded-lg p-4 mb-4">
+        <div className="border-b border-line py-5">
           <p className="text-ink text-sm font-bold mb-2">후기 작성</p>
           <RatingInput value={newRating} onChange={setNewRating} />
           <textarea
@@ -189,17 +189,17 @@ export default function MovieReviews({ movieSettingsId, profile, canWrite, onCha
       )}
 
       {isLoading ? (
-        <p className="text-dim text-sm text-center py-4">후기를 불러오는 중...</p>
+        <p className="text-dim text-sm py-5">후기를 불러오는 중...</p>
       ) : reviews.length === 0 ? (
-        <p className="text-dim text-sm text-center py-4">아직 등록된 후기가 없습니다.</p>
+        <p className="text-dim text-sm py-5">아직 등록된 후기가 없어요.</p>
       ) : (
-        <div className="space-y-3">
+        <div className="flex flex-col">
           {reviews.map((r) => {
             const isMine = profile?.id === r.user_id;
 
             if (isMine && isEditing) {
               return (
-                <div key={r.id} className="bg-card border border-line-strong rounded-lg p-4">
+                <div key={r.id} className="border-b border-line py-5">
                   <RatingInput value={editRating} onChange={setEditRating} />
                   <textarea
                     value={editContent}
@@ -217,23 +217,23 @@ export default function MovieReviews({ movieSettingsId, profile, canWrite, onCha
             }
 
             return (
-              <div key={r.id} className="bg-card border border-line rounded-lg p-4">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-ink text-sm font-bold">{r.user_name}{isMine && <span className="text-dim font-normal ml-1">(나)</span>}</span>
-                  <StarRating value={r.rating} size="text-sm" />
-                </div>
-                <p className="text-sub text-sm whitespace-pre-wrap">{r.content}</p>
+              <div key={r.id} className="border-b border-line py-4 md:py-5 grid grid-cols-[1fr_auto] md:grid-cols-[160px_1fr_auto] gap-x-6 gap-y-1.5">
+                <span className="text-ink text-sm font-bold">{r.user_name}{isMine && <span className="text-dim font-normal ml-1">(나)</span>}</span>
+                <div className="md:order-last"><StarRating value={r.rating} size="text-sm" /></div>
+                <div className="col-span-2 md:col-span-1 min-w-0">
+                <p className="text-sub text-sm leading-relaxed whitespace-pre-wrap break-keep">{r.content}</p>
                 {isMine && (
-                  <div className="flex gap-3 mt-2">
+                  <div className="flex gap-4 mt-2">
                     <button type="button" onClick={startEditing} className="text-dim hover:text-ink text-xs font-bold transition-colors">수정</button>
                     <button type="button" onClick={handleDelete} disabled={isSaving} className="text-accent hover:opacity-80 text-xs font-bold transition-colors disabled:opacity-50">삭제</button>
                   </div>
                 )}
+                </div>
               </div>
             );
           })}
         </div>
       )}
-    </div>
+    </section>
   );
 }
