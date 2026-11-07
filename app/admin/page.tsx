@@ -14,7 +14,7 @@ import MailTab from './_components/MailTab';
 import { scheduleUndoable } from '../../lib/undoable';
 import PeopleTab, { type PersonToggle, type AddTarget } from './_components/PeopleTab';
 import { mergePeople, type PersonRow } from '../../lib/adminPeople';
-import HistoryTab from './_components/HistoryTab';
+import LogTab from './_components/LogTab';
 
 // 옛 탭 키(?tab=settings 등)로 들어와도 같은 메뉴를 연다.
 // movie_settings 행 → 상영 폼. VIP 칸이 비어 있으면 기본 네모를 채운다(lib/seatGrid.ts와 같은 기본값).
@@ -72,7 +72,7 @@ function AdminPageInner() {
   const [checkingAdmin, setCheckingAdmin] = useState(true);
   const [reservations, setReservations] = useState<any[]>([]);
   const [movieInfo, setMovieInfo] = useState<any>(null);
-  const [isLoadingUI, setIsLoadingUI] = useState(true); // 🌟 [추가됨] 로딩 상태 관리
+  const [isLoadingUI, setIsLoadingUI] = useState(true);
 
   const [editForm, setEditForm] = useState<any>({});
   const [posterStatus, setPosterStatus] = useState<string | null>(null);
@@ -88,6 +88,7 @@ function AdminPageInner() {
   const [selectedHistoryMovie, setSelectedHistoryMovie] = useState<any>(null);
   const [historyReservations, setHistoryReservations] = useState<any[]>([]);
   const [historyReviews, setHistoryReviews] = useState<any[]>([]);
+  const [reviewToastIds, setReviewToastIds] = useState<Record<string, string>>({});
 
   const [logs, setLogs] = useState<any[]>([]);
   // 예약 id → 되돌리기 알림 id. 알림이 살아 있는 동안 그 줄은 "취소했어요 · 되돌리기"로 보인다.
@@ -117,7 +118,7 @@ function AdminPageInner() {
   const promoSendRef = useRef<{ cancel(): boolean; interval: ReturnType<typeof setInterval> } | null>(null);
   const promoResolveSeq = useRef(0);
 
-  // 🌟 (신규) 팝콘 통계 계산을 위한 함수
+  // 팝콘 통계(확정 기준)
   const popcornStats = useMemo(() => {
     let original = 0; let consomme = 0; let caramel = 0; let none = 0; let cash = 0;
     reservations.filter(r => r.payment_status === 'confirmed').forEach(r => {
@@ -300,12 +301,23 @@ function AdminPageInner() {
     if (reviewData.success) setHistoryReviews(reviewData.data);
   };
 
-  const handleDeleteReview = async (review: any) => {
-    if (!confirm(`${review.user_name ?? review.profiles?.email ?? '작성자'}님의 후기를 삭제하시겠습니까?`)) return;
-    const res = await authFetch('/api/admin/action', { action: 'DELETE_REVIEW', payload: { id: review.id } });
-    const data = await res.json();
-    if (!data.success) return notify("후기 삭제 실패: " + data.error, 'error');
-    setHistoryReviews(prev => prev.filter(r => r.id !== review.id));
+  const callAction = async (action: string, payload: any) => {
+    const res = await authFetch('/api/admin/action', { action, payload });
+    return res.json();
+  };
+
+  // 후기 지우기는 5초 되돌리기.
+  const handleDeleteReview = (review: any) => {
+    const who = review.user_name ?? review.profiles?.email ?? '작성자';
+    const handle = undoable(`${who}님의 후기를 지웠어요`, async () => {
+      setHistoryReviews(prev => prev.filter(r => r.id !== review.id));
+      const data = await callAction('DELETE_REVIEW', { id: review.id });
+      if (!data.success) {
+        setHistoryReviews(prev => (prev.some(r => r.id === review.id) ? prev : [review, ...prev]));
+        throw new Error("후기 지우기 실패: " + data.error);
+      }
+    });
+    setReviewToastIds(prev => ({ ...prev, [String(review.id)]: handle.id }));
   };
 
   const handleApprove = async (ticket: any) => {
@@ -359,10 +371,6 @@ function AdminPageInner() {
     notify(`${ticket.seat_number} ${ticket.student_name} 발권을 되돌렸어요. 발권기에서 다시 뽑을 수 있어요.`);
   };
 
-  const callAction = async (action: string, payload: any) => {
-    const res = await authFetch('/api/admin/action', { action, payload });
-    return res.json();
-  };
   const now = () => new Date().toISOString();
 
   // 권한 켜고 끄기: 화면을 먼저 바꾸고, 실패하면 되돌린 뒤 알린다.
@@ -594,11 +602,9 @@ function AdminPageInner() {
     fetchAdminData();
   };
 
-  const cancelUndoToast = (reservationId: string) => {
-    const toastId = cancelToastIds[reservationId];
-    return toastId ? toasts.find(t => t.id === toastId && t.undo) : undefined;
-  };
+  // 되돌리기 알림이 살아 있으면 그 동작은 아직 기다리는 중이다.
   const aliveUndoToast = (toastId: string | undefined) => (toastId ? toasts.find(t => t.id === toastId && t.undo) : undefined);
+  const cancelUndoToast = (reservationId: string) => aliveUndoToast(cancelToastIds[reservationId]);
   const pendingBlockEmails = Object.keys(blockToastIds).filter(e => aliveUndoToast(blockToastIds[e]));
   const peopleRows = mergePeople({
     profiles: loginProfiles,
@@ -743,7 +749,7 @@ function AdminPageInner() {
       )}
 
       {activeTab === 'log' && (
-        <HistoryTab
+        <LogTab
           onLoad={loadMovieHistory}
           movieHistory={movieHistory}
           selectedHistoryMovie={selectedHistoryMovie}
@@ -751,6 +757,9 @@ function AdminPageInner() {
           historyReservations={historyReservations}
           historyReviews={historyReviews}
           onDeleteReview={handleDeleteReview}
+          pendingDeleteIds={new Set(Object.keys(reviewToastIds).filter(id => aliveUndoToast(reviewToastIds[id])))}
+          deleteSecondsLeft={(id) => aliveUndoToast(reviewToastIds[id])?.undo?.secondsLeft ?? 5}
+          onUndoDelete={(id) => aliveUndoToast(reviewToastIds[id])?.undo?.onUndo()}
           logs={logs}
         />
       )}
