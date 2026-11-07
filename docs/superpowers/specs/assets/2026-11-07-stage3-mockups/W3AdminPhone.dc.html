@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>관리자 · 폰 (예매)</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&amp;display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 1100px; overflow: hidden; background: #0F0F10; color: #F2F2F0; font-family: 'Noto Sans KR', sans-serif">
+<header style="border-bottom: 1px solid #2A2A2E; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between">
+<div style="display: flex; align-items: center; gap: 10px">
+<img src="/_blob/976905e12f405266a67d8c882838e311" alt="영화대교" style="width: 88px; height: auto; display: block">
+<span style="font-size: 11px; color: #8E8E93; letter-spacing: 0.2em">관리</span>
+</div>
+<span style="font-size: 12px; color: #8E8E93">마감까지 [n일]</span>
+</header>
+<main style="padding: 20px 16px 110px; display: flex; flex-direction: column; gap: 18px">
+<h1 style="margin: 0; font-size: 24px; font-weight: 900">예매</h1>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid #F2F2F0">
+<sc-for list="{{stats}}" as="s" hint-placeholder-count="4">
+<button type="button" aria-pressed="{{s.pressed}}" style="display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 12px 14px; background: {{s.bg}}; border: 0; border-bottom: 1px solid #2A2A2E; border-left: 1px solid {{s.sep}}; color: #F2F2F0; font: inherit; text-align: left">
+<span style="font-size: 11px; color: #8E8E93">{{s.label}}</span>
+<span style="font-size: 22px; font-weight: 900; color: {{s.fg}}">{{s.value}}</span>
+</button>
+</sc-for>
+</div>
+<label for="ph-q" style="position: absolute; left: -9999px">이름, 학번, 좌석 찾기</label>
+<input id="ph-q" type="search" placeholder="이름 · 학번 · 좌석 찾기" style="height: 44px; box-sizing: border-box; padding: 0 14px; background: #18181A; border: 1px solid #2A2A2E; color: #F2F2F0; font: inherit; font-size: 14px">
+<div style="display: flex; flex-direction: column">
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="4">
+<div style="display: flex; align-items: center; gap: 14px; min-height: 72px; border-bottom: 1px solid #2A2A2E">
+<span style="flex: 0 0 52px; font-size: 18px; font-weight: 900">{{r.seat}}</span>
+<span style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 15px; font-weight: 700">{{r.name}} <span style="font-size: 12px; font-weight: 400; color: #8E8E93">{{r.sid}}</span></span>
+<span style="font-size: 12px; color: {{r.stFg}}">{{r.st}} <span style="color: #8E8E93">· {{r.pop}}</span></span>
+</span>
+<button type="button" style="height: 40px; padding: 0 14px; background: #F2F2F0; border: 0; color: #0F0F10; font: inherit; font-size: 14px; font-weight: 700; display: {{r.approve}}">승인</button>
+<button type="button" style="height: 40px; padding: 0 10px; background: transparent; border: 1px solid #3A3A3F; color: #F2F2F0; font: inherit; font-size: 12px; font-weight: 700; display: {{r.unprint}}">발권 되돌리기</button>
+<button type="button" style="height: 40px; padding: 0 4px 0 10px; background: transparent; border: 0; border-left: 1px solid #2A2A2E; color: #E0443B; font: inherit; font-size: 13px; font-weight: 700">취소</button>
+</div>
+</sc-for>
+</div>
+</main>
+<div style="position: absolute; left: 12px; right: 12px; bottom: 84px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 10px 10px 14px; background: #26262A; border: 1px solid #3A3A3F">
+<span style="font-size: 13px; color: #F2F2F0">A07 예매를 취소했어요</span>
+<button type="button" style="height: 36px; padding: 0 12px; background: transparent; border: 1px solid #F2F2F0; color: #F2F2F0; font: inherit; font-size: 13px; font-weight: 700">되돌리기 · 4</button>
+</div>
+<nav style="position: absolute; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); background: #18181A; border-top: 1px solid #2A2A2E; padding-bottom: 14px">
+<sc-for list="{{nav}}" as="n" hint-placeholder-count="5">
+<a href="#{{n.key}}" style="height: 58px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; text-decoration: none; color: {{n.fg}}; font-size: 12px; font-weight: {{n.fw}}; position: relative">
+<span style="display: block; width: 18px; height: 2px; background: {{n.bar}}"></span>
+{{n.label}}
+<span style="position: absolute; top: 8px; right: 18px; font-size: 10px; font-weight: 700; color: #E0443B">{{n.badge}}</span>
+</a>
+</sc-for>
+</nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1100}}'>
+class Component extends DCLogic {
+renderVals() {
+const nav = [['reservations', '예매', '3'], ['movie', '상영', ''], ['mail', '메일', ''], ['people', '사람', ''], ['log', '기록', '']].map(([key, label, badge]) => {
+const on = key === 'reservations';
+return { key, label, badge, fg: on ? '#F2F2F0' : '#8E8E93', fw: on ? 700 : 500, bar: on ? '#F2F2F0' : 'transparent' };
+});
+const stats = [['승인 대기', '3', '#E0443B', false], ['확정', '[n]', '#F2F2F0', false], ['단체 확인 중', '[n]', '#F2F2F0', false], ['아직 발권 안 함', '[n]', '#F2F2F0', false]].map(([label, value, fg, on], i) => ({
+label, value, fg, pressed: on ? 'true' : 'false', bg: on ? '#1E1E21' : 'transparent', sep: i % 2 === 0 ? 'transparent' : '#2A2A2E'
+}));
+const st = {
+pending: { st: '승인 대기', stFg: '#E0443B', approve: 'block', unprint: 'none' },
+ok: { st: '확정', stFg: '#A1A1A6', approve: 'none', unprint: 'none' },
+printed: { st: '확정 · 발권함', stFg: '#A1A1A6', approve: 'none', unprint: 'block' }
+};
+const rows = [
+['B31', '박지호', '1312', '카라멜 1', 'pending'],
+['A12', '정민재', '3102', '오리지널 2', 'pending'],
+['B05', '한지민', '1107', '콘소메 1', 'pending'],
+['A03', '이서연', '2208', '팝콘 없음', 'printed'],
+['B17', '김도윤', '2104', '팝콘 없음', 'ok']
+].map(([seat, name, sid, pop, s]) => ({ seat, name, sid, pop, ...st[s] }));
+return { nav, stats, rows };
+}
+}
+</script>
+</body>
+</html>

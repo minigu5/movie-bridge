@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>폰 B · 구역 나눠 보기 (대강당)</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#F2F2F0}a:hover{color:#F2F2F0}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 1400px; overflow: hidden; background: #0F0F10; color: #F2F2F0; font-family: 'Noto Sans KR', sans-serif">
+<header style="border-bottom: 1px solid #2A2A2E; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between">
+<img src="/_blob/976905e12f405266a67d8c882838e311" alt="영화대교" style="width: 96px; height: auto; display: block">
+<nav style="display: flex; align-items: center; gap: 16px; font-size: 13px; font-weight: 500">
+<a href="#guide" style="text-decoration: none; padding: 10px 0">이용 안내</a>
+<button type="button" aria-label="프로필 메뉴" style="width: 32px; height: 32px; border-radius: 16px; background: #26262A; border: 1px solid #3A3A3F; padding: 0"></button>
+</nav>
+</header>
+<main style="padding: 18px 16px 112px; display: flex; flex-direction: column; gap: 28px">
+<section style="display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; align-items: center; justify-content: space-between">
+<div style="display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 700; letter-spacing: 0.2em; color: #8E8E93">
+<span style="display: block; width: 7px; height: 7px; border-radius: 4px; background: #E0443B"></span>
+<span>이번 상영</span>
+</div>
+<a href="#past" style="font-size: 12px; color: #A1A1A6; text-decoration: none; padding: 8px 0">지난 상영작 ›</a>
+</div>
+<div style="display: flex; gap: 14px; align-items: stretch">
+<div style="flex: 0 0 84px; height: 120px; background: #1A1A1C; border: 1px solid #2E2E32; display: flex; align-items: center; justify-content: center; color: #6E6E73; font-size: 11px">[포스터]</div>
+<div style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; justify-content: space-between">
+<h1 style="margin: 0; font-size: 24px; line-height: 1.15; font-weight: 900; letter-spacing: -0.02em">[영화 제목]</h1>
+<div style="display: flex; flex-direction: column; border-top: 1px solid #F2F2F0">
+<div style="padding: 6px 0; border-bottom: 1px solid #2A2A2E; display: flex; gap: 10px; font-size: 13px"><span style="flex: 0 0 48px; color: #8E8E93; font-size: 12px">일시</span><span style="font-weight: 500">[날짜 · 시간]</span></div>
+<div style="padding: 6px 0; border-bottom: 1px solid #2A2A2E; display: flex; gap: 10px; font-size: 13px"><span style="flex: 0 0 48px; color: #8E8E93; font-size: 12px">장소</span><span style="font-weight: 500">대강당 · [등급]</span></div>
+<div style="padding: 6px 0; border-bottom: 1px solid #2A2A2E; display: flex; gap: 10px; font-size: 13px"><span style="flex: 0 0 48px; color: #8E8E93; font-size: 12px">마감</span><span style="font-weight: 500">[마감 일시]</span></div>
+</div>
+</div>
+</div>
+</section>
+<section style="display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; align-items: baseline; justify-content: space-between; border-bottom: 1px solid #F2F2F0; padding-bottom: 8px">
+<h2 style="margin: 0; font-size: 17px; font-weight: 900">좌석 선택</h2>
+<span style="font-size: 12px; color: #8E8E93">남은 좌석 <b style="color: #F2F2F0">{{left}}</b>석</span>
+</div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px">
+<span style="display: block; width: 72%; height: 3px; background: #8E8E93; border-radius: 2px"></span>
+<sc-for list="{{miniRows}}" as="mr" hint-placeholder-count="2">
+<div style="width: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: {{mr.mt}}">
+<sc-for list="{{mr.blocks}}" as="b" hint-placeholder-count="3">
+<button type="button" aria-label="{{b.name}} 구역 · {{b.count}}석 남음" aria-pressed="{{b.pressed}}" style="height: {{b.h}}; display: flex; align-items: center; justify-content: center; padding: 0; background: {{b.bg}}; border: 1px solid {{b.frame}}; border-radius: 8px; color: {{b.fg}}; font: inherit; font-size: 14px; font-weight: {{b.fw}}">{{b.count}}석</button>
+</sc-for>
+</div>
+</sc-for>
+</div>
+<div style="display: flex; justify-content: flex-end; gap: 14px; font-size: 11px; color: #A1A1A6">
+<span style="display: flex; align-items: center; gap: 5px"><span style="display: block; width: 12px; height: 12px; box-sizing: border-box; border: 2px solid #F2F2F0; border-radius: 3px 3px 2px 2px; background: #1A1A1C"></span>동아리 전용</span>
+<span style="display: flex; align-items: center; gap: 5px"><span style="display: block; width: 12px; height: 12px; box-sizing: border-box; border: 1px dashed #8E8E93; border-radius: 3px 3px 2px 2px; background: #1A1A1C"></span>불편 좌석</span>
+</div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 4px; padding-top: 4px">
+<div style="width: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: 10px">
+<span style="display: block; width: 100%; height: 3px; background: #F2F2F0; border-radius: 2px; box-shadow: 0 6px 20px rgba(242, 242, 240, 0.18)"></span>
+<span style="font-size: 11px; letter-spacing: 0.3em; color: #8E8E93">스크린 · 앞쪽 가운데</span>
+</div>
+<sc-for list="{{rows}}" as="row" hint-placeholder-count="8">
+<div style="display: flex; align-items: center; gap: 3px">
+<sc-for list="{{row.seats}}" as="s" hint-placeholder-count="9">
+<button type="button" aria-label="{{s.text}}" style="display: flex; align-items: center; justify-content: center; width: 37px; height: 44px; padding: 0; box-sizing: border-box; border-radius: 8px 8px 4px 4px; background: {{s.bg}}; border: {{s.bd}}; color: {{s.fg}}; font: inherit; font-size: {{s.fs}}; font-weight: 700; letter-spacing: -0.06em; white-space: nowrap; overflow: hidden">{{s.text}}</button>
+</sc-for>
+</div>
+</sc-for>
+</div>
+</section>
+<footer style="border-top: 1px solid #2A2A2E; padding-top: 16px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #8E8E93">
+<img src="/_blob/976905e12f405266a67d8c882838e311" alt="영화대교" style="width: 68px; height: auto; display: block; opacity: 0.8">
+<span>대강당 상영관</span>
+</footer>
+</main>
+<div style="position: absolute; left: 0; right: 0; bottom: 0; background: #18181A; border-top: 1px solid #2A2A2E; padding: 10px 16px 18px; display: flex; align-items: center; gap: 16px">
+<div style="display: flex; flex-direction: column; gap: 0">
+<span style="font-size: 11px; color: #8E8E93">선택한 좌석</span>
+<span style="font-size: 22px; font-weight: 900; letter-spacing: -0.02em">{{picked}}</span>
+</div>
+<button type="button" style="flex: 1 1 auto; height: 50px; border: 0; background: #F2F2F0; color: #0F0F10; font: inherit; font-size: 16px; font-weight: 700; letter-spacing: 0.04em">예매하기</button>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1400}}'>
+class Component extends DCLogic {
+renderVals() {
+const names = ['김도윤', '이서연', '박지호', '최하은', '정민재', '강예린', '윤시우', '장서아', '한지민', '오태윤'];
+const theme = {
+empty: { bg: '#1A1A1C', bd: '1px solid #4A4A50', fg: '#A1A1A6', mini: '#4A4A50' },
+booked: { bg: '#2A2A2E', bd: '1px solid #2A2A2E', fg: '#6E6E73', mini: '#232326' },
+vip: { bg: '#1A1A1C', bd: '2px solid #F2F2F0', fg: '#F2F2F0', mini: '#A1A1A6' },
+selected: { bg: '#E0443B', bd: '1px solid #E0443B', fg: '#FFFFFF', mini: '#E0443B' },
+defect: { bg: '#1A1A1C', bd: '1px dashed #8E8E93', fg: '#8E8E93', mini: '#4A4A50' }
+};
+const active = 'front-B';
+let left = 0;
+const leftBy = {};
+let n = 0;
+const grid = 'ABCDEFGHIJKLMNOPQR'.split('').map((label, r) => ({
+label,
+half: r < 8 ? 'front' : 'back',
+seats: Array.from({ length: 27 }, (_, c) => {
+const block = 'ABC'[Math.floor(c / 9)];
+const num = r * 9 + (c % 9) + 1;
+const id = block + String(num).padStart(3, '0');
+const zone = (r < 8 ? 'front-' : 'back-') + block;
+let kind = 'empty';
+if (r <= 2 && c >= 9 && c <= 17) kind = 'vip';
+if ((r * 5 + c * 3) % 7 === 0 && r > 0) kind = 'booked';
+if (r === 5 && c === 13) kind = 'selected';
+if (r === 10 && c === 11) kind = 'defect';
+let text = id;
+if (kind === 'booked') { text = names[n % names.length]; n += 1; }
+if (kind !== 'booked') { left += 1; leftBy[zone] = (leftBy[zone] || 0) + 1; }
+return { zone, ...theme[kind], text, fs: kind === 'booked' ? '10px' : '11px' };
+})
+}));
+const pos = { A: '왼쪽', B: '가운데', C: '오른쪽' };
+const miniRows = ['front', 'back'].map(half => ({
+mt: half === 'back' ? '6px' : '0px',
+blocks: ['A', 'B', 'C'].map(b => {
+const zone = half + '-' + b;
+const on = zone === active;
+return {
+name: (half === 'front' ? '앞쪽 ' : '뒤쪽 ') + pos[b],
+count: leftBy[zone] || 0,
+pressed: on ? 'true' : 'false',
+h: half === 'front' ? '52px' : '60px',
+frame: on ? '#F2F2F0' : '#3A3A3F',
+bg: on ? '#F2F2F0' : 'transparent',
+fg: on ? '#0F0F10' : '#A1A1A6',
+fw: on ? 900 : 700
+};
+})
+}));
+const rows = grid.filter(row => row.half === 'front').map(row => ({ label: row.label, seats: row.seats.filter(s => s.zone === active) }));
+return { rows, miniRows, left, picked: 'B050' };
+}
+}
+</script>
+</body>
+</html>
