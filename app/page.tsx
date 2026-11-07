@@ -1050,38 +1050,46 @@ export default function Home() {
           <p className="text-dim text-xs">빈 좌석을 클릭하여 멤버를 추가하세요 (최대 10명)</p>
         </div>
       ) : !isClosed && myReservation && !isMovingSeat ? (
-        <div className="bg-card border border-line p-5 flex flex-col gap-4">
-          {myPopcorns.length > 0 && (
-            <p className="text-sub text-sm flex items-center gap-1.5"><Popcorn className="w-4 h-4" /> 팝콘 {myPopcorns.length}개 주문됨</p>
-          )}
-          {cancelLocked && <p className="text-dim text-xs">팝콘 결제가 완료된 예매는 취소할 수 없습니다.</p>}
-          {myReservation.status === 'confirmed' && myPopcorns.length === 0 && (
-            <button type="button" onClick={() => {
-              setPopcornList(['none']);
-              setIsAddPopcornMode(true);
-              setIsModalOpen(true);
-            }} className="w-full md:w-auto md:self-start h-11 px-5 border border-line-strong hover:border-line-bold text-ink font-bold transition-colors text-sm flex items-center justify-center gap-1.5"><Popcorn className="w-4 h-4" /> 팝콘 추가 (결제 필요)</button>
-          )}
-          {myReservation.status === 'pending' && (
+        <section className="flex flex-col gap-4">
+          {myReservation.status === 'pending' ? (
             <>
-              <p className="text-ink text-sm font-bold flex items-center gap-1.5"><Hourglass className="w-4 h-4 shrink-0" /> 아래 QR코드 또는 계좌로 입금을 완료해주세요.</p>
-              <div className="flex flex-col md:flex-row items-center md:items-start gap-4">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <div className="bg-white p-3 shrink-0"><img src="/qr.jpeg" alt="QR" loading="lazy" decoding="async" className="w-32 h-32 object-contain" /></div>
-                <div className="w-full"><AccountInfo /></div>
+              <div className="flex items-baseline justify-between flex-wrap gap-2 border-b border-ink pb-2.5 md:pb-3.5">
+                <h2 className="m-0 text-[17px] md:text-[22px] font-black flex items-center gap-2"><Hourglass className="w-5 h-5 shrink-0" /> 입금 안내</h2>
+                <span className="text-sm text-dim">QR이나 계좌로 입금해 주세요</span>
               </div>
-              <dl className="border-t border-ink text-sm">
-                <div className="py-2.5 border-b border-line flex gap-4"><dt className="w-16 shrink-0 text-dim">결제 금액</dt><dd className="font-bold">{(myPopcorns.length * 2500).toLocaleString()}원</dd></div>
-                <div className="py-2.5 border-b border-line flex gap-4"><dt className="w-16 shrink-0 text-dim">입금자명</dt><dd className="font-bold">{profile?.student_id ?? ''} {profile?.name}</dd></div>
-              </dl>
-              <button type="button" onClick={() => {
-                setPopcornList([...myPopcorns, 'none']);
-                setIsAddPopcornMode(true);
-                setIsModalOpen(true);
-              }} className="w-full md:w-auto md:self-start h-11 px-5 border border-line-strong hover:border-line-bold text-ink font-bold transition-colors text-sm flex items-center justify-center gap-1.5"><Popcorn className="w-4 h-4" /> 팝콘 추가</button>
+              <div className="flex flex-col md:flex-row gap-5 md:gap-8 md:items-start">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <div className="bg-white p-2.5 shrink-0 self-center md:self-start"><img src="/qr.jpeg" alt="송금 QR" loading="lazy" decoding="async" className="w-32 h-32 object-contain" /></div>
+                <dl className="flex-1 min-w-0 m-0 text-sm">
+                  <div className="py-3 border-b border-line flex items-center gap-4"><dt className="w-16 shrink-0 text-dim">결제 금액</dt><dd className="m-0 text-lg font-black tabular-nums">{(myPopcorns.length * 2500).toLocaleString()}원</dd></div>
+                  <div className="py-3 border-b border-line flex items-center gap-4"><dt className="w-16 shrink-0 text-dim">입금자명</dt><dd className="m-0 font-bold">{profile?.student_id ?? ''} {profile?.name}</dd></div>
+                  <div className="py-2 border-b border-line flex items-center gap-4"><dt className="w-16 shrink-0 text-dim">계좌</dt><dd className="m-0 flex-1 min-w-0 flex"><AccountInfo inline /></dd></div>
+                  <div className="py-2 border-b border-line flex items-center gap-4"><dt className="w-16 shrink-0 text-dim">팝콘</dt><dd className="m-0 flex-1 flex items-center justify-between gap-3"><span className="font-bold">{myPopcorns.length}개</span>
+                    <button type="button" onClick={() => {
+                      setPopcornList([...myPopcorns, 'none']);
+                      setIsAddPopcornMode(true);
+                      setIsModalOpen(true);
+                    }} className="shrink-0 h-8 px-3 border border-line-strong hover:border-line-bold text-ink text-xs font-bold transition-colors flex items-center gap-1"><Popcorn className="w-3.5 h-3.5" /> 더 고르기</button>
+                  </dd></div>
+                </dl>
+              </div>
+            </>
+          ) : (
+            <>
+              {myPopcorns.length > 0 && (
+                <p className="text-sub text-sm flex items-center gap-1.5"><Popcorn className="w-4 h-4" /> 팝콘 {myPopcorns.length}개 주문됨</p>
+              )}
+              {cancelLocked && <p className="text-dim text-xs">팝콘 결제가 완료된 예매는 취소할 수 없습니다.</p>}
+              {myPopcorns.length === 0 && (
+                <button type="button" onClick={() => {
+                  setPopcornList(['none']);
+                  setIsAddPopcornMode(true);
+                  setIsModalOpen(true);
+                }} className="w-full md:w-auto md:self-start h-11 px-5 border border-line-strong hover:border-line-bold text-ink font-bold transition-colors text-sm flex items-center justify-center gap-1.5"><Popcorn className="w-4 h-4" /> 팝콘 추가 (결제 필요)</button>
+              )}
             </>
           )}
-        </div>
+        </section>
       ) : null}
 
       <BookingBar {...bookingBar} />
