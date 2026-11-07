@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { PenLine } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { type AppProfile } from '../lib/supabase-auth';
-import { StarRating } from './MovieReviews';
+import { RatingInput } from './MovieReviews';
 
 // my_pending_review() RPC(0021) 한 행: 본인이 보고 아직 후기를 안 쓴 직전 상영작.
 export interface PendingReview {
@@ -65,7 +65,7 @@ export default function RequiredReviewModal({ movie, profile, onDone, onClose }:
         </div>
 
         <p className="text-neutral-300 text-sm font-bold mb-2">별점</p>
-        <StarRating value={rating} onChange={setRating} size="text-3xl" />
+        <RatingInput value={rating} onChange={setRating} size="text-3xl" />
 
         <p className="text-neutral-300 text-sm font-bold mt-4 mb-2">한 줄 후기</p>
         <textarea

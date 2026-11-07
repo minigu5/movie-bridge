@@ -37,6 +37,18 @@ export function StarRating({ value, onChange, size }: { value: number; onChange?
 
 // canWrite: 동아리원이거나 이 회차를 예매했던 사람(DB 정책 movie_reviews_insert_member_or_viewer와 같은 기준).
 // onChange: 내 후기를 등록/수정/삭제한 뒤 호출. 다음 영화 예매 전 후기 필수 여부를 다시 확인하는 데 쓴다.
+// 별점 입력: 별 옆에 고른 점수를 숫자로(예: 3.5점) 같이 보여준다.
+export function RatingInput({ value, onChange, size }: { value: number; onChange: (v: number) => void; size?: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <StarRating value={value} onChange={onChange} size={size} />
+      {value > 0
+        ? <span className="text-amber-400 text-lg font-bold tabular-nums">{value.toFixed(1)}점</span>
+        : <span className="text-neutral-500 text-sm">별을 눌러 선택</span>}
+    </div>
+  );
+}
+
 export default function MovieReviews({ movieSettingsId, profile, canWrite, onChange }: { movieSettingsId: number; profile: AppProfile | null; canWrite: boolean; onChange?: () => void }) {
   const [reviews, setReviews] = useState<MovieReview[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -161,7 +173,7 @@ export default function MovieReviews({ movieSettingsId, profile, canWrite, onCha
       {canWrite && profile && !myReview && (
         <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-4">
           <p className="text-neutral-300 text-sm font-bold mb-2">후기 작성</p>
-          <StarRating value={newRating} onChange={setNewRating} />
+          <RatingInput value={newRating} onChange={setNewRating} />
           <textarea
             value={newContent}
             onChange={(e) => setNewContent(e.target.value)}
@@ -188,7 +200,7 @@ export default function MovieReviews({ movieSettingsId, profile, canWrite, onCha
             if (isMine && isEditing) {
               return (
                 <div key={r.id} className="bg-white/5 border border-orange-500/30 rounded-xl p-4">
-                  <StarRating value={editRating} onChange={setEditRating} />
+                  <RatingInput value={editRating} onChange={setEditRating} />
                   <textarea
                     value={editContent}
                     onChange={(e) => setEditContent(e.target.value)}
