@@ -1,6 +1,6 @@
 "use client";
 
-// 로그인 사용자 개인정보 동의 게이트 — 동의 기록이 없거나 처리방침 버전이 바뀌었으면
+// 로그인 사용자 개인정보 동의 게이트 — 동의 기록이 없거나 동의 버전(PRIVACY_CONSENT_VERSION)이 올랐으면
 // 화면 전체를 막는 모달을 띄운다. 동의하지 않으면 로그아웃(비로그인 열람은 계속 가능).
 // 실제 차단은 DB(require_privacy_consent 트리거)도 하므로 이 모달은 동의를 받는 창구 역할.
 
@@ -170,7 +170,7 @@ export default function PrivacyConsentGate({
     let active = true;
     fetchMyConsent(userId)
       .then(c => {
-        // 동의한 적은 있는데 무효 = 처리방침 개정으로 재동의
+        // 동의한 적은 있는데 무효 = 동의 버전을 올려 재동의
         if (active) setResult({ userId, needed: !isConsentValid(c), updated: !!c?.agreed_at });
       })
       .catch(err => {

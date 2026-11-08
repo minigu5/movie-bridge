@@ -40,7 +40,7 @@ export default function PrivacyPage() {
 
         <div className="bg-card border border-line rounded-lg p-6 md:p-8">
           <h1 className="text-2xl font-black mb-1">개인정보처리방침</h1>
-          <p className="text-sm text-dim mb-8">시행일: 2026년 8월 20일 · 최종 개정일: 2026년 10월 31일 · 동의 버전 {PRIVACY_CONSENT_VERSION}</p>
+          <p className="text-sm text-dim mb-8">시행일: 2026년 8월 20일 · 최종 개정일: 2026년 11월 8일 · 동의 버전 {PRIVACY_CONSENT_VERSION}</p>
 
           <section className="mb-8">
             <h2 className="text-base font-bold text-ink border-b border-line pb-2 mb-4">1. 수집하는 개인정보와 이용 목적</h2>

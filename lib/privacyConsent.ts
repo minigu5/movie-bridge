@@ -1,7 +1,11 @@
 // lib/privacyConsent.ts
 // 로그인 사용자 개인정보 동의 — 버전, 필수 항목, 동의서 내용.
 // 동의 모달(components/PrivacyConsentGate.tsx)과 처리방침 페이지(app/privacy)가 같이 쓴다.
-// 내용을 바꾸면 PRIVACY_CONSENT_VERSION을 올린다 → 기존 사용자도 다음 접속 때 재동의 모달이 뜬다.
+// 문구만 고치면 PRIVACY_CONSENT_VERSION은 그대로 두고 app/privacy의 '최종 개정일'만 고친다(바뀐 내용은 공지).
+// 버전을 올리면 기존 사용자 모두에게 다음 접속 때 재동의 모달이 뜨므로, 동의가 다시 필요한 변경일 때만 올린다:
+//  - 수집 항목·이용 목적을 새로 더하거나, 국외 이전 받는 업체·항목을 새로 더할 때
+//  - 남이 자기 목적으로 쓰게 넘길 때(제3자 제공)
+// 항목을 빼거나, 보유 기간을 줄이거나, 문구·오탈자를 고치는 건 올리지 않는다(법은 처리방침 변경 시 공개만 요구).
 // 필수 항목을 바꾸면 supabase record_privacy_consent()의 검사도 같이 바꿀 것.
 import { supabase } from './supabase';
 
