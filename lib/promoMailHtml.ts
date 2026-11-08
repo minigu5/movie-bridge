@@ -43,8 +43,9 @@ const C = {
   rule: '#1E1E21',
   red: '#E0443B',
 };
+// 큰 날짜·제목도 본문과 같은 고딕을 쓴다. Gmail 등은 웹 글꼴(함렛)을 막아 기기 명조로 바뀌면서
+// 숫자와 한글 서체가 따로 놀아 깨져 보였다(2026-11-08). 기본 고딕은 어느 기기에서나 모양이 비슷하다.
 const FONT = "'IBM Plex Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif";
-const SERIF = "'Hahmlet', 'Noto Serif KR', 'AppleMyungjo', 'Batang', serif";
 const POSTER_W = 168;
 const POSTER_H = 239;
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
@@ -170,7 +171,7 @@ export function buildPromoMailHtml(p: PromoMailParams): string {
     ? `<tr><td style="padding-top:22px;">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
         <td style="padding-bottom:18px; border-bottom:1px solid ${C.fg};">
-          ${s ? `<div style="font-family:${SERIF}; font-size:64px; font-weight:900; line-height:1; letter-spacing:-2px; color:${C.fg}; font-variant-numeric:tabular-nums;">${esc(formatBigDate(s))}</div>` : ''}
+          ${s ? `<div style="font-family:${FONT}; font-size:64px; font-weight:800; line-height:1; letter-spacing:-2px; color:${C.fg}; font-variant-numeric:tabular-nums;">${esc(formatBigDate(s))}</div>` : ''}
           ${timeLine ? `<div style="padding-top:${s ? '4px' : '0'}; font-size:16px; line-height:1.5; color:${C.fg2};">${esc(timeLine)}</div>` : ''}
         </td>
       </tr></table>
@@ -178,7 +179,7 @@ export function buildPromoMailHtml(p: PromoMailParams): string {
     : '';
 
   const titleBlock = `<div style="font-size:12px; color:${C.fg3};">이번 상영</div>
-          <div style="padding-top:10px; font-family:${SERIF}; font-size:24px; font-weight:700; line-height:1.2; color:${C.fg}; word-break:keep-all;">${safeTitle}</div>
+          <div style="padding-top:10px; font-family:${FONT}; font-size:24px; font-weight:700; line-height:1.2; color:${C.fg}; word-break:keep-all;">${safeTitle}</div>
           <div style="padding-top:10px; font-size:12px; color:${C.fg3};">관람 무료 · 선착순</div>`;
 
   const feature = `<tr><td style="padding-top:22px;">
@@ -199,7 +200,7 @@ export function buildPromoMailHtml(p: PromoMailParams): string {
   <meta name="supported-color-schemes" content="dark light">
   <meta name="format-detection" content="telephone=no, date=no, address=no, email=no">
   <title>영화대교 상영 초대</title>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&amp;family=Hahmlet:wght@500;700;900&amp;display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&amp;display=swap">
   <style>
     a[x-apple-data-detectors] { color: inherit !important; text-decoration: none !important; font-size: inherit !important; font-family: inherit !important; font-weight: inherit !important; line-height: inherit !important; }
   </style>
