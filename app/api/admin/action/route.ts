@@ -7,7 +7,7 @@ import { fetchSafeImage } from '@/lib/safeImageFetch';
 import { extractSchoolEmails } from '@/lib/parseEmails';
 import { admissionYearForGrade, gradeEmails } from '@/lib/schoolEmails';
 import { loadTicketMailMovie, sendTicketMail, type TicketMailReservation } from '@/lib/ticketMail';
-import { sendBlacklistMail } from '@/lib/blacklistMail';
+import { sendRestrictionMail } from '@/lib/restrictionMail';
 
 // 이메일 행 지우기는 대소문자를 가리지 않는다(옛 행에 대문자가 섞여 있을 수 있다).
 // ilike 패턴의 %, _, \ 는 글자 그대로 비교되게 이스케이프한다.
@@ -63,7 +63,7 @@ export async function POST(req: Request) {
             .select('id, seat_number, payment_status, student_name, student_id, email, popcorn_order, is_printed')
             .eq('movie_date', movieData?.db_date)
             .order('created_at', { ascending: false }),
-          supabaseAdmin.from('blacklist').select('email, created_at').order('created_at', { ascending: false }),
+          supabaseAdmin.from('blacklist').select('email, created_at, reason').order('created_at', { ascending: false }),
           supabaseAdmin.from('activity_logs').select('id, created_at, student_id, student_name, description').order('created_at', { ascending: false }).limit(100),
           supabaseAdmin.from('admins').select('email, added_by, created_at').order('created_at', { ascending: false }),
           supabaseAdmin.from('club_members').select('email, added_by, created_at').order('created_at', { ascending: false }),
@@ -221,6 +221,8 @@ export async function POST(req: Request) {
 
       case 'ADD_BLACKLIST_BULK': {
         const { emails, movieDate } = payload;
+        // 사유는 선택. 메일에 그대로 들어가므로 길이만 자른다(이스케이프는 메일 HTML이 한다).
+        const reason = String(payload?.reason ?? '').trim().slice(0, 300) || null;
         const cleanEmails = Array.from(new Set((emails as string[] || [])
           .map(e => String(e).trim().toLowerCase())
           .filter(e => e.endsWith('@ts.hs.kr'))));
@@ -260,7 +262,8 @@ export async function POST(req: Request) {
 
         const { error: blError } = await supabaseAdmin
           .from('blacklist')
-          .upsert(cleanEmails.map(email => ({ email })), { onConflict: 'email', ignoreDuplicates: true });
+          // 사유가 있으면 이미 차단된 사람의 사유도 새로 쓴다. 없으면 기존 행(과 사유)은 그대로 둔다.
+          .upsert(cleanEmails.map(email => (reason ? { email, reason } : { email })), { onConflict: 'email', ignoreDuplicates: !reason });
         if (blError) throw blError;
 
         // 취소된 예매는 모두 같은 활성 회차라 회차 정보는 한 번만 읽는다.
@@ -272,7 +275,7 @@ export async function POST(req: Request) {
             await sendMailSafely('Blacklist cancel', () =>
               sendTicketMail({ reservation: { ...ticket, email: r.email }, statusType: 'canceled', baseUrl, movie }));
           }
-          await sendMailSafely('Blacklist added', () => sendBlacklistMail({ email: r.email, name: r.name, added: true }));
+          await sendMailSafely('Blacklist added', () => sendRestrictionMail({ email: r.email, name: r.name, added: true, reason }));
         }
 
         return NextResponse.json({ success: true, results });
@@ -287,7 +290,7 @@ export async function POST(req: Request) {
 
         const { data: prof } = await supabaseAdmin.from('profiles').select('name').ilike('email', pattern).limit(1).maybeSingle();
         const name = prof?.name ?? email;
-        await sendMailSafely('Blacklist removed', () => sendBlacklistMail({ email, name, added: false }));
+        await sendMailSafely('Blacklist removed', () => sendRestrictionMail({ email, name, added: false }));
         return NextResponse.json({ success: true, name });
       }
 
