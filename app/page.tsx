@@ -538,7 +538,7 @@ export default function Home() {
   const handleSubmit = async () => {
     if (!profile) return showAlert("로그인이 필요합니다.");
 
-    if (blacklistedUsers.includes(profile.email)) return showAlert("블랙리스트에 등록되어 예매가 제한되었습니다.");
+    if (blacklistedUsers.includes(profile.email)) return showAlert("예매가 제한된 상태예요. 문의는 영화대교 동아리로 해 주세요.");
     if (canBook === false && !myReservation) return showAlert(NOT_INVITED_MESSAGE);
     if (pendingReview && !myReservation) return setReviewResume({ next: () => {} });
 
