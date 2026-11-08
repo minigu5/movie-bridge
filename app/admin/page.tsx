@@ -14,6 +14,8 @@ import MailTab from './_components/MailTab';
 import { scheduleUndoable } from '../../lib/undoable';
 import PeopleTab, { type PersonToggle, type AddTarget } from './_components/PeopleTab';
 import { mergePeople, type PersonRow } from '../../lib/adminPeople';
+import { renderPromoHeadlines, type PromoHeadlines } from '../../lib/promoHeadlineCanvas';
+import { formatBigDate, parseScreening } from '../../lib/promoMailHtml';
 import { applyPromoExclusions, removePromoRecipient, restorePromoRecipient, type PromoRecipient } from '../../lib/promoRecipients';
 import LogTab from './_components/LogTab';
 
@@ -618,6 +620,18 @@ function AdminPageInner() {
       deadline_date: movieInfo.deadline_date,
     };
 
+    // 큰 날짜·제목을 함렛 PNG로 한 번 그려 모든 묶음에 같이 보낸다(Gmail이 웹 글꼴을 막아서).
+    // 날짜 글자는 메일과 같은 함수로 만들어 둘이 어긋나지 않게 한다. 못 그리면 null → 메일은 고딕 글자로 간다.
+    let headlines: PromoHeadlines | null = null;
+    const screening = parseScreening(movieInfoPayload);
+    if (screening && movieInfoPayload.title) {
+      headlines = await renderPromoHeadlines({
+        dateText: formatBigDate(screening),
+        title: String(movieInfoPayload.title),
+        hasPoster: !!movieInfoPayload.poster_url,
+      });
+    }
+
     const CHUNK_SIZE = 15;
     let sent = 0;
     let failed = 0;
@@ -627,7 +641,7 @@ function AdminPageInner() {
       const chunk = recipients.slice(i, i + CHUNK_SIZE);
       let delivered: string[] = [];
       try {
-        const r = await authFetch('/api/promo', { chunk, movieInfo: movieInfoPayload });
+        const r = await authFetch('/api/promo', { chunk, movieInfo: movieInfoPayload, ...(headlines ? { headlines } : {}) });
         const d = await r.json();
         if (d.success) {
           sent += d.sent;

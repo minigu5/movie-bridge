@@ -22,9 +22,16 @@ export type PromoMailParams = {
   hasPoster: boolean;
   /** "상영까지 N일" 기준 시각. 기본은 보내는 순간. */
   now?: Date;
+  /** 큰 날짜·제목을 함렛 PNG(CID 첨부)로 넣을 때의 크기. 없으면 기본 고딕 글자로 쓴다. */
+  headlines?: PromoHeadlineRefs;
 };
 
+export type PromoHeadlineRef = { cid: string; width: number; height: number };
+export type PromoHeadlineRefs = { date: PromoHeadlineRef; title: PromoHeadlineRef };
+
 export const PROMO_POSTER_CID = 'posterImage';
+export const PROMO_DATE_CID = 'promoDate';
+export const PROMO_TITLE_CID = 'promoTitle';
 
 // 발신 주체 정보 (정보통신망법 광고성 정보 표시 의무).
 export const PROMO_SENDER_ORG = '대구과학고등학교 자율동아리 영화대교';
@@ -43,6 +50,7 @@ const C = {
   rule: '#1E1E21',
   red: '#E0443B',
 };
+// 큰 날짜·제목은 관리자 브라우저가 함렛으로 그린 PNG(headlines)를 먼저 쓰고, 없을 때만 이 고딕 글자로 쓴다.
 // 큰 날짜·제목도 본문과 같은 고딕을 쓴다. Gmail 등은 웹 글꼴(함렛)을 막아 기기 명조로 바뀌면서
 // 숫자와 한글 서체가 따로 놀아 깨져 보였다(2026-11-08). 기본 고딕은 어느 기기에서나 모양이 비슷하다.
 const FONT = "'IBM Plex Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif";
@@ -90,6 +98,17 @@ export function parseScreening(info: Pick<PromoMovieInfo, 'date_string' | 'db_da
 /** "11.14 토" */
 export function formatBigDate(s: Screening): string {
   return `${s.month}.${s.day}${s.weekday ? ` ${s.weekday}` : ''}`;
+}
+
+/** 그림으로 넣은 큰 날짜의 대체 글: "11월 14일 토요일" */
+export function formatDateAlt(s: Screening): string {
+  return `${s.month}월 ${s.day}일${s.weekday ? ` ${s.weekday}요일` : ''}`;
+}
+
+function headlineImg(ref: PromoHeadlineRef, alt: string): string {
+  const w = Math.round(ref.width);
+  const h = Math.round(ref.height);
+  return `<img src="cid:${esc(ref.cid)}" width="${w}" height="${h}" alt="${esc(alt)}" style="display:block; border:0; width:${w}px; height:${h}px;" />`;
 }
 
 /** 12시 전은 "아침 10시 10분", 이후는 "오후 2시". 0분이면 분을 뺀다. */
@@ -159,6 +178,7 @@ export function buildPromoMailHtml(p: PromoMailParams): string {
   const venue = shortVenue(info.venue);
   const timeLine = [s && s.hour !== null ? formatTimePhrase(s.hour, s.minute ?? 0) : '', venue].filter(Boolean).join(' · ');
   const deadline = formatDeadlineShort(info.deadline_date, s?.month ?? 0);
+  const hl = p.headlines;
 
   const top = `<tr><td>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
@@ -171,7 +191,7 @@ export function buildPromoMailHtml(p: PromoMailParams): string {
     ? `<tr><td style="padding-top:22px;">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
         <td style="padding-bottom:18px; border-bottom:1px solid ${C.fg};">
-          ${s ? `<div style="font-family:${FONT}; font-size:64px; font-weight:800; line-height:1; letter-spacing:-2px; color:${C.fg}; font-variant-numeric:tabular-nums;">${esc(formatBigDate(s))}</div>` : ''}
+          ${s && hl ? headlineImg(hl.date, formatDateAlt(s)) : s ? `<div style="font-family:${FONT}; font-size:64px; font-weight:800; line-height:1; letter-spacing:-2px; color:${C.fg}; font-variant-numeric:tabular-nums;">${esc(formatBigDate(s))}</div>` : ''}
           ${timeLine ? `<div style="padding-top:${s ? '4px' : '0'}; font-size:16px; line-height:1.5; color:${C.fg2};">${esc(timeLine)}</div>` : ''}
         </td>
       </tr></table>
@@ -179,7 +199,9 @@ export function buildPromoMailHtml(p: PromoMailParams): string {
     : '';
 
   const titleBlock = `<div style="font-size:12px; color:${C.fg3};">이번 상영</div>
-          <div style="padding-top:10px; font-family:${FONT}; font-size:24px; font-weight:700; line-height:1.2; color:${C.fg}; word-break:keep-all;">${safeTitle}</div>
+          ${hl && title
+            ? `<div style="padding-top:10px;">${headlineImg(hl.title, title)}</div>`
+            : `<div style="padding-top:10px; font-family:${FONT}; font-size:24px; font-weight:700; line-height:1.2; color:${C.fg}; word-break:keep-all;">${safeTitle}</div>`}
           <div style="padding-top:10px; font-size:12px; color:${C.fg3};">관람 무료 · 선착순</div>`;
 
   const feature = `<tr><td style="padding-top:22px;">

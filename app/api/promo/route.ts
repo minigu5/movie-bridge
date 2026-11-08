@@ -3,6 +3,7 @@ import { requireAdmin } from '@/lib/api-auth';
 import { sendMail } from '@/lib/mailer';
 import { fetchSafeImage } from '@/lib/safeImageFetch';
 import { brandMailAttachment } from '@/lib/brandMailAssets';
+import { parsePromoHeadlines } from '@/lib/promoHeadlineAttach';
 import { buildPromoMailHtml, buildPromoSubject, PROMO_POSTER_CID, type PromoMovieInfo } from '@/lib/promoMailHtml';
 
 type Recipient = { email: string; name?: string | null };
@@ -17,9 +18,11 @@ export async function POST(req: Request) {
     const auth = await requireAdmin(req);
     if (!auth.ok) return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
 
-    const { chunk, movieInfo } = (await req.json()) as {
+    const { chunk, movieInfo, headlines: rawHeadlines } = (await req.json()) as {
       chunk: Recipient[];
       movieInfo: MovieInfo;
+      /** 관리자 브라우저가 함렛으로 그린 큰 날짜·제목 PNG. 없거나 이상하면 글자로 보낸다. */
+      headlines?: unknown;
     };
     const baseUrl = new URL(req.url).origin;
 
@@ -38,10 +41,17 @@ export async function POST(req: Request) {
         }
       : null;
 
+    // 함렛 제목 그림: 검사를 통과한 것만 CID 첨부로 붙인다. 아니면 기본 고딕 글자로 간다.
+    const headlines = parsePromoHeadlines(rawHeadlines);
+
     // 본문은 받는 사람과 상관없이 같다(인사말에 이름을 넣지 않는다).
-    const html = buildPromoMailHtml({ movieInfo: movieInfo ?? {}, baseUrl, hasPoster: !!posterAttachment });
+    const html = buildPromoMailHtml({ movieInfo: movieInfo ?? {}, baseUrl, hasPoster: !!posterAttachment, headlines: headlines?.refs });
     const subject = buildPromoSubject(movieInfo?.title);
-    const attachments = [...(posterAttachment ? [posterAttachment] : []), brandMailAttachment('logoH')];
+    const attachments = [
+      ...(posterAttachment ? [posterAttachment] : []),
+      brandMailAttachment('logoH'),
+      ...(headlines?.attachments ?? []),
+    ];
 
     const results = await Promise.allSettled(
       chunk.map((r) =>
