@@ -24,7 +24,7 @@ interface Props {
 }
 
 const COLS = 'grid-cols-[56px_120px_minmax(120px,1fr)_100px_64px]';
-const STATUS_LABEL: Record<string, string> = { confirmed: '확정', pending: '승인 대기', group_pending: '단체 확인 중' };
+const STATUS_LABEL: Record<string, string> = { confirmed: '확정', pending: '승인 대기' };
 
 const popcornText = (order: string | null | undefined) => {
   const { arr, counts, totalPrice } = analyzePopcorn(order);
@@ -97,7 +97,7 @@ export default function LogTab(props: Props) {
                     <span className="text-xs text-dim">{t.student_id ?? '교직원'}</span>
                   </span>
                   <span className="text-[13px] text-sub truncate">{popcornText(t.popcorn_order)}</span>
-                  <span className="text-[13px] text-sub whitespace-nowrap">{STATUS_LABEL[t.payment_status] ?? t.payment_status}{t.is_group_leader ? ' · 대표' : ''}</span>
+                  <span className="text-[13px] text-sub whitespace-nowrap">{STATUS_LABEL[t.payment_status] ?? t.payment_status}</span>
                   <span className={`text-[13px] whitespace-nowrap ${t.is_printed ? 'text-ink' : 'text-mute'}`}>{t.is_printed ? '발권함' : '—'}</span>
                 </div>
               ))}

@@ -2,7 +2,7 @@
 // wrangler.jsonc의 main. OpenNext가 만든 .open-next/worker.js 앞에서 취약점 스캐너 요청(/.env, /wp-login.php,
 // /.git/config 등)을 바로 404로 돌려보낸다. 그대로 넘기면 매번 Next 서버 번들을 불러와 404 페이지를
 // 렌더해서, 사람 방문보다 봇이 무료 플랜 CPU 한도를 더 많이 쓴다.
-// 이 앱의 실제 경로(/, /admin, /print, /cancel, /group-confirm, /privacy, /api/*, /_next/*)는 걸리지 않는다.
+// 이 앱의 실제 경로(/, /admin, /print, /cancel, /privacy, /api/*, /_next/*)는 걸리지 않는다.
 // 빌드 전에는 파일이 없고 빌드 후에는 있어서 @ts-expect-error를 쓸 수 없다.
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: .open-next/worker.js는 opennextjs-cloudflare build가 만든다

@@ -60,7 +60,7 @@ export async function POST(req: Request) {
 
         const [resQ, blQ, logQ, adminQ, clubQ, kioskQ, invitedQ, profileQ] = await Promise.all([
           supabaseAdmin.from('reservations')
-            .select('id, seat_number, payment_status, student_name, student_id, email, popcorn_order, is_printed, is_group_leader')
+            .select('id, seat_number, payment_status, student_name, student_id, email, popcorn_order, is_printed')
             .eq('movie_date', movieData?.db_date)
             .order('created_at', { ascending: false }),
           supabaseAdmin.from('blacklist').select('email, created_at').order('created_at', { ascending: false }),
@@ -167,7 +167,7 @@ export async function POST(req: Request) {
       case 'FETCH_HISTORY_RESERVATIONS': {
         const { movieSettingsId } = payload;
         const { data, error } = await supabaseAdmin.from('reservations')
-          .select('id, seat_number, payment_status, student_name, student_id, email, popcorn_order, is_printed, is_group_leader')
+          .select('id, seat_number, payment_status, student_name, student_id, email, popcorn_order, is_printed')
           .eq('movie_settings_id', movieSettingsId)
           .order('created_at', { ascending: false });
         if (error) throw error;

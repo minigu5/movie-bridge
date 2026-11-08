@@ -1,5 +1,5 @@
 // 예매 홈 하단 예매 영역. PC는 좌석표 아래 가는 선 뒤의 띠, 폰은 화면 아래 고정 바다.
-// 상태(고른 좌석·내 예매·자리 이동·단체 예매·마감)에 따라 내용만 바뀐다.
+// 상태(고른 좌석·내 예매·자리 이동·마감)에 따라 내용만 바뀐다.
 type Action = { label: string; onClick(): void; disabled?: boolean };
 
 type Props = {

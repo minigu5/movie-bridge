@@ -4,7 +4,7 @@ import type { CSSProperties } from 'react';
 import { computeSeatId, getGridCols, getGridRows } from '@/lib/seatGrid';
 import type { Zone } from '@/lib/seatZones';
 
-export type SeatVisual = 'empty' | 'selected' | 'taken' | 'pending' | 'groupPending' | 'groupLeader' | 'groupMember';
+export type SeatVisual = 'empty' | 'selected' | 'taken' | 'pending';
 
 export type SeatState = { visual: SeatVisual; label: string; vip: boolean; defective: boolean };
 
@@ -24,20 +24,14 @@ const STATE_TEXT: Record<SeatVisual, string> = {
   selected: '선택함',
   taken: '예매됨',
   pending: '결제 대기',
-  groupPending: '단체 확인 중',
-  groupLeader: '단체 리더',
-  groupMember: '단체 멤버',
 };
 
 const PENDING_STRIPES = 'repeating-linear-gradient(135deg, #2A2A2E 0 4px, #333338 4px 8px)';
 
 function seatClass(s: SeatState, interactive: boolean): string {
-  const lit = s.visual === 'selected' || s.visual === 'groupLeader';
-  if (lit) return 'bg-accent text-white border border-accent font-black';
-  if (s.visual === 'groupMember') return 'bg-seat text-accent border-2 border-accent font-black';
+  if (s.visual === 'selected') return 'bg-accent text-white border border-accent font-black';
   const busy = interactive ? 'cursor-not-allowed' : '';
   if (s.visual === 'taken' || s.visual === 'pending') return `bg-taken text-mute border border-taken font-bold ${busy}`;
-  if (s.visual === 'groupPending') return `bg-taken text-mute border border-dashed border-line-bold font-bold ${busy}`;
   // 빈 좌석: 동아리 전용은 2px 흰 테두리, 불편 좌석은 점선(둘 다면 2px 흰 점선)
   const width = s.vip ? 'border-2' : 'border';
   const color = s.vip ? 'border-ink text-ink' : s.defective ? 'border-dim text-dim' : 'border-line-bold text-sub';

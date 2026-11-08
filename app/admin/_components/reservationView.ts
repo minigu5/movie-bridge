@@ -7,7 +7,6 @@ export type AdminReservation = {
   email?: string | null;
   payment_status: string;
   is_printed?: boolean | null;
-  is_group_leader?: boolean | null;
   popcorn_order?: string | null;
 };
 
@@ -41,6 +40,5 @@ export function parseSeat(seat: string | null | undefined): [string, number] {
 
 export const STATUS_WEIGHT: Record<string, number> = {
   pending: 0,
-  group_pending: 1,
-  confirmed: 2,
+  confirmed: 1,
 };

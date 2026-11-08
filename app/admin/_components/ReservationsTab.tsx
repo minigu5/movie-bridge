@@ -5,7 +5,7 @@ import { analyzePopcorn, parseSeat, POPCORN_NAMES, STATUS_WEIGHT, type AdminRese
 
 type SortKey = 'seat' | 'name' | 'status' | 'printed';
 type SortDir = 'asc' | 'desc';
-type FilterKey = 'pending' | 'confirmed' | 'group_pending' | 'unprinted';
+type FilterKey = 'pending' | 'confirmed' | 'unprinted';
 
 interface PopcornStats {
   original: number; consomme: number; caramel: number; none: number; cash: number;
@@ -32,7 +32,6 @@ const TABLE_COLS = 'grid-cols-[56px_120px_minmax(160px,1fr)_100px_64px_220px]';
 const STATUS_VIEW: Record<string, { label: string; cls: string }> = {
   pending: { label: '승인 대기', cls: 'text-accent' },
   confirmed: { label: '확정', cls: 'text-ink' },
-  group_pending: { label: '단체 확인 중', cls: 'text-sub' },
 };
 
 // "예매 마감까지 n일 n시간". 마감이 없으면 null.
@@ -67,11 +66,10 @@ export default function ReservationsTab(props: Props) {
   const counts = useMemo(() => ({
     pending: reservations.filter(r => r.payment_status === 'pending').length,
     confirmed: reservations.filter(r => r.payment_status === 'confirmed').length,
-    groupPending: reservations.filter(r => r.payment_status === 'group_pending').length,
     unprinted: reservations.filter(r => r.payment_status === 'confirmed' && !r.is_printed).length,
   }), [reservations]);
 
-  // 이번 회차에 예매 행(대기/단체 대기 포함)이 하나도 없는 동아리원. 이름은 로그인 이력(profiles)이 있을 때만 알 수 있다.
+  // 이번 회차에 예매 행(대기 포함)이 하나도 없는 동아리원. 이름은 로그인 이력(profiles)이 있을 때만 알 수 있다.
   const unbookedMembers = useMemo(() => {
     const booked = new Set(reservations.map(r => String(r.email ?? '').toLowerCase()));
     return clubMembers
@@ -121,7 +119,6 @@ export default function ReservationsTab(props: Props) {
   const stats: { key: FilterKey; label: string; value: number; accent?: boolean }[] = [
     { key: 'pending', label: '승인 대기', value: counts.pending, accent: true },
     { key: 'confirmed', label: '확정', value: counts.confirmed },
-    { key: 'group_pending', label: '단체 확인 중', value: counts.groupPending },
     { key: 'unprinted', label: '아직 발권 안 함', value: counts.unprinted },
   ];
   const subtitle = [movieTitle ? `「${movieTitle}」` : null, deadlineText(deadline)].filter(Boolean).join(' · ');
@@ -157,7 +154,7 @@ export default function ReservationsTab(props: Props) {
           {subtitle && <p className="text-sm text-dim">{subtitle}</p>}
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 border-t border-ink md:border-b md:border-line">
+        <div className="grid grid-cols-3 border-t border-ink md:border-b md:border-line">
           {stats.map((s, i) => {
             const on = filter === s.key;
             return (
@@ -168,7 +165,7 @@ export default function ReservationsTab(props: Props) {
                 onClick={() => toggleFilter(s.key)}
                 className={[
                   'flex flex-col items-start gap-1 px-3.5 py-3 md:px-4 md:py-3.5 text-left border-b border-line md:border-b-0',
-                  i % 2 === 1 ? 'border-l border-line' : i > 0 ? 'md:border-l md:border-line' : '',
+                  i > 0 ? 'border-l border-line' : '',
                   on ? 'bg-raised' : 'hover:bg-card',
                 ].join(' ')}
               >
@@ -220,7 +217,7 @@ export default function ReservationsTab(props: Props) {
                   </span>
                   <span className="text-[13px] text-sub whitespace-nowrap overflow-hidden text-ellipsis">{popcornText(ticket.popcorn_order, true)}</span>
                   <span className={`text-[13px] font-bold whitespace-nowrap ${st.cls}`}>
-                    {st.label}{ticket.is_group_leader && <span className="ml-1 font-normal text-dim">대표</span>}
+                    {st.label}
                   </span>
                   <span className={`text-[13px] whitespace-nowrap ${ticket.is_printed ? 'text-ink' : 'text-mute'}`}>{ticket.is_printed ? '발권함' : '—'}</span>
                   <span className="flex justify-end items-center gap-1.5"><Actions ticket={ticket} /></span>
