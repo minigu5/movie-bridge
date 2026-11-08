@@ -97,7 +97,7 @@ function AdminPageInner() {
   // 예약 id → 되돌리기 알림 id. 알림이 살아 있는 동안 그 줄은 "취소했어요 · 되돌리기"로 보인다.
   const [cancelToastIds, setCancelToastIds] = useState<Record<string, string>>({});
 
-  const [blacklist, setBlacklist] = useState<{email: string, created_at: string}[]>([]);
+  const [blacklist, setBlacklist] = useState<{email: string, created_at: string, reason?: string | null}[]>([]);
   // 이메일 → 차단 되돌리기 알림 id. 알림이 살아 있는 동안 그 사람은 차단된 것처럼 보인다.
   const [blockToastIds, setBlockToastIds] = useState<Record<string, string>>({});
 
@@ -406,15 +406,26 @@ function AdminPageInner() {
 
   // 차단은 5초 되돌리기(ADD_BLACKLIST_BULK는 예매를 지우고 메일을 보낸다).
   // 되돌리기 중인 차단 묶음(알림 id → 이메일). 묶음 안 한 사람만 "풀기"하면 그 사람만 뺀다.
+  // 사유는 묶음 하나에 하나: 묶음에서 누가 빠져도 나머지는 같은 사유로 차단된다.
   const pendingBlockBatches = useRef(new Map<string, Set<string>>());
-  const blockWithUndo = (emails: string[], text: string) => {
+  // 되돌리기 중인 사람의 사유(이메일 → 사유). 대기 중에도 명단에 사유를 보여 주려고 둔다.
+  const [pendingBlockReasons, setPendingBlockReasons] = useState<Record<string, string | null>>({});
+  const dropPendingReasons = (emails: string[]) => setPendingBlockReasons((prev) => {
+    const next = { ...prev };
+    for (const e of emails) delete next[e];
+    return next;
+  });
+  const blockWithUndo = (emails: string[], text: string, reasonInput?: string) => {
     const batch = new Set(emails);
+    const reason = (reasonInput ?? '').trim().slice(0, 300) || null;
+    setPendingBlockReasons((prev) => ({ ...prev, ...Object.fromEntries(emails.map((e) => [e, reason])) }));
     const handle = undoable(text, async () => {
       const targets = [...batch];
       pendingBlockBatches.current.delete(handle.id);
+      dropPendingReasons(emails);
       if (targets.length === 0) return;
-      setBlacklist((prev) => [...targets.map((email) => ({ email, created_at: now() })), ...prev.filter((b) => !targets.includes(b.email.toLowerCase()))]);
-      const data = await callAction('ADD_BLACKLIST_BULK', { emails: targets, movieDate: movieInfo?.db_date });
+      setBlacklist((prev) => [...targets.map((email) => ({ email, created_at: now(), reason })), ...prev.filter((b) => !targets.includes(b.email.toLowerCase()))]);
+      const data = await callAction('ADD_BLACKLIST_BULK', { emails: targets, movieDate: movieInfo?.db_date, reason });
       fetchAdminData();
       if (!data.success) throw new Error('차단 실패: ' + (data.error || ''));
     });
@@ -427,6 +438,7 @@ function AdminPageInner() {
     const toast = aliveUndoToast(blockToastIds[email]);
     const batch = toast && pendingBlockBatches.current.get(toast.id);
     if (!toast || !batch) return false;
+    dropPendingReasons([email]);
     if (batch.size <= 1) {
       toast.undo?.onUndo();
       pendingBlockBatches.current.delete(toast.id);
@@ -466,12 +478,12 @@ function AdminPageInner() {
   };
 
   // "사람 넣기": 예매·동아리원·관리자는 바로, 차단은 5초 되돌리기.
-  const handleAddPeople = async (target: AddTarget, emails: string[]): Promise<boolean> => {
+  const handleAddPeople = async (target: AddTarget, emails: string[], reason?: string): Promise<boolean> => {
     if (target === 'block') {
       const targets = emails.filter((e) => !isSelfEmail(e));
       if (targets.length < emails.length) notify('본인은 차단할 수 없어 뺐어요.', 'error');
       if (targets.length === 0) return false;
-      blockWithUndo(targets, `${targets.length}명을 차단했어요`);
+      blockWithUndo(targets, `${targets.length}명을 차단했어요`, reason);
       return true;
     }
     if (target === 'admin') {
@@ -667,8 +679,8 @@ function AdminPageInner() {
     invited: invitedEmails,
     club: clubMembers,
     admins,
-    blacklist: [...blacklist, ...(pendingBlockKey ? pendingBlockKey.split('\n') : []).map(email => ({ email }))],
-  }), [loginProfiles, invitedEmails, clubMembers, admins, blacklist, pendingBlockKey]);
+    blacklist: [...blacklist, ...(pendingBlockKey ? pendingBlockKey.split('\n') : []).map(email => ({ email, reason: pendingBlockReasons[email] ?? null }))],
+  }), [loginProfiles, invitedEmails, clubMembers, admins, blacklist, pendingBlockKey, pendingBlockReasons]);
   const pendingCancelIds = new Set(Object.keys(cancelToastIds).filter(id => cancelUndoToast(id)));
 
   const signOut = () => signOutAndClear().then(() => window.location.reload());
@@ -798,9 +810,9 @@ function AdminPageInner() {
             // 되돌리기 중인 차단이면 그 사람만 차단 묶음에서 뺀다(서버 호출 없음).
             if (!cancelPendingBlock(person.email)) handleUnblock(person);
           }}
-          onBlock={(person) => {
+          onBlock={(person, reason) => {
             if (isSelfEmail(person.email)) return notify('본인은 차단할 수 없어요.', 'error');
-            blockWithUndo([person.email], `${person.name ?? person.email}을(를) 차단했어요`);
+            blockWithUndo([person.email], `${person.name ?? person.email}을(를) 차단했어요`, reason);
           }}
           onSaveProfile={handleSaveProfile}
           onAdd={handleAddPeople}

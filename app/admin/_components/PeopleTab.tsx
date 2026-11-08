@@ -13,9 +13,10 @@ interface Props {
   selfEmail: string;
   onToggle(person: PersonRow, kind: PersonToggle, on: boolean): Promise<void>;
   onUnblock(person: PersonRow): void;
-  onBlock(person: PersonRow): void;
+  /** reason: 관리자가 적은 사유(빈 문자열이면 사유 없이). 제한 안내 메일에 그대로 들어간다. */
+  onBlock(person: PersonRow, reason: string): void;
   onSaveProfile(person: PersonRow, next: { name: string; studentId: string }): Promise<boolean>;
-  onAdd(target: AddTarget, emails: string[]): Promise<boolean>;
+  onAdd(target: AddTarget, emails: string[], reason?: string): Promise<boolean>;
 }
 
 const CHIPS: { key: PeopleFilter; label: string }[] = [
@@ -28,6 +29,9 @@ const CHIPS: { key: PeopleFilter; label: string }[] = [
 ];
 
 const COLS = 'lg:grid-cols-[100px_64px_minmax(0,1fr)_236px]';
+
+const REASON_MAX = 300;
+const REASON_PLACEHOLDER = '메일에 그대로 들어가요. 비워 두면 사유 없이 보내요.';
 
 const isSelfEmail = (email: string, selfEmail: string) => email.toLowerCase() === selfEmail.toLowerCase();
 
@@ -74,6 +78,7 @@ function PersonPanel({ person, selfEmail, onClose, onSaveProfile, onBlock }: { p
   const isSelf = isSelfEmail(person.email, selfEmail);
   const [name, setName] = useState(person.name ?? '');
   const [studentId, setStudentId] = useState(person.studentId ?? '');
+  const [reason, setReason] = useState('');
   const save = () => {
     if (name.trim() === (person.name ?? '') && studentId.trim() === (person.studentId ?? '')) return;
     onSaveProfile(person, { name: name.trim(), studentId: studentId.trim() });
@@ -103,11 +108,28 @@ function PersonPanel({ person, selfEmail, onClose, onSaveProfile, onBlock }: { p
       ) : (
         <span className="text-[13px] text-sub">아직 로그인하지 않은 사람이에요.</span>
       )}
+      {person.blocked && person.blockReason && (
+        <div className="flex flex-col gap-1 border-t border-line pt-4">
+          <span className="text-xs text-dim">차단 사유</span>
+          <span className="text-[13px] leading-relaxed text-sub whitespace-pre-line break-keep">{person.blockReason}</span>
+        </div>
+      )}
       {!person.blocked && (
         <div className="mt-2 flex flex-col gap-1.5 border-t border-line pt-4">
+          <label className="flex flex-col gap-1.5 text-xs text-dim"><span>사유 <span className="text-mute">(선택)</span></span>
+            <textarea
+              rows={2}
+              maxLength={REASON_MAX}
+              value={reason}
+              onChange={e => setReason(e.target.value)}
+              disabled={isSelf}
+              placeholder={REASON_PLACEHOLDER}
+              className="w-full px-3 py-2.5 bg-card border border-line text-ink text-sm resize-y outline-none focus:border-line-bold placeholder:text-mute disabled:opacity-40"
+            />
+          </label>
           <button
             type="button"
-            onClick={() => onBlock(person)}
+            onClick={() => onBlock(person, reason.trim())}
             disabled={isSelf}
             title={isSelf ? '본인은 차단할 수 없어요' : undefined}
             className="self-start h-9 text-accent text-[13px] font-bold disabled:opacity-40 disabled:cursor-not-allowed"
@@ -127,6 +149,7 @@ export default function PeopleTab({ rows, selfEmail, onToggle, onUnblock, onBloc
   const [selectedEmail, setSelectedEmail] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [addText, setAddText] = useState('');
+  const [addReason, setAddReason] = useState('');
   const [adding, setAdding] = useState(false);
   // 요청 중인 권한 버튼("이메일:종류"). ref는 같은 틱 두 번 누름도 막는다.
   const inFlight = useRef(new Set<string>());
@@ -153,7 +176,9 @@ export default function PeopleTab({ rows, selfEmail, onToggle, onUnblock, onBloc
     if (addEmails.length === 0) return;
     setAdding(true);
     try {
-      if (await onAdd(target, addEmails)) setAddText('');
+      if (target === 'block') {
+        if (await onAdd(target, addEmails, addReason.trim())) { setAddText(''); setAddReason(''); }
+      } else if (await onAdd(target, addEmails)) setAddText('');
     } finally { setAdding(false); }
   };
 
@@ -164,7 +189,7 @@ export default function PeopleTab({ rows, selfEmail, onToggle, onUnblock, onBloc
       selfEmail={selfEmail}
       onClose={() => setSelectedEmail(null)}
       onSaveProfile={onSaveProfile}
-      onBlock={(p) => { onBlock(p); }}
+      onBlock={(p, reason) => { onBlock(p, reason); }}
     />
   );
 
@@ -197,6 +222,16 @@ export default function PeopleTab({ rows, selfEmail, onToggle, onUnblock, onBloc
               ))}
               <button type="button" disabled={adding || addEmails.length === 0} onClick={() => add('block')} className="h-9 pl-3.5 pr-1 ml-1 border-l border-line text-accent text-[13px] font-bold disabled:opacity-40">차단에 넣기</button>
             </div>
+            <label className="flex flex-col gap-1.5 text-xs text-dim"><span>차단 사유 <span className="text-mute">(차단에 넣을 때만, 선택 · 모두 같은 사유)</span></span>
+              <textarea
+                rows={2}
+                maxLength={REASON_MAX}
+                value={addReason}
+                onChange={(e) => setAddReason(e.target.value)}
+                placeholder={REASON_PLACEHOLDER}
+                className="w-full px-3.5 py-2.5 bg-ground border border-line text-ink text-sm resize-y outline-none focus:border-line-bold placeholder:text-mute"
+              />
+            </label>
           </div>
         )}
 
@@ -244,7 +279,10 @@ export default function PeopleTab({ rows, selfEmail, onToggle, onUnblock, onBloc
                 {p.name ?? p.email.split('@')[0]}
               </button>
               <span className="text-[13px] text-sub text-right lg:text-left whitespace-nowrap">{p.studentId ?? (p.isStaff ? '교직원' : p.profileId ? '' : '—')}</span>
-              <span className="text-[13px] text-dim truncate min-w-0" title={p.email}>{p.email}</span>
+              <span className="flex flex-col min-w-0">
+                <span className="text-[13px] text-dim truncate" title={p.email}>{p.email}</span>
+                {p.blocked && p.blockReason && <span className="text-xs text-mute truncate" title={p.blockReason}>사유: {p.blockReason}</span>}
+              </span>
               <span className="justify-self-end lg:justify-self-start"><Toggles person={p} selfEmail={selfEmail} onToggle={toggle} onUnblock={onUnblock} isBusy={(kind) => busyToggles.has(`${p.email}:${kind}`)} /></span>
             </div>
           ))}
