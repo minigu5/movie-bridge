@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>2차 — 빛·부드러움·한마디, 빨강 톤 vs 노랑 톤</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@700&amp;family=IBM+Plex+Sans+KR:wght@400;500;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#F2F2F0}a:hover{color:#F2F2F0}
+</style>
+</helmet>
+<div style="width: 1832px; height: 1080px; box-sizing: border-box; padding: 64px; background: #232326; color: #F2F2F0; font-family: 'IBM Plex Sans KR', sans-serif; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 48px; align-content: start">
+<sc-for list="{{variants}}" as="v" hint-placeholder-count="4">
+<div style="display: flex; flex-direction: column; gap: 16px">
+<div style="height: 84px; display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 22px; font-weight: 700">{{v.name}}</span>
+<span style="font-size: 14px; color: #A1A1A6">{{v.desc}}</span>
+</div>
+<div style="position: relative; width: 390px; height: 844px; overflow: hidden; background: {{v.bg}}; color: {{v.ink}}">
+<div style="position: absolute; left: 50%; top: -270px; width: 580px; height: 580px; margin-left: -290px; border-radius: 50%; background: {{v.glow}}"></div>
+<div style="position: relative">
+<header style="padding: 10px 16px; min-height: 52px; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between">
+<img src="{{v.logo}}" alt="영화대교" style="width: 96px; height: auto; display: block">
+<nav style="display: flex; align-items: center; gap: 16px; font-size: 13px; font-weight: 500">
+<a href="#guide" style="text-decoration: none; padding: 10px 0; color: {{v.ink}}">이용 안내</a>
+<button type="button" aria-label="프로필 메뉴" style="width: 32px; height: 32px; border-radius: 16px; background: {{v.raised}}; border: 1px solid {{v.lineStrong}}; padding: 0"></button>
+</nav>
+</header>
+<main style="padding: 18px 16px; display: flex; flex-direction: column; gap: 28px">
+<section style="display: flex; flex-direction: column; gap: 12px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 16px; padding: 16px; box-shadow: 0 24px 48px -16px rgba(0, 0, 0, 0.7)">
+<div style="display: flex; align-items: center; justify-content: space-between">
+<span style="font-size: 13px; font-weight: 500; color: {{v.sub}}">이번 상영작</span>
+<a href="#past" style="font-size: 12px; color: {{v.sub}}; text-decoration: none; padding: 8px 0">‹ 지난 상영작</a>
+</div>
+<sc-if value="{{v.small}}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; gap: 14px; align-items: stretch">
+<img src="/_blob/edcbfc78dd01e504611fe46c5383692d" alt="영화 포스터" style="width: 84px; height: 120px; flex: 0 0 84px; object-fit: cover; border: 1px solid {{v.line}}; border-radius: 10px; box-shadow: 0 0 25px rgba(0, 0, 0, 0.6); display: block">
+<div style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; justify-content: space-between; gap: 8px">
+<h1 style="margin: 0; font-family: 'Hahmlet', serif; font-size: 24px; line-height: 1.15; font-weight: 700; letter-spacing: -0.02em; word-break: keep-all">악마는 프라다를 입는다</h1>
+<div style="display: flex; flex-direction: column; border-top: 1px solid {{v.lineStrong}}; font-size: 13px">
+<div style="padding: 6px 0; border-bottom: 1px solid {{v.line}}; display: flex; gap: 10px"><span style="flex: 0 0 48px; color: {{v.dim}}; font-size: 12px">일시</span><span style="font-weight: 500">11월 14일 (토) 10:10</span></div>
+<div style="padding: 6px 0; border-bottom: 1px solid {{v.line}}; display: flex; gap: 10px"><span style="flex: 0 0 48px; color: {{v.dim}}; font-size: 12px">장소</span><span style="font-weight: 500">중강당 · 12세이상</span></div>
+<div style="padding: 6px 0; border-bottom: 1px solid {{v.line}}; display: flex; gap: 10px"><span style="flex: 0 0 48px; color: {{v.dim}}; font-size: 12px">마감</span><span style="font-weight: 500">11월 13일 오후 10:00</span></div>
+</div>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{v.big}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center">
+<img src="/_blob/edcbfc78dd01e504611fe46c5383692d" alt="영화 포스터" style="width: 176px; height: 251px; object-fit: cover; border: 1px solid {{v.line}}; border-radius: 10px; box-shadow: 0 0 25px rgba(0, 0, 0, 0.6); display: block">
+<h1 style="margin: 0; font-family: 'Hahmlet', serif; font-size: 26px; line-height: 1.15; font-weight: 700; letter-spacing: -0.02em; word-break: keep-all">악마는 프라다를 입는다</h1>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 14px; font-weight: 500">11월 14일 (토) 10:10 · 중강당</span>
+<span style="font-size: 12px; color: {{v.dim}}">12세이상 · 예매 마감 11월 13일 오후 10:00</span>
+</div>
+</div>
+</sc-if>
+</section>
+<section style="display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; align-items: baseline; justify-content: space-between; border-bottom: 1px solid {{v.lineStrong}}; padding-bottom: 8px">
+<h2 style="margin: 0; font-size: 17px; font-weight: 700">어디 앉을래요?</h2>
+<span style="font-size: 12px; color: {{v.dim}}">남은 좌석 <b style="color: {{v.ink}}">87</b>석</span>
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px">
+<button type="button" style="height: 56px; background: transparent; border: 1px solid {{v.lineStrong}}; border-radius: 12px; color: {{v.sub}}; font: inherit; font-size: 15px; font-weight: 700">44석</button>
+<button type="button" style="height: 56px; background: {{v.ink}}; border: 1px solid {{v.ink}}; border-radius: 12px; color: {{v.bg}}; font: inherit; font-size: 15px; font-weight: 700">43석</button>
+</div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 5px">
+<sc-for list="{{v.rows}}" as="row" hint-placeholder-count="4">
+<div style="display: flex; gap: 5px">
+<sc-for list="{{row}}" as="s" hint-placeholder-count="7">
+<span style="width: 46px; height: 46px; box-sizing: border-box; border-radius: 10px 10px 5px 5px; background: {{s.bg}}; border: {{s.bd}}; color: {{s.fg}}; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center">{{s.t}}</span>
+</sc-for>
+</div>
+</sc-for>
+</div>
+</section>
+</main>
+</div>
+<div style="position: absolute; left: 0; right: 0; bottom: 0; background: {{v.bar}}; border-top: 1px solid {{v.line}}; padding: 10px 16px 18px; display: flex; align-items: center; gap: 16px">
+<div style="display: flex; flex-direction: column">
+<span style="font-size: 11px; color: {{v.dim}}">선택한 좌석</span>
+<span style="font-size: 22px; font-weight: 700; color: {{v.accent}}">B31</span>
+</div>
+<button type="button" style="flex: 1 1 auto; height: 50px; border: 0; border-radius: 12px; background: {{v.ink}}; color: {{v.bg}}; font: inherit; font-size: 16px; font-weight: 700; letter-spacing: 0.04em">예매하기</button>
+</div>
+</div>
+</div>
+</sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1832,"height":1080}}'>
+class Component extends DCLogic {
+renderVals() {
+const tones = {
+red: {
+label: '빨강 톤', logo: '/_blob/976905e12f405266a67d8c882838e311',
+bg: '#0F0F10', ink: '#F2F2F0', sub: '#A1A1A6', dim: '#8E8E93', line: '#2A2A2E', lineStrong: '#3A3A3F', raised: '#26262A', bar: 'rgba(24, 24, 26, 0.92)',
+seat: '#1A1A1C', seatBd: '#4A4A50', seatFg: '#A1A1A6', taken: '#2A2A2E', takenFg: '#6E6E73',
+accent: '#E0443B', accentFg: '#FFFFFF',
+glow: 'radial-gradient(circle, rgba(242, 170, 60, 0.32) 0%, rgba(242, 170, 60, 0.12) 38%, rgba(242, 170, 60, 0) 70%)'
+},
+amber: {
+label: '노랑 톤', logo: '/_blob/47e2d37624b74967823cb27e82613909',
+bg: '#0E0D0B', ink: '#F4F1EA', sub: '#ABA69C', dim: '#938E84', line: '#2C2A26', lineStrong: '#3D3A34', raised: '#27251F', bar: 'rgba(25, 24, 21, 0.92)',
+seat: '#1B1A17', seatBd: '#4D4942', seatFg: '#ABA69C', taken: '#2C2A26', takenFg: '#736E65',
+accent: '#F2B544', accentFg: '#1A1408',
+glow: 'radial-gradient(circle, rgba(242, 181, 68, 0.34) 0%, rgba(242, 181, 68, 0.13) 38%, rgba(242, 181, 68, 0) 70%)'
+}
+};
+const list = [
+{ key: 'A', tone: 'red', big: false },
+{ key: 'B', tone: 'red', big: true },
+{ key: 'C', tone: 'amber', big: false },
+{ key: 'D', tone: 'amber', big: true }
+];
+const variants = list.map(item => {
+const t = tones[item.tone];
+const empty = { bg: t.seat, bd: '1px solid ' + t.seatBd, fg: t.seatFg };
+const taken = { bg: t.taken, bd: '1px solid ' + t.taken, fg: t.takenFg };
+const picked = { bg: t.accent, bd: '1px solid ' + t.accent, fg: t.accentFg };
+const rows = [0, 1, 2, 3].map(r => Array.from({ length: 7 }, (_, c) => {
+const kind = r === 0 && c === 2 ? picked : (r * 5 + c * 3) % 7 === 0 ? taken : empty;
+return { ...kind, t: 'B' + (29 + r * 7 + c) };
+}));
+return {
+...t, rows,
+name: item.key + ' · ' + t.label + ' · ' + (item.big ? '큰 포스터' : '작은 포스터'),
+desc: item.tone === 'amber' ? '바탕·글씨·선·로고 점까지 전부 노란빛 쪽으로' : '지금 색 그대로, 빛만 노랗게',
+small: !item.big, big: item.big
+};
+});
+return { variants };
+}
+}
+</script>
+</body>
+</html>

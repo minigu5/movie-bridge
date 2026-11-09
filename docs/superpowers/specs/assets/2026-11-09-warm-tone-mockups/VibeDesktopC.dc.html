@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>C안 · PC</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@700&amp;family=IBM+Plex+Sans+KR:wght@400;500;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#F4F1EA}a:hover{color:#FFFFFF}
+</style>
+</helmet>
+<div style="position: relative; overflow: hidden; background: #0E0D0B; color: #F4F1EA; font-family: 'IBM Plex Sans KR', sans-serif; min-height: 1640px">
+<div style="position: absolute; left: 50%; top: -560px; width: 1040px; height: 1040px; margin-left: -520px; border-radius: 50%; background: radial-gradient(circle, rgba(242, 181, 68, 0.30) 0%, rgba(242, 181, 68, 0.11) 38%, rgba(242, 181, 68, 0) 70%)"></div>
+<div style="position: relative">
+<header>
+<div style="max-width: 1120px; margin: 0 auto; padding: 16px 40px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px">
+<img src="/_blob/47e2d37624b74967823cb27e82613909" alt="영화대교" style="width: 148px; height: auto; display: block">
+<nav style="display: flex; flex-wrap: wrap; align-items: center; gap: 28px; font-size: 14px; font-weight: 500">
+<a href="#guide" style="text-decoration: none; padding: 10px 0">이용 안내</a>
+<button type="button" aria-label="프로필 메뉴" style="width: 34px; height: 34px; border-radius: 17px; background: #27251F; border: 1px solid #3D3A34; padding: 0"></button>
+</nav>
+</div>
+</header>
+<main style="max-width: 1120px; margin: 0 auto; padding: 40px 40px 80px; display: flex; flex-direction: column; gap: 72px">
+<section style="display: flex; flex-wrap: wrap; gap: 48px; align-items: flex-end; padding: 32px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 20px; box-shadow: 0 32px 64px -24px rgba(0, 0, 0, 0.75)">
+<img src="/_blob/edcbfc78dd01e504611fe46c5383692d" alt="영화 포스터" style="flex: 0 0 260px; width: 260px; height: 372px; object-fit: cover; border: 1px solid #2C2A26; border-radius: 12px; box-shadow: 0 0 32px rgba(0, 0, 0, 0.6); display: block">
+<div style="flex: 999 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 28px">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 16px">
+<span style="font-size: 15px; font-weight: 500; color: #ABA69C">이번 상영작</span>
+<a href="#past" style="font-size: 14px; color: #ABA69C; text-decoration: none; padding: 6px 0">‹ 지난 상영작</a>
+</div>
+<h1 style="margin: 0; font-family: 'Hahmlet', serif; font-size: 56px; line-height: 1.08; font-weight: 700; letter-spacing: -0.02em; word-break: keep-all">악마는 프라다를 입는다</h1>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid #3D3A34">
+<div style="padding: 14px 0; border-bottom: 1px solid #2C2A26; display: flex; gap: 20px"><span style="flex: 0 0 72px; color: #938E84; font-size: 13px; line-height: 22px">일시</span><span style="font-size: 15px; font-weight: 500">2026년 11월 14일 (토) 10:10 ~ 12:00</span></div>
+<div style="padding: 14px 0 14px 20px; border-bottom: 1px solid #2C2A26; display: flex; gap: 20px"><span style="flex: 0 0 72px; color: #938E84; font-size: 13px; line-height: 22px">장소</span><span style="font-size: 15px; font-weight: 500">대구과학고등학교 중강당</span></div>
+<div style="padding: 14px 0; border-bottom: 1px solid #2C2A26; display: flex; gap: 20px"><span style="flex: 0 0 72px; color: #938E84; font-size: 13px; line-height: 22px">관람 등급</span><span style="font-size: 15px; font-weight: 500">12세이상관람가</span></div>
+<div style="padding: 14px 0 14px 20px; border-bottom: 1px solid #2C2A26; display: flex; gap: 20px"><span style="flex: 0 0 72px; color: #938E84; font-size: 13px; line-height: 22px">예매 마감</span><span style="font-size: 15px; font-weight: 500">11월 13일 오후 10:00</span></div>
+</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 20px">
+<a href="#seats" style="display: inline-flex; align-items: center; justify-content: center; height: 52px; padding: 0 32px; background: #F4F1EA; color: #0E0D0B; border-radius: 12px; font-size: 15px; font-weight: 700; text-decoration: none; letter-spacing: 0.04em">좌석 선택하기</a>
+<span style="font-size: 14px; color: #938E84">남은 좌석 <b style="color: #F4F1EA">{{left}}</b>석</span>
+</div>
+</div>
+</section>
+<section id="seats" style="display: flex; flex-direction: column; gap: 28px">
+<div style="display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 16px; border-bottom: 1px solid #3D3A34; padding-bottom: 14px">
+<h2 style="margin: 0; font-size: 22px; font-weight: 700">어디 앉을래요?</h2>
+<div style="display: flex; flex-wrap: wrap; gap: 18px; font-size: 13px; color: #ABA69C">
+<span style="display: flex; align-items: center; gap: 6px"><span style="display: block; width: 16px; height: 16px; box-sizing: border-box; border: 2px solid #F4F1EA; border-radius: 5px 5px 2px 2px; background: #1B1A17"></span>동아리 전용</span>
+<span style="display: flex; align-items: center; gap: 6px"><span style="display: block; width: 16px; height: 16px; box-sizing: border-box; border: 1px dashed #938E84; border-radius: 5px 5px 2px 2px; background: #1B1A17"></span>불편 좌석</span>
+</div>
+</div>
+<div style="overflow-x: auto">
+<div style="width: max-content; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 0">
+<div style="width: 70%; display: flex; flex-direction: column; align-items: center; gap: 8px; margin-bottom: 32px">
+<span style="display: block; width: 100%; height: 3px; background: #F4F1EA; border-radius: 2px; box-shadow: 0 6px 28px rgba(242, 181, 68, 0.35)"></span>
+<span style="font-size: 12px; letter-spacing: 0.6em; color: #938E84; margin-left: 0.6em">스크린</span>
+</div>
+<sc-for list="{{rows}}" as="row" hint-placeholder-count="9">
+<div style="display: flex; align-items: center; gap: 4px">
+<sc-for list="{{row.seats}}" as="s" hint-placeholder-count="14">
+<button type="button" aria-label="{{s.text}}" style="display: flex; align-items: center; justify-content: center; width: 48px; height: 56px; padding: 0; box-sizing: border-box; border-radius: 12px 12px 6px 6px; background: {{s.bg}}; border: {{s.bd}}; color: {{s.fg}}; font: inherit; font-size: {{s.fs}}; font-weight: 700; letter-spacing: -0.03em; white-space: nowrap; overflow: hidden; margin-right: {{s.mr}}; visibility: {{s.vis}}">{{s.text}}</button>
+</sc-for>
+</div>
+</sc-for>
+</div>
+</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 20px; padding: 20px 24px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px">
+<div style="display: flex; align-items: baseline; gap: 16px">
+<span style="font-size: 13px; color: #938E84">선택한 좌석</span>
+<span style="font-size: 32px; font-weight: 700; letter-spacing: -0.02em; color: #F2B544">{{picked}}</span>
+<span style="font-size: 14px; color: #ABA69C">E열 · 오른쪽 구역</span>
+</div>
+<button type="button" style="height: 56px; padding: 0 56px; border: 0; border-radius: 12px; background: #F4F1EA; color: #0E0D0B; font: inherit; font-size: 16px; font-weight: 700; letter-spacing: 0.04em">예매하기</button>
+</div>
+</section>
+</main>
+<footer style="border-top: 1px solid #2C2A26">
+<div style="max-width: 1120px; margin: 0 auto; padding: 28px 40px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; font-size: 13px; color: #938E84">
+<img src="/_blob/47e2d37624b74967823cb27e82613909" alt="영화대교" style="width: 88px; height: auto; display: block; opacity: 0.8">
+<span>중강당 상영관</span>
+</div>
+</footer>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1640}}'>
+class Component extends DCLogic {
+renderVals() {
+const names = ['김도윤', '이서연', '박지호', '최하은', '정민재', '강예린', '윤시우', '장서아', '한지민', '오태윤'];
+const theme = {
+empty: { bg: '#1B1A17', bd: '1px solid #4D4942', fg: '#ABA69C' },
+booked: { bg: '#2C2A26', bd: '1px solid #2C2A26', fg: '#736E65' },
+vip: { bg: '#1B1A17', bd: '2px solid #F4F1EA', fg: '#F4F1EA' },
+selected: { bg: '#F2B544', bd: '1px solid #F2B544', fg: '#1A1408' },
+defect: { bg: '#1B1A17', bd: '1px dashed #938E84', fg: '#938E84' }
+};
+let left = 0;
+let n = 0;
+const rows = 'ABCDEFGHI'.split('').map((label, r) => ({
+label,
+seats: Array.from({ length: 14 }, (_, c) => {
+const block = c < 7 ? 'A' : 'B';
+const num = r * 7 + (c % 7) + 1;
+const missing = block === 'B' && num === 63;
+const id = block + String(num).padStart(2, '0');
+let kind = 'empty';
+if (r <= 2 && c >= 4 && c <= 9) kind = 'vip';
+if ((r * 5 + c * 3) % 7 === 0 && r > 0) kind = 'booked';
+if (r === 4 && c === 9) kind = 'selected';
+if (r === 6 && c === 1) kind = 'defect';
+let text = id;
+if (kind === 'booked') { text = names[n % names.length]; n += 1; }
+if (!missing && kind !== 'booked') left += 1;
+return { ...theme[kind], text, fs: kind === 'booked' ? '13px' : '15px', mr: c === 6 ? '44px' : '0px', vis: missing ? 'hidden' : 'visible' };
+})
+}));
+return { rows, left, picked: 'B31' };
+}
+}
+</script>
+</body>
+</html>
