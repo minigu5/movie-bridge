@@ -44,7 +44,7 @@ export default function AccountInfo({ inline = false }: { inline?: boolean }) {
   return (
     <div className="bg-raised border border-line px-3 py-2.5 flex items-center justify-between gap-2 text-left">
       <div className="min-w-0">
-        <p className="text-[10px] text-dim font-bold tracking-widest mb-0.5">계좌번호</p>
+        <p className="text-[11px] text-dim font-medium mb-0.5">계좌번호</p>
         <p className="text-[12px] md:text-[13px] font-mono text-ink truncate">{ACCOUNT_LABEL}</p>
       </div>
       <button

@@ -149,7 +149,7 @@ export default function ConsentStatusCard() {
                   type="button"
                   onClick={withdraw}
                   disabled={phase === 'working'}
-                  className="h-10 px-4 bg-ink hover:bg-white text-ground text-sm font-bold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="h-10 px-4 border border-danger text-danger hover:bg-danger/10 text-sm font-bold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {phase === 'working' ? '처리 중…' : '철회합니다'}
                 </button>
