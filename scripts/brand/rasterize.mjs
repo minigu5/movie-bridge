@@ -42,7 +42,7 @@ export async function rasterize(srcDir = SRC_DIR, outDir = join(SRC_DIR, "png"))
       // 아이콘은 투명이면 탭 색에 묻히므로 브랜드 바탕색을 깐다
       await sharp(buf, { density: 600 })
         .resize(n, n)
-        .flatten({ background: "#0F0F10" })
+        .flatten({ background: "#0E0D0B" })
         .png()
         .toFile(file);
       written.push(file);

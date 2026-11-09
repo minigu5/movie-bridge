@@ -10,8 +10,8 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "..", "..");
 const OUT = join(ROOT, "lib", "brandMailAssets.ts");
 
-const BG = "#0F0F10";   // 메일 바탕
-const CARD = "#18181A"; // 티켓 카드
+const BG = "#0E0D0B";   // 메일 바탕
+const CARD = "#1A1916"; // 티켓 카드
 const LOGO_W = 150;     // 메일에서 로고 표시 폭(px)
 const NOTCH = { w: 14, h: 28 }; // 절취선 홈 표시 크기(px)
 

@@ -22,9 +22,10 @@ from fontTools.pens.transformPen import TransformPen
 from fontTools.ttLib import TTFont
 
 TEXT = "영화대교"
-INK_DARK = "#F2F2F0"  # 어두운 바탕용 글씨
+INK_DARK = "#F4F1EA"  # 어두운 바탕용 글씨
 INK_LIGHT = "#111111"  # 밝은 바탕용 글씨
-RED = "#E0443B"
+DOT_DARK = "#F2B544"  # 어두운 바탕용 '화' 점(노랑)
+DOT_LIGHT = "#B07A12"  # 밝은 바탕용 '화' 점. 흰 바탕에서 노랑이 묻혀서 진한 호박색
 HWA, HWA_DOT = 1, 3  # "화" 글리프와 그 안의 ㅏ 점 컨투어 번호
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -91,14 +92,14 @@ def load_glyphs(path: str) -> list:
     return glyphs
 
 
-def place(g: dict, idx: int, x: float, y: float, k: float, ink: str, red: str) -> str:
+def place(g: dict, idx: int, x: float, y: float, k: float, ink: str, dot: str) -> str:
     """글리프 외곽 상자의 왼쪽 위를 (x, y)에 두고 배율 k로 그린다."""
     x0, _, _, y1 = g["bb"]
     tr = f'translate({num(x - x0 * k)} {num(y + y1 * k)}) scale({k:.5f})'
     if idx == HWA:
         body = " ".join(d for j, d in enumerate(g["ds"]) if j != HWA_DOT)
         return (f'<path transform="{tr}" fill="{ink}" d="{body}"/>'
-                f'<path transform="{tr}" fill="{red}" d="{g["ds"][HWA_DOT]}"/>')
+                f'<path transform="{tr}" fill="{dot}" d="{g["ds"][HWA_DOT]}"/>')
     return f'<path transform="{tr}" fill="{ink}" d="{" ".join(g["ds"])}"/>'
 
 
@@ -107,25 +108,25 @@ def wrap(body: str, x: float, y: float, w: float, h: float) -> str:
             f'width="{num(w)}" height="{num(h)}"><title>영화대교</title>{body}</svg>\n')
 
 
-def square(glyphs: list, ink: str, red: str) -> str:
+def square(glyphs: list, ink: str, dot: str) -> str:
     cell, gap = 100.0, 10.0
     k = min(min(cell / (g["bb"][2] - g["bb"][0]), cell / (g["bb"][3] - g["bb"][1])) for g in glyphs)
     parts = []
     for i, g in enumerate(glyphs):
         gw, gh = (g["bb"][2] - g["bb"][0]) * k, (g["bb"][3] - g["bb"][1]) * k
-        parts.append(place(g, i, (i % 2) * (cell + gap) + (cell - gw) / 2, (i // 2) * (cell + gap) + (cell - gh) / 2, k, ink, red))
+        parts.append(place(g, i, (i % 2) * (cell + gap) + (cell - gw) / 2, (i // 2) * (cell + gap) + (cell - gh) / 2, k, ink, dot))
     size = 2 * cell + gap
     frame = f'<rect x="-26" y="-26" width="{num(size + 52)}" height="{num(size + 52)}" fill="none" stroke="{ink}" stroke-width="2.4"/>'
     return wrap(frame + "".join(parts), -27.2, -27.2, size + 54.4, size + 54.4)
 
 
-def horizontal(glyphs: list, ink: str, red: str) -> str:
+def horizontal(glyphs: list, ink: str, dot: str) -> str:
     h = 100.0
     k = h / max(g["bb"][3] - g["bb"][1] for g in glyphs)
     x, parts = 0.0, []
     for i, g in enumerate(glyphs):
         gh = (g["bb"][3] - g["bb"][1]) * k
-        parts.append(place(g, i, x, (h - gh) / 2, k, ink, red))
+        parts.append(place(g, i, x, (h - gh) / 2, k, ink, dot))
         x += (g["bb"][2] - g["bb"][0]) * k + h * 0.10
     w = x - h * 0.10
     lines = (f'<rect x="0" y="-24.4" width="{num(w)}" height="2.4" fill="{ink}"/>'
@@ -133,29 +134,29 @@ def horizontal(glyphs: list, ink: str, red: str) -> str:
     return wrap(lines + "".join(parts), 0, -24.4, w, h + 48.8)
 
 
-def single(glyphs: list, idx: int, ink: str, red: str, stroke: float = 7.0, scale: float = 0.86) -> str:
+def single(glyphs: list, idx: int, ink: str, dot: str, stroke: float = 7.0, scale: float = 0.86) -> str:
     """작은 크기용 후보: 한 글자 + 테두리. stroke를 키우면 16·32px에서도 테두리가 남는다."""
     g, cell = glyphs[idx], 100.0
     k = min(cell / (g["bb"][2] - g["bb"][0]), cell / (g["bb"][3] - g["bb"][1])) * scale
     gw, gh = (g["bb"][2] - g["bb"][0]) * k, (g["bb"][3] - g["bb"][1]) * k
     m = 14 + stroke / 2
     frame = f'<rect x="{num(-14)}" y="{num(-14)}" width="{num(cell + 28)}" height="{num(cell + 28)}" fill="none" stroke="{ink}" stroke-width="{num(stroke)}"/>'
-    return wrap(frame + place(g, idx, (cell - gw) / 2, (cell - gh) / 2, k, ink, red), -m, -m, cell + 2 * m, cell + 2 * m)
+    return wrap(frame + place(g, idx, (cell - gw) / 2, (cell - gh) / 2, k, ink, dot), -m, -m, cell + 2 * m, cell + 2 * m)
 
 
 def build(out_dir: str = OUT_DIR) -> list:
     glyphs = load_glyphs(ensure_font())
     files = {
-        "logo-square-dark.svg": square(glyphs, INK_DARK, RED),
-        "logo-square-light.svg": square(glyphs, INK_LIGHT, RED),
-        "logo-horizontal-dark.svg": horizontal(glyphs, INK_DARK, RED),
-        "logo-horizontal-light.svg": horizontal(glyphs, INK_LIGHT, RED),
-        # 흑백 감열 영수증용: 빨간 점도 검정
+        "logo-square-dark.svg": square(glyphs, INK_DARK, DOT_DARK),
+        "logo-square-light.svg": square(glyphs, INK_LIGHT, DOT_LIGHT),
+        "logo-horizontal-dark.svg": horizontal(glyphs, INK_DARK, DOT_DARK),
+        "logo-horizontal-light.svg": horizontal(glyphs, INK_LIGHT, DOT_LIGHT),
+        # 흑백 감열 영수증용: 점도 검정
         "logo-horizontal-mono.svg": horizontal(glyphs, INK_LIGHT, INK_LIGHT),
-        "icon-hwa-dark.svg": single(glyphs, HWA, INK_DARK, RED),
-        "icon-yeong-dark.svg": single(glyphs, 0, INK_DARK, RED),
-        "icon-hwa-dark-small.svg": single(glyphs, HWA, INK_DARK, RED, stroke=12, scale=0.80),
-        "icon-yeong-dark-small.svg": single(glyphs, 0, INK_DARK, RED, stroke=12, scale=0.80),
+        "icon-hwa-dark.svg": single(glyphs, HWA, INK_DARK, DOT_DARK),
+        "icon-yeong-dark.svg": single(glyphs, 0, INK_DARK, DOT_DARK),
+        "icon-hwa-dark-small.svg": single(glyphs, HWA, INK_DARK, DOT_DARK, stroke=12, scale=0.80),
+        "icon-yeong-dark-small.svg": single(glyphs, 0, INK_DARK, DOT_DARK, stroke=12, scale=0.80),
     }
     os.makedirs(out_dir, exist_ok=True)
     paths = []

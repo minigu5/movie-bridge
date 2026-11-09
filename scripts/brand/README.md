@@ -5,9 +5,10 @@
 ## 다시 만들기
 
 ```bash
-python3 -m venv .venv-brand && .venv-brand/bin/pip install fonttools
+python3 -m venv .venv-brand && .venv-brand/bin/pip install fonttools pytest
 .venv-brand/bin/python scripts/brand/build_logo.py     # public/brand/*.svg
 node scripts/brand/rasterize.mjs                       # public/brand/png/*.png
+node scripts/brand/gen-mail-assets.mjs                 # lib/brandMailAssets.ts (메일 로고·절취선 홈)
 ```
 
 - 폰트는 커밋하지 않는다. 처음 실행할 때 Google Fonts에서 "영화대교" 네 글자 서브셋만 받아 `scripts/brand/.cache/`에 둔다.
@@ -24,7 +25,7 @@ node scripts/brand/rasterize.mjs                       # public/brand/png/*.png
 | `png/*@2x.png`, `png/*@3x.png` | 메일처럼 SVG를 못 쓰는 곳 |
 | `png/icon-*-{16,32,48,180,512}.png` | 파비콘·앱 아이콘 후보 |
 
-`dark`는 어두운 바탕에 올리는 버전(글씨 #F2F2F0), `light`는 밝은 바탕용(글씨 #111111)이다. 빨강(#E0443B)은 "화"의 점 하나뿐이다.
+`dark`는 어두운 바탕에 올리는 버전(글씨 #F4F1EA, 점 노랑 #F2B544), `light`는 밝은 바탕용(글씨 #111111, 점 진한 호박색 #B07A12)이다. 색은 "화"의 점 하나뿐이고, `mono`(감열 영수증)는 점도 검정이다. 아이콘 PNG와 메일 자산의 바탕은 #0E0D0B, 티켓 카드는 #1A1916이다. 색 규칙은 `docs/superpowers/specs/2026-11-09-warm-tone-design.md`를 따른다.
 
 ## 테스트
 
