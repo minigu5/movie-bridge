@@ -15,8 +15,8 @@ export type HeadlineImage = {
 
 export type PromoHeadlines = { date: HeadlineImage; title: HeadlineImage };
 
-export const HEADLINE_BG = '#0F0F10';
-export const HEADLINE_FG = '#F2F2F0';
+export const HEADLINE_BG = '#0E0D0B';
+export const HEADLINE_FG = '#F4F1EA';
 export const HEADLINE_SCALE = 3;
 /** 메일 본문 폭 440 − 좌우 여백 28×2. */
 export const HEADLINE_MAX_W = 384;

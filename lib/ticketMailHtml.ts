@@ -28,24 +28,24 @@ export type TicketMailView = {
 export const TICKET_POSTER_CID = 'poster';
 
 const C = {
-  bg: '#0F0F10',
-  card: '#18181A',
-  posterEmpty: '#26262A',
-  fg: '#F2F2F0',
-  fg2: '#A1A1A6',
-  fg3: '#8E8E93',
-  muted: '#6E6E73',
-  line: '#2A2A2E',
-  dash: '#3A3A40',
-  red: '#E0443B',
+  bg: '#0E0D0B',
+  card: '#1A1916',
+  posterEmpty: '#27251F',
+  fg: '#F4F1EA',
+  fg2: '#ABA69C',
+  fg3: '#938E84',
+  muted: '#736E65',
+  line: '#2C2A26',
+  dash: '#3D3A34',
+  accent: '#F2B544',
 };
 const FONT = "'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif";
 const POSTER_W = 104;
 const POSTER_H = 148;
 
 const STATUS: Record<TicketMailStatus, { line: string; lineColor: string; stamp: string; stampColor: string; note: string }> = {
-  confirmed: { line: '예매가 확정되었어요', lineColor: C.fg, stamp: '확정', stampColor: C.red, note: '상영 당일 이 화면을 보여주세요' },
-  changed: { line: '좌석이 바뀌었어요', lineColor: C.fg, stamp: '변경', stampColor: C.red, note: '상영 당일 이 화면을 보여주세요' },
+  confirmed: { line: '예매가 확정되었어요', lineColor: C.fg, stamp: '확정', stampColor: C.accent, note: '상영 당일 이 화면을 보여주세요' },
+  changed: { line: '좌석이 바뀌었어요', lineColor: C.fg, stamp: '변경', stampColor: C.accent, note: '상영 당일 이 화면을 보여주세요' },
   pending: { line: '입금을 기다리고 있어요', lineColor: C.fg, stamp: '입금 대기', stampColor: C.fg2, note: '입금이 확인되면 확정 메일을 보내요' },
   canceled: { line: '예매가 취소되었어요', lineColor: C.fg2, stamp: '취소', stampColor: C.muted, note: '이 좌석은 다른 분이 예매할 수 있어요' },
 };
@@ -79,7 +79,7 @@ export function buildTicketMailHtml(v: TicketMailView): string {
 
   const seatStyle = canceled
     ? `font-size:54px; font-weight:900; line-height:1; letter-spacing:-1px; font-variant-numeric:tabular-nums; color:${C.muted}; text-decoration:line-through`
-    : `font-size:54px; font-weight:900; line-height:1; letter-spacing:-1px; font-variant-numeric:tabular-nums; color:${C.red}`;
+    : `font-size:54px; font-weight:900; line-height:1; letter-spacing:-1px; font-variant-numeric:tabular-nums; color:${C.accent}`;
 
   const card = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="${C.card}" style="background-color:${C.card}; border-radius:16px;">
     <tr><td style="padding:14px 20px 0 20px;">
@@ -144,7 +144,7 @@ export function buildTicketMailHtml(v: TicketMailView): string {
     ? ''
     : `<tr><td align="center" style="padding-top:28px;">
         <div style="font-size:13px; color:${C.fg2}; margin-bottom:14px;">예매 확인이나 변경은 웹사이트에서 할 수 있어요.</div>
-        <a href="${baseUrl}" style="display:inline-block; background-color:${C.fg}; color:${C.bg}; padding:13px 24px; border-radius:8px; font-size:14px; font-weight:700; text-decoration:none;">웹사이트에서 확인하기</a>
+        <a href="${baseUrl}" style="display:inline-block; background-color:${C.fg}; color:${C.bg}; padding:13px 24px; border-radius:12px; font-size:14px; font-weight:700; text-decoration:none;">웹사이트에서 확인하기</a>
       </td></tr>`;
 
   return `<!DOCTYPE html>

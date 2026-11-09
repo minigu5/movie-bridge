@@ -11,13 +11,13 @@ export type RestrictionMailParams = {
 };
 
 const C = {
-  bg: '#0F0F10',
-  card: '#18181A',
-  fg: '#F2F2F0',
-  fg2: '#A1A1A6',
-  fg3: '#8E8E93',
-  muted: '#6E6E73',
-  line: '#2A2A2E',
+  bg: '#0E0D0B',
+  card: '#1A1916',
+  fg: '#F4F1EA',
+  fg2: '#ABA69C',
+  fg3: '#938E84',
+  muted: '#736E65',
+  line: '#2C2A26',
 };
 const FONT = "'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif";
 

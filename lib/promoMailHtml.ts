@@ -1,6 +1,6 @@
 // lib/promoMailHtml.ts
 // 홍보(초청) 메일 제목과 본문 HTML. 방향 "다 · 날짜가 먼저, 곧 상영": 큰 날짜 → 포스터와 제목 → 인사말 → 흰 버튼.
-// 티켓 메일(lib/ticketMailHtml.ts)과 같은 어두운 바탕·빨강은 꼭 필요한 곳(상영까지 N일)만.
+// 티켓 메일(lib/ticketMailHtml.ts)과 같은 어두운 바탕·노랑은 꼭 필요한 곳(상영까지 N일)만.
 // 메일 앱 호환을 위해 table + 인라인 스타일만 쓴다. flex·position·background-image는 앱마다 깨진다.
 // 의존성이 없는 순수 함수라 node --test lib/promoMailHtml.test.mjs 로 바로 검증한다.
 
@@ -42,13 +42,13 @@ export const PROMO_GREETING = [
 ] as const;
 
 const C = {
-  bg: '#0F0F10',
-  fg: '#F2F2F0',
-  fg2: '#A1A1A6',
-  fg3: '#8E8E93',
-  muted: '#6E6E73',
-  rule: '#1E1E21',
-  red: '#E0443B',
+  bg: '#0E0D0B',
+  fg: '#F4F1EA',
+  fg2: '#ABA69C',
+  fg3: '#938E84',
+  muted: '#736E65',
+  rule: '#201F1B',
+  accent: '#F2B544',
 };
 // 큰 날짜·제목은 관리자 브라우저가 함렛으로 그린 PNG(headlines)를 먼저 쓰고, 없을 때만 이 고딕 글자로 쓴다.
 // 큰 날짜·제목도 본문과 같은 고딕을 쓴다. Gmail 등은 웹 글꼴(함렛)을 막아 기기 명조로 바뀌면서
@@ -183,7 +183,7 @@ export function buildPromoMailHtml(p: PromoMailParams): string {
   const top = `<tr><td>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
       <td valign="middle"><img src="cid:logoH" width="100" height="39" alt="영화대교" style="display:block; border:0; width:100px; height:39px;" /></td>
-      ${dday ? `<td valign="middle" align="right" style="text-align:right; font-size:12px; font-weight:700; letter-spacing:1.2px; color:${C.red}; white-space:nowrap;" data-dday>${dday}</td>` : ''}
+      ${dday ? `<td valign="middle" align="right" style="text-align:right; font-size:12px; font-weight:700; letter-spacing:1.2px; color:${C.accent}; white-space:nowrap;" data-dday>${dday}</td>` : ''}
     </tr></table>
   </td></tr>`;
 
@@ -239,7 +239,7 @@ export function buildPromoMailHtml(p: PromoMailParams): string {
             <tr><td style="padding-top:22px; font-size:14px; line-height:1.7; color:${C.fg2}; word-break:keep-all;">${PROMO_GREETING[0]}<br>${PROMO_GREETING[1]}</td></tr>
             <tr><td style="padding-top:22px;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
-                <td align="center" bgcolor="${C.fg}" style="background-color:${C.fg};"><a href="${baseUrl}" style="display:block; padding:17px 0; background-color:${C.fg}; color:${C.bg}; font-size:16px; font-weight:700; text-align:center; text-decoration:none;">좌석 고르러 가기</a></td>
+                <td align="center" bgcolor="${C.fg}" style="background-color:${C.fg}; border-radius:12px;"><a href="${baseUrl}" style="display:block; padding:17px 0; background-color:${C.fg}; border-radius:12px; color:${C.bg}; font-size:16px; font-weight:700; text-align:center; text-decoration:none;">좌석 고르러 가기</a></td>
               </tr></table>
             </td></tr>
             ${deadline ? `<tr><td align="center" style="padding-top:12px; font-size:12px; color:${C.fg3}; text-align:center;">예매 마감 ${esc(deadline)}</td></tr>` : ''}
