@@ -87,7 +87,7 @@ function ConsentSheet({ updated, onComplete }: { updated: boolean; onComplete: (
         role="dialog"
         aria-modal="true"
         aria-labelledby="privacy-consent-title"
-        className="bg-card border border-line rounded-lg w-full max-w-md flex flex-col max-h-[calc(100dvh-2rem)]"
+        className="bg-card border border-line rounded-2xl w-full max-w-md flex flex-col max-h-[calc(100dvh-2rem)]"
       >
         <header className="px-6 pt-6 pb-4 text-center">
           <ShieldCheck className="w-8 h-8 text-sub mx-auto mb-3" />

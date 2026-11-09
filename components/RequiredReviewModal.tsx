@@ -50,7 +50,7 @@ export default function RequiredReviewModal({ movie, profile, onDone, onClose }:
 
   return (
     <div className="fixed inset-0 bg-ground/90 flex items-center justify-center p-4 z-[70] overflow-y-auto">
-      <div className="bg-card border border-line rounded-lg p-6 w-full max-w-md my-8">
+      <div className="bg-card border border-line rounded-2xl p-6 w-full max-w-md my-8">
         <h2 className="text-xl font-black text-ink mb-1 flex items-center gap-2"><PenLine className="w-5 h-5 text-dim" /> 지난 영화 후기 남기기</h2>
         <p className="text-sub text-sm mb-5 leading-relaxed">
           지난 상영작을 보셨네요! 후기를 남기면 바로 이어서 예매할 수 있어요.

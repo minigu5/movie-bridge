@@ -761,7 +761,7 @@ export default function Home() {
                 {isProfileMenuOpen && (
                   <>
                     <div className="fixed inset-0 z-20" onClick={() => setIsProfileMenuOpen(false)} />
-                    <div className="absolute right-0 mt-2 w-48 bg-card border border-line z-30">
+                    <div className="absolute right-0 mt-2 w-48 bg-card border border-line rounded-xl overflow-hidden z-30">
                       <div className="px-3 py-3 border-b border-line">
                         <p className="text-ink text-sm font-bold truncate">{profile.name}</p>
                         <p className="text-dim text-xs truncate">{profile.email}</p>
@@ -892,7 +892,7 @@ export default function Home() {
                       setPopcornList([...myPopcorns, 'none']);
                       setIsAddPopcornMode(true);
                       setIsModalOpen(true);
-                    }} className="shrink-0 h-8 px-3 border border-line-strong hover:border-line-bold text-ink text-xs font-bold transition-colors flex items-center gap-1"><Popcorn className="w-3.5 h-3.5" /> 더 고르기</button>
+                    }} className="shrink-0 h-8 px-3 rounded-lg border border-line-strong hover:border-line-bold text-ink text-xs font-bold transition-colors flex items-center gap-1"><Popcorn className="w-3.5 h-3.5" /> 더 고르기</button>
                   </dd></div>
                 </dl>
               </div>
@@ -908,7 +908,7 @@ export default function Home() {
                   setPopcornList(['none']);
                   setIsAddPopcornMode(true);
                   setIsModalOpen(true);
-                }} className="w-full md:w-auto md:self-start h-11 px-5 border border-line-strong hover:border-line-bold text-ink font-bold transition-colors text-sm flex items-center justify-center gap-1.5"><Popcorn className="w-4 h-4" /> 팝콘 추가 (결제 필요)</button>
+                }} className="w-full md:w-auto md:self-start h-11 px-5 rounded-xl border border-line-strong hover:border-line-bold text-ink font-bold transition-colors text-sm flex items-center justify-center gap-1.5"><Popcorn className="w-4 h-4" /> 팝콘 추가 (결제 필요)</button>
               )}
             </>
           )}
