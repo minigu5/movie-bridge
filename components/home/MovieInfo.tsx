@@ -28,6 +28,13 @@ function formatDeadline(deadline?: string | null) {
   return new Date(deadline).toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
+// "2026년 11월 14일 (토) 10:10 ~ 12:00"을 날짜와 시간으로 나눠, 칸이 좁으면 "~"에서가 아니라 둘 사이에서만 줄을 바꾼다.
+function DateTime({ value }: { value: string }) {
+  const m = value.match(/^(.*?\))\s+(.+)$/);
+  if (!m) return <>{value}</>;
+  return <><span className="whitespace-nowrap">{m[1]}</span> <span className="whitespace-nowrap">{m[2]}</span></>;
+}
+
 function Badge({ isPast, small }: { isPast: boolean; small?: boolean }) {
   return (
     <span className={`font-medium text-sub ${small ? 'text-[13px]' : 'text-[15px]'}`}>{isPast ? '지난 상영작' : '이번 상영작'}</span>
@@ -51,8 +58,8 @@ export default function MovieInfo({ movie, isPast, canGoOlder, canGoNewer, onOld
   const shortVenue = movie.venue.replace(/^대구과학고등학교\s*/, '');
   const nav = { canGoOlder, canGoNewer, onOlder, onNewer };
 
-  const pcCells: { label: string; value: string }[] = [
-    { label: '일시', value: movie.date_string },
+  const pcCells: { label: string; value: React.ReactNode }[] = [
+    { label: '일시', value: <DateTime value={movie.date_string} /> },
     { label: '장소', value: movie.venue },
     { label: '관람 등급', value: movie.age_rating },
   ];
@@ -122,7 +129,7 @@ export default function MovieInfo({ movie, isPast, canGoOlder, canGoNewer, onOld
             <dl className="flex flex-col border-t border-line-strong text-[13px]">
               <div className="py-1.5 border-b border-line flex gap-2.5">
                 <dt className="w-12 shrink-0 text-dim text-xs leading-5">일시</dt>
-                <dd className="font-medium min-w-0 break-keep">{movie.date_string}</dd>
+                <dd className="font-medium min-w-0 break-keep"><DateTime value={movie.date_string} /></dd>
               </div>
               <div className="py-1.5 border-b border-line flex gap-2.5">
                 <dt className="w-12 shrink-0 text-dim text-xs leading-5">장소</dt>
