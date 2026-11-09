@@ -1,4 +1,4 @@
-// 예매 홈 하단 예매 영역. PC는 좌석표 아래 가는 선 뒤의 띠, 폰은 화면 아래 고정 바다.
+// 예매 홈 하단 예매 영역. PC는 좌석표 아래 둥근 띠 카드, 폰은 화면 아래 반투명 고정 바다.
 // 상태(고른 좌석·내 예매·자리 이동·마감)에 따라 내용만 바뀐다.
 type Action = { label: string; onClick(): void; disabled?: boolean };
 
@@ -12,13 +12,13 @@ type Props = {
 
 export default function BookingBar({ seatLabel, hint, primary, secondary = [] }: Props) {
   return (
-    <div className="fixed bottom-0 inset-x-0 z-30 bg-card border-t border-line px-4 pt-2.5 pb-[calc(10px+env(safe-area-inset-bottom))] md:static md:z-auto md:bg-transparent md:px-0 md:pt-6 md:pb-0">
+    <div className="fixed bottom-0 inset-x-0 z-30 bg-[rgba(25,24,21,0.92)] border-t border-line px-4 pt-2.5 pb-[calc(10px+env(safe-area-inset-bottom))] md:static md:z-auto md:bg-white/[0.04] md:border md:border-white/[0.08] md:rounded-2xl md:px-6 md:py-5">
       <div className="flex items-center gap-3 md:flex-wrap md:justify-between md:gap-5">
         <div className="min-w-0 flex flex-col md:flex-row md:items-baseline md:gap-4">
           {seatLabel ? (
             <>
               {hint && <span className="text-[11px] md:text-[13px] text-dim whitespace-nowrap truncate">{hint}</span>}
-              <span className="text-[22px] md:text-[32px] leading-tight font-black tracking-[-0.02em] whitespace-nowrap truncate">{seatLabel}</span>
+              <span className="text-[22px] md:text-[32px] leading-tight font-black tracking-[-0.02em] text-accent whitespace-nowrap truncate">{seatLabel}</span>
             </>
           ) : (
             <span className="text-sm md:text-[15px] text-sub whitespace-nowrap truncate py-3 md:py-0">{hint}</span>
@@ -32,7 +32,7 @@ export default function BookingBar({ seatLabel, hint, primary, secondary = [] }:
                 type="button"
                 onClick={a.onClick}
                 disabled={a.disabled}
-                className={`h-[50px] md:h-14 px-3 md:px-6 border border-line-strong text-sm md:text-[15px] font-bold whitespace-nowrap transition-colors hover:border-line-bold disabled:text-mute disabled:cursor-not-allowed disabled:hover:border-line-strong ${a.danger ? 'text-accent' : 'text-ink'}`}
+                className={`h-[50px] md:h-14 px-3 md:px-6 rounded-xl border border-line-strong text-sm md:text-[15px] font-bold whitespace-nowrap transition-colors hover:border-line-bold disabled:text-mute disabled:cursor-not-allowed disabled:hover:border-line-strong ${a.danger ? 'text-danger' : 'text-ink'}`}
               >
                 {a.label}
               </button>
@@ -42,7 +42,7 @@ export default function BookingBar({ seatLabel, hint, primary, secondary = [] }:
                 type="button"
                 onClick={primary.onClick}
                 disabled={primary.disabled}
-                className="flex-1 md:flex-none h-[50px] md:h-14 px-4 md:px-14 bg-ink text-ground text-base font-bold tracking-[0.04em] whitespace-nowrap transition-colors hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex-1 md:flex-none h-[50px] md:h-14 px-4 md:px-14 rounded-xl bg-ink text-ground text-base font-bold tracking-[0.04em] whitespace-nowrap transition-colors hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {primary.label}
               </button>

@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0F0F10;
-  --foreground: #F2F2F0;
+  --background: #0E0D0B;
+  --foreground: #F4F1EA;
 }
 
 @theme inline {
@@ -11,26 +11,40 @@
   --font-title: var(--font-hahmlet), serif;
   --font-sans: var(--font-plex-sans-kr), ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 
-  /* 브랜드 색 토큰 (스펙 §3). 사이트는 항상 어둡다. */
-  --color-ground: #0F0F10;
-  --color-card: #18181A;
-  --color-ink: #F2F2F0;
-  --color-sub: #A1A1A6;
-  --color-dim: #8E8E93;
-  --color-mute: #6E6E73;
-  --color-line: #2A2A2E;
-  --color-line-strong: #3A3A3F;
-  --color-line-bold: #4A4A50;
-  --color-seat: #1A1A1C;
-  --color-taken: #2A2A2E;
-  --color-raised: #1E1E21;
-  --color-accent: #E0443B;
+  /* 브랜드 색 토큰 (2026-11-09 노랑 톤). 사이트는 항상 어둡다. */
+  --color-ground: #0E0D0B;
+  --color-card: #1A1916;
+  --color-ink: #F4F1EA;
+  --color-sub: #ABA69C;
+  --color-dim: #938E84;
+  --color-mute: #736E65;
+  --color-line: #2C2A26;
+  --color-line-strong: #3D3A34;
+  --color-line-bold: #4D4942;
+  --color-seat: #1B1A17;
+  --color-taken: #2C2A26;
+  --color-raised: #201F1B;
+  --color-accent: #F2B544;
+  /* 노랑 바탕 위 글씨 */
+  --color-accent-ink: #1A1408;
+  /* 위험 동작·오류만 */
+  --color-danger: #E2674E;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+}
+
+/* 예매 홈 맨 위에 고인 노란 빛. 크기·위치는 page.tsx 클래스, 색만 여기서. */
+.home-glow {
+  background: radial-gradient(circle, rgba(242, 181, 68, 0.34) 0%, rgba(242, 181, 68, 0.13) 38%, rgba(242, 181, 68, 0) 70%);
+}
+@media (width >= 48rem) {
+  .home-glow {
+    background: radial-gradient(circle, rgba(242, 181, 68, 0.30) 0%, rgba(242, 181, 68, 0.11) 38%, rgba(242, 181, 68, 0) 70%);
+  }
 }
 
 /* 🌟 [과거 상영 회차 열람] 영화 카드 좌우 전환 시 화면 가장자리에서 슬라이드해 들어오는 연출 */

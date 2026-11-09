@@ -26,10 +26,10 @@ const STATE_TEXT: Record<SeatVisual, string> = {
   pending: '결제 대기',
 };
 
-const PENDING_STRIPES = 'repeating-linear-gradient(135deg, #2A2A2E 0 4px, #333338 4px 8px)';
+const PENDING_STRIPES = 'repeating-linear-gradient(135deg, #2C2A26 0 4px, #35332E 4px 8px)';
 
 function seatClass(s: SeatState, interactive: boolean): string {
-  if (s.visual === 'selected') return 'bg-accent text-white border border-accent font-black';
+  if (s.visual === 'selected') return 'bg-accent text-accent-ink border border-accent font-black';
   const busy = interactive ? 'cursor-not-allowed' : '';
   if (s.visual === 'taken' || s.visual === 'pending') return `bg-taken text-mute border border-taken font-bold ${busy}`;
   // 빈 좌석: 동아리 전용은 2px 흰 테두리, 불편 좌석은 점선(둘 다면 2px 흰 점선)
@@ -81,10 +81,10 @@ export default function SeatGrid({ isGrandHall, zone, seatState, onSeatClick, di
       ? (zone.gridCol === 0 ? 'left' : zone.gridCol === 2 ? 'right' : 'center')
       : (zone.gridCol === 0 ? 'left' : 'right');
   const screenBg = side === 'right'
-    ? 'linear-gradient(90deg, #F2F2F0 0%, #F2F2F0 40%, rgba(242, 242, 240, 0.15) 100%)'
+    ? 'linear-gradient(90deg, #F4F1EA 0%, #F4F1EA 40%, rgba(244, 241, 234, 0.15) 100%)'
     : side === 'left'
-      ? 'linear-gradient(270deg, #F2F2F0 0%, #F2F2F0 40%, rgba(242, 242, 240, 0.15) 100%)'
-      : '#F2F2F0';
+      ? 'linear-gradient(270deg, #F4F1EA 0%, #F4F1EA 40%, rgba(244, 241, 234, 0.15) 100%)'
+      : '#F4F1EA';
   const screenLabel = side === 'right' ? '← 스크린 가운데' : side === 'left' ? '스크린 가운데 →' : '스크린';
   const interactive = !!onSeatClick && !disabled;
 
@@ -94,7 +94,7 @@ export default function SeatGrid({ isGrandHall, zone, seatState, onSeatClick, di
         <div
           className={`flex flex-col gap-2 ${zone ? 'w-full mb-2.5' : 'w-[70%] mb-8'} ${side === 'right' ? 'items-start' : side === 'left' ? 'items-end' : 'items-center'}`}
         >
-          <span className="block w-full h-[3px] rounded-sm" style={{ background: screenBg }} />
+          <span className="block w-full h-[3px] rounded-sm" style={{ background: screenBg, boxShadow: '0 6px 28px rgba(242, 181, 68, 0.35)' }} />
           <span className={`text-dim ${zone ? 'text-[11px] tracking-[0.3em]' : 'text-xs tracking-[0.6em] ml-[0.6em]'}`}>{screenLabel}</span>
         </div>
 

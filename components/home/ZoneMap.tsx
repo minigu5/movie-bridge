@@ -38,7 +38,7 @@ export default function ZoneMap({ isGrandHall, active, counts, onSelect }: Props
                 onClick={() => onSelect(z.key)}
                 aria-label={counts ? `${name} 구역 · ${counts[z.key]}석 남음` : `${name} 구역`}
                 aria-pressed={on}
-                className={`${height} flex items-center justify-center p-0 rounded-lg border transition-colors whitespace-nowrap ${isGrandHall ? 'text-sm' : 'text-[15px]'} ${on ? 'bg-ink text-ground border-ink font-black' : 'border-line-strong text-sub font-bold hover:border-line-bold'}`}
+                className={`${height} flex items-center justify-center p-0 rounded-xl border transition-colors whitespace-nowrap ${isGrandHall ? 'text-sm' : 'text-[15px]'} ${on ? 'bg-ink text-ground border-ink font-black' : 'border-line-strong text-sub font-bold hover:border-line-bold'}`}
               >
                 {counts ? `${counts[z.key]}석` : name}
               </button>

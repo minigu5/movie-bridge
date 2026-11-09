@@ -24,17 +24,17 @@ const PENDING_SEAT_KEY = 'pending_seat_selection';
 
 // 폰(md 미만)은 좌석을 구역 하나씩 보여 준다.
 const PHONE_QUERY = '(max-width: 767px)';
-// 창(모달) 공통 모양: 덮개, 상자, 흰 주버튼(각진 모서리), 테두리 보조버튼
+// 창(모달) 공통 모양: 덮개, 둥근 상자(16px), 흰 주버튼·테두리 보조버튼(12px)
 const OVERLAY = 'fixed inset-0 bg-ground/90 flex items-center justify-center p-4';
-const BOX = 'bg-card border border-line rounded-lg';
+const BOX = 'bg-card border border-line rounded-2xl';
 // 팝콘 맛(예매 popcorn_order에 저장되는 키와 같음)
 const POPCORN_FLAVORS = [
   { key: 'original', label: '오리지널 버터' },
   { key: 'consomme', label: '콘소메' },
   { key: 'caramel', label: '카라멜' },
 ] as const;
-const BTN_PRIMARY = 'h-12 px-4 bg-ink text-ground font-bold hover:bg-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed';
-const BTN_SECONDARY = 'h-12 px-4 border border-line-strong text-ink font-bold hover:border-line-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed';
+const BTN_PRIMARY = 'h-12 px-4 rounded-xl bg-ink text-ground font-bold hover:bg-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed';
+const BTN_SECONDARY = 'h-12 px-4 rounded-xl border border-line-strong text-ink font-bold hover:border-line-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed';
 
 function subscribePhone(onChange: () => void) {
   const mq = window.matchMedia(PHONE_QUERY);
@@ -120,7 +120,7 @@ export default function Home() {
 
   const showAlert = (message: string, isError = true) => setAlertInfo({ message, isError });
   const NOT_INVITED_MESSAGE = "초대받은 분만 예매할 수 있습니다.\n초대가 필요하면 '영화대교' 동아리에 문의해주세요.";
-  // danger: 확인 버튼을 위험 동작(빨간 글씨)으로 보여 준다(예매 취소 등).
+  // danger: 확인 버튼을 위험 동작(danger 글씨)으로 보여 준다(예매 취소 등).
   const showConfirm = (message: string, onConfirm: () => void, danger = false) => setConfirmInfo({ message, onConfirm, danger });
   const showSuccess = (title: string, message: string) => setSuccessInfo({ title, message });
 
@@ -727,8 +727,10 @@ export default function Home() {
   }
 
   return (
-    <div className={`min-h-screen bg-ground text-ink select-none overflow-x-hidden ${viewingPast ? '' : 'pb-[calc(72px+env(safe-area-inset-bottom))] md:pb-0'}`}>
-      <header className="border-b border-line">
+    <div className={`relative min-h-screen bg-ground text-ink select-none overflow-x-hidden ${viewingPast ? '' : 'pb-[calc(72px+env(safe-area-inset-bottom))] md:pb-0'}`}>
+      {/* 맨 위 가운데에 고인 노란 빛. 스크롤하면 같이 올라가고 클릭은 막지 않는다. */}
+      <div aria-hidden className="home-glow absolute left-1/2 -translate-x-1/2 -top-[270px] w-[580px] h-[580px] md:-top-[560px] md:w-[1040px] md:h-[1040px] rounded-full pointer-events-none" />
+      <header className="relative">
         <div className="max-w-[1120px] mx-auto px-4 md:px-10 py-2.5 md:py-4 flex items-center justify-between gap-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/brand/logo-horizontal-dark.svg" alt="영화대교" className="w-24 md:w-[148px] h-auto block shrink-0" />
@@ -776,7 +778,7 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="max-w-[1120px] mx-auto px-4 md:px-10 pt-[18px] md:pt-14 pb-20 flex flex-col gap-7 md:gap-[72px]">
+      <main className="relative max-w-[1120px] mx-auto px-4 md:px-10 pt-[18px] md:pt-14 pb-20 flex flex-col gap-7 md:gap-[72px]">
       <div className="flex flex-col gap-6">
         <div key={viewingPast ? `past-${pastIndex}` : 'current'} className={navDirection === 'older' ? 'movie-card-enter-from-left' : 'movie-card-enter-from-right'}>
           <MovieInfo
@@ -794,11 +796,11 @@ export default function Home() {
 
         {/* 직전 상영작을 본 사람은 후기를 남겨야 다음 영화를 예매할 수 있다(0021). */}
         {!viewingPast && profile && pendingReview && !myReservation && !isClosed && (
-          <div className="border border-line bg-card p-4 flex items-center justify-between gap-3 flex-wrap">
+          <div className="rounded-2xl border border-line bg-card p-4 flex items-center justify-between gap-3 flex-wrap">
             <p className="text-ink text-sm md:text-base font-bold flex items-center gap-2 break-keep">
               <PenLine className="w-4 h-4 shrink-0 text-dim" /> 지난 상영작 「{pendingReview.title}」 후기를 남겨야 예매할 수 있어요.
             </p>
-            <button type="button" onClick={() => setReviewResume({ next: () => {} })} className="h-10 px-4 bg-ink text-ground hover:bg-white text-sm font-bold transition-colors shrink-0">
+            <button type="button" onClick={() => setReviewResume({ next: () => {} })} className="h-10 px-4 rounded-xl bg-ink text-ground hover:bg-white text-sm font-bold transition-colors shrink-0">
               후기 쓰기
             </button>
           </div>
@@ -823,7 +825,7 @@ export default function Home() {
         </div>
       ) : viewingPast && pastMovie && !pastHasReservations ? null : viewingPast && pastMovie ? (
         <section className="flex flex-col gap-3.5 md:gap-7">
-          <div className="flex flex-wrap items-baseline justify-between gap-4 border-b border-ink pb-2 md:pb-3.5">
+          <div className="flex flex-wrap items-baseline justify-between gap-4 border-b border-line-strong pb-2 md:pb-3.5">
             <h2 className="m-0 text-[17px] md:text-[22px] font-black">좌석 배치</h2>
             {!isPhone && <SeatLegend showVip={pastVipSeats.size > 0} />}
           </div>
@@ -838,8 +840,8 @@ export default function Home() {
       ) : (
       <>
       <section id="seats" className="flex flex-col gap-3.5 md:gap-7 scroll-mt-4">
-        <div className="flex flex-wrap items-baseline justify-between gap-4 border-b border-ink pb-2 md:pb-3.5">
-          <h2 className="m-0 text-[17px] md:text-[22px] font-black">좌석 선택</h2>
+        <div className="flex flex-wrap items-baseline justify-between gap-4 border-b border-line-strong pb-2 md:pb-3.5">
+          <h2 className="m-0 text-[17px] md:text-[22px] font-black">어디 앉을래요?</h2>
           {isPhone ? (
             <span className="text-xs text-dim">남은 좌석 <b className="text-ink">{remainingSeats}</b>석</span>
           ) : (
@@ -874,7 +876,7 @@ export default function Home() {
         <section className="flex flex-col gap-4">
           {myReservation.status === 'pending' ? (
             <>
-              <div className="flex items-baseline justify-between flex-wrap gap-2 border-b border-ink pb-2.5 md:pb-3.5">
+              <div className="flex items-baseline justify-between flex-wrap gap-2 border-b border-line-strong pb-2.5 md:pb-3.5">
                 <h2 className="m-0 text-[17px] md:text-[22px] font-black flex items-center gap-2"><Hourglass className="w-5 h-5 shrink-0" /> 입금 안내</h2>
                 <span className="text-sm text-dim">QR이나 계좌로 입금해 주세요</span>
               </div>
@@ -919,7 +921,7 @@ export default function Home() {
 
       </main>
 
-      <footer className="border-t border-line">
+      <footer className="relative border-t border-line">
         <div className="max-w-[1120px] mx-auto px-4 md:px-10 py-6 flex flex-wrap items-center justify-between gap-3 text-xs text-dim">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/brand/logo-horizontal-dark.svg" alt="영화대교" className="w-[68px] md:w-[88px] h-auto block opacity-80" />
@@ -1055,7 +1057,7 @@ export default function Home() {
                     <span className="text-sub">예매 완료</span>
                   </div>
                   <div className="flex items-center gap-2 text-xs bg-raised p-2 border border-line">
-                    <div className="w-5 h-6 bg-taken rounded-t-md rounded-b-sm flex-shrink-0" style={{ backgroundImage: 'repeating-linear-gradient(135deg, #2A2A2E 0 3px, #333338 3px 6px)' }}></div>
+                    <div className="w-5 h-6 bg-taken rounded-t-md rounded-b-sm flex-shrink-0" style={{ backgroundImage: 'repeating-linear-gradient(135deg, #2C2A26 0 3px, #35332E 3px 6px)' }}></div>
                     <span className="text-sub">팝콘 결제 대기</span>
                   </div>
                 </div>
@@ -1111,7 +1113,7 @@ export default function Home() {
                   setConfirmInfo(null);
                   confirmInfo.onConfirm();
                 }}
-                className={confirmInfo.danger ? `${BTN_SECONDARY.replace('text-ink', 'text-accent')} flex-1` : `${BTN_PRIMARY} flex-1`}>확인</button>
+                className={confirmInfo.danger ? `${BTN_SECONDARY.replace('text-ink', 'text-danger')} flex-1` : `${BTN_PRIMARY} flex-1`}>확인</button>
             </div>
           </div>
         </div>

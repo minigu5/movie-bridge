@@ -13,7 +13,7 @@ export default function SeatLegend({ showVip, showPending, className = '' }: Pro
   const items: { label: string; swatch: string; style?: CSSProperties }[] = [];
   if (showVip) items.push({ label: '동아리 전용', swatch: 'bg-seat border-2 border-ink' });
   items.push({ label: '불편 좌석', swatch: 'bg-seat border border-dashed border-dim' });
-  if (showPending) items.push({ label: '결제 대기', swatch: 'bg-taken', style: { backgroundImage: 'repeating-linear-gradient(135deg, #2A2A2E 0 3px, #333338 3px 6px)' } });
+  if (showPending) items.push({ label: '결제 대기', swatch: 'bg-taken', style: { backgroundImage: 'repeating-linear-gradient(135deg, #2C2A26 0 3px, #35332E 3px 6px)' } });
   return (
     <div className={`flex flex-wrap gap-x-3.5 gap-y-1.5 md:gap-x-[18px] text-[11px] md:text-[13px] text-sub ${className}`}>
       {items.map(it => (
