@@ -84,7 +84,7 @@ export function ToastStack({ toasts, aboveSaveBar = false }: { toasts: Toast[]; 
         <div
           key={t.id}
           role={t.tone === 'error' ? 'alert' : 'status'}
-          className={`pointer-events-auto flex items-center justify-between gap-3 py-2.5 pl-3.5 pr-2.5 bg-[#26262A] border border-line-strong ${t.tone === 'error' ? 'border-l-2 border-l-accent' : ''}`}
+          className={`pointer-events-auto flex items-center justify-between gap-3 py-2.5 pl-3.5 pr-2.5 bg-[#27251F] border border-line-strong ${t.tone === 'error' ? 'border-l-2 border-l-danger' : ''}`}
         >
           <span className="text-[13px] text-ink min-w-0 break-keep">{t.text}</span>
           {t.undo ? (

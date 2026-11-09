@@ -129,7 +129,7 @@ function ConsentSheet({ updated, onComplete }: { updated: boolean; onComplete: (
             />
           ))}
 
-          {error && <p className="text-xs text-accent">{error}</p>}
+          {error && <p className="text-xs text-danger">{error}</p>}
         </div>
 
         <footer className="px-6 pt-4 pb-6 flex flex-col gap-2">

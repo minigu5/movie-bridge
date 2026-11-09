@@ -138,24 +138,24 @@ export default function KioskPrintPage() {
   if (!isAdminAuth) {
     // ... (기존 로그인 UI 화면 동일하므로 생략하지 않고 그대로 포함합니다.)
     return (
-      <div className="min-h-screen bg-[#0F0F10] text-[#F2F2F0] flex flex-col items-center justify-center p-4">
+      <div className="min-h-screen bg-[#0E0D0B] text-[#F4F1EA] flex flex-col items-center justify-center p-4">
         <div className="w-full max-w-sm flex flex-col items-center gap-6 text-center">
           <img src="/brand/logo-horizontal-dark.svg" alt="영화대교" className="w-[150px] h-auto" />
           <div className="flex flex-col gap-1.5">
             <h1 className="text-2xl font-black tracking-tight">발권기 열기</h1>
-            <p className="text-[#A1A1A6] text-sm">현장 발권을 시작하려면 관리자 비밀번호를 입력해 주세요.</p>
+            <p className="text-[#ABA69C] text-sm">현장 발권을 시작하려면 관리자 비밀번호를 입력해 주세요.</p>
           </div>
           <input
             type="password"
             value={adminPasswordInput}
             onChange={(e) => setAdminPasswordInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()}
-            className="w-full h-14 px-4 rounded-xl bg-[#18181A] text-[#F2F2F0] border border-[#2A2A2E] text-center text-lg outline-none focus:border-[#F2F2F0]"
+            className="w-full h-14 px-4 rounded-xl bg-[#1A1916] text-[#F4F1EA] border border-[#2C2A26] text-center text-lg outline-none focus:border-[#F4F1EA]"
             placeholder="비밀번호"
           />
           <button
             onClick={handleAdminLogin}
-            className="w-full h-14 rounded-xl bg-[#F2F2F0] text-[#0F0F10] font-black text-lg hover:bg-white transition-colors"
+            className="w-full h-14 rounded-xl bg-[#F4F1EA] text-[#0E0D0B] font-black text-lg hover:bg-white transition-colors"
           >
             발권기 열기
           </button>
@@ -174,7 +174,7 @@ export default function KioskPrintPage() {
         }
       `}} />
 
-      <div className="min-h-screen bg-[#0F0F10] text-[#F2F2F0] flex flex-col items-center justify-center p-4 print:bg-white print:text-black print:min-h-0 print:p-0 print:block select-none">
+      <div className="min-h-screen bg-[#0E0D0B] text-[#F4F1EA] flex flex-col items-center justify-center p-4 print:bg-white print:text-black print:min-h-0 print:p-0 print:block select-none">
 
         {!ticketData ? (
           <div className="w-full max-w-[420px] flex flex-col gap-7 print:hidden">
@@ -182,17 +182,17 @@ export default function KioskPrintPage() {
               <img src="/brand/logo-horizontal-dark.svg" alt="영화대교" className="w-[170px] h-auto" />
               <div className="flex flex-col gap-1.5">
                 <h1 className="text-[32px] font-black tracking-tight">현장 발권</h1>
-                <p className="text-[#A1A1A6] text-[15px]">예매한 티켓을 영수증으로 뽑아요.</p>
+                <p className="text-[#ABA69C] text-[15px]">예매한 티켓을 영수증으로 뽑아요.</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#18181A] border border-[#2A2A2E]">
+            <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#1A1916] border border-[#2C2A26]">
               {([['학생', false], ['교직원', true]] as const).map(([label, staff]) => (
                 <button
                   key={label}
                   type="button"
                   onClick={() => setIsStaff(staff)}
-                  className={`h-[52px] rounded-[9px] text-lg font-bold transition-colors ${isStaff === staff ? 'bg-[#F2F2F0] text-[#0F0F10]' : 'text-[#8E8E93] hover:text-[#F2F2F0]'}`}
+                  className={`h-[52px] rounded-[9px] text-lg font-bold transition-colors ${isStaff === staff ? 'bg-[#F4F1EA] text-[#0E0D0B]' : 'text-[#938E84] hover:text-[#F4F1EA]'}`}
                 >
                   {label}
                 </button>
@@ -201,18 +201,18 @@ export default function KioskPrintPage() {
 
             <div className="flex flex-col gap-3.5">
               {!isStaff && (
-                <label className="flex flex-col gap-1.5 text-[13px] font-bold text-[#A1A1A6]">
+                <label className="flex flex-col gap-1.5 text-[13px] font-bold text-[#ABA69C]">
                   학번
-                  <input type="text" name="studentId" value={formData.studentId} onChange={handleInputChange} className="h-[58px] px-[18px] rounded-xl bg-[#18181A] text-[#F2F2F0] border border-[#2A2A2E] outline-none focus:border-[#F2F2F0] text-xl font-medium" placeholder="예: 2703" />
+                  <input type="text" name="studentId" value={formData.studentId} onChange={handleInputChange} className="h-[58px] px-[18px] rounded-xl bg-[#1A1916] text-[#F4F1EA] border border-[#2C2A26] outline-none focus:border-[#F4F1EA] text-xl font-medium" placeholder="예: 2703" />
                 </label>
               )}
-              <label className="flex flex-col gap-1.5 text-[13px] font-bold text-[#A1A1A6]">
+              <label className="flex flex-col gap-1.5 text-[13px] font-bold text-[#ABA69C]">
                 이름
-                <input type="text" name="name" value={formData.name} onChange={handleInputChange} onKeyDown={(e) => e.key === 'Enter' && handlePrintSubmit()} className="h-[58px] px-[18px] rounded-xl bg-[#18181A] text-[#F2F2F0] border border-[#2A2A2E] outline-none focus:border-[#F2F2F0] text-xl font-medium" placeholder="이름" />
+                <input type="text" name="name" value={formData.name} onChange={handleInputChange} onKeyDown={(e) => e.key === 'Enter' && handlePrintSubmit()} className="h-[58px] px-[18px] rounded-xl bg-[#1A1916] text-[#F4F1EA] border border-[#2C2A26] outline-none focus:border-[#F4F1EA] text-xl font-medium" placeholder="이름" />
               </label>
             </div>
 
-            <button onClick={handlePrintSubmit} disabled={isPrinting} className="h-[62px] rounded-xl bg-[#F2F2F0] text-[#0F0F10] font-black text-[19px] hover:bg-white disabled:opacity-60 transition-colors flex items-center justify-center gap-2.5">
+            <button onClick={handlePrintSubmit} disabled={isPrinting} className="h-[62px] rounded-xl bg-[#F4F1EA] text-[#0E0D0B] font-black text-[19px] hover:bg-white disabled:opacity-60 transition-colors flex items-center justify-center gap-2.5">
               {isPrinting ? '티켓을 찾는 중…' : (
                 <>
                   <Printer className="w-5 h-5" strokeWidth={2.2} />

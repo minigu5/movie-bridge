@@ -78,7 +78,7 @@ export default function RequiredReviewModal({ movie, profile, onDone, onClose }:
           className="w-full bg-ground border border-line-strong p-3 text-sm text-ink placeholder:text-mute focus:outline-none focus:border-ink"
         />
         <p className="text-dim text-xs mt-1">후기는 지난 상영작 화면에 이름과 함께 공개되고, 나중에 수정·삭제할 수 있어요.</p>
-        {error && <p className="text-accent text-sm mt-3 whitespace-pre-line">{error}</p>}
+        {error && <p className="text-danger text-sm mt-3 whitespace-pre-line">{error}</p>}
 
         <div className="flex gap-3 mt-6">
           <button type="button" onClick={onClose} disabled={isSaving} className="h-12 px-4 border border-line-strong hover:border-line-bold text-ink font-bold transition-colors text-sm disabled:opacity-50">나중에</button>

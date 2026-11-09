@@ -166,7 +166,7 @@ function SeatSection({ form, setForm }: { form: MovieForm; setForm: SetForm }) {
   );
 }
 
-const noticeCls = (kind: 'error' | 'warn') => (kind === 'error' ? 'text-accent' : 'text-ink');
+const noticeCls = (kind: 'error' | 'warn') => (kind === 'error' ? 'text-danger' : 'text-ink');
 
 export default function MovieTab(p: Props) {
   const save = useCheckedSubmit(p.editForm, p.onSave);
@@ -192,7 +192,7 @@ export default function MovieTab(p: Props) {
             hint={'주소나 파일은 "새 회차 시작"을 누르면 들어가요.'}
           />
           <div className="flex-1 min-w-0 w-full flex flex-col gap-3.5">
-            <span className="text-xs font-bold tracking-[0.2em] text-dim">다음 상영</span>
+            <span className="text-xs font-medium text-sub">다음 상영</span>
             <MovieFields form={f} setForm={p.setNewMovieForm} />
           </div>
         </section>
@@ -234,10 +234,7 @@ export default function MovieTab(p: Props) {
               status={p.posterStatus}
             />
             <div className="flex-1 min-w-0 w-full flex flex-col gap-3.5">
-              <div className="flex items-center gap-2 text-xs font-bold tracking-[0.2em] text-dim">
-                <span className="block w-[7px] h-[7px] rounded-full bg-accent" />
-                <span>이번 상영</span>
-              </div>
+              <span className="text-xs font-medium text-sub">이번 상영</span>
               <MovieFields form={f} setForm={p.setEditForm} />
             </div>
           </section>

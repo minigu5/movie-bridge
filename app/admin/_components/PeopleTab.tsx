@@ -132,7 +132,7 @@ function PersonPanel({ person, selfEmail, onClose, onSaveProfile, onBlock }: { p
             onClick={() => onBlock(person, reason.trim())}
             disabled={isSelf}
             title={isSelf ? '본인은 차단할 수 없어요' : undefined}
-            className="self-start h-9 text-accent text-[13px] font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+            className="self-start h-9 text-danger text-[13px] font-bold disabled:opacity-40 disabled:cursor-not-allowed"
           >
             이 사람 차단하기
           </button>
@@ -220,7 +220,7 @@ export default function PeopleTab({ rows, selfEmail, onToggle, onUnblock, onBloc
               {([['book', '예매'], ['club', '동아리원'], ['admin', '관리자']] as const).map(([k, label]) => (
                 <button key={k} type="button" disabled={adding || addEmails.length === 0} onClick={() => add(k)} className="h-9 px-3.5 border border-line-strong text-ink text-[13px] font-bold disabled:opacity-40">{label}</button>
               ))}
-              <button type="button" disabled={adding || addEmails.length === 0} onClick={() => add('block')} className="h-9 pl-3.5 pr-1 ml-1 border-l border-line text-accent text-[13px] font-bold disabled:opacity-40">차단에 넣기</button>
+              <button type="button" disabled={adding || addEmails.length === 0} onClick={() => add('block')} className="h-9 pl-3.5 pr-1 ml-1 border-l border-line text-danger text-[13px] font-bold disabled:opacity-40">차단에 넣기</button>
             </div>
             <label className="flex flex-col gap-1.5 text-xs text-dim"><span>차단 사유 <span className="text-mute">(차단에 넣을 때만, 선택 · 모두 같은 사유)</span></span>
               <textarea

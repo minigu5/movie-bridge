@@ -108,7 +108,7 @@ function CancelForm() {
           </div>
         )}
 
-        <button onClick={handleCancel} disabled={isCanceling} className="w-full h-12 border border-line-strong hover:border-line-bold disabled:opacity-50 text-accent font-bold transition-colors">
+        <button onClick={handleCancel} disabled={isCanceling} className="w-full h-12 border border-line-strong hover:border-line-bold disabled:opacity-50 text-danger font-bold transition-colors">
           {isCanceling ? '취소 처리 중...' : '예매 취소하기'}
         </button>
       </div>

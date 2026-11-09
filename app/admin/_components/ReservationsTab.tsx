@@ -142,7 +142,7 @@ export default function ReservationsTab(props: Props) {
       {ticket.is_printed && (
         <button type="button" onClick={() => onResetPrint(ticket)} className={`${phone ? 'h-10 px-2.5 text-xs' : 'h-9 px-3 text-[13px]'} border border-line-strong text-ink font-bold whitespace-nowrap`}>발권 되돌리기</button>
       )}
-      <button type="button" onClick={() => onCancel(ticket)} className={`${phone ? 'h-10 pl-2.5 pr-1' : 'h-9 pl-3.5 pr-2.5 ml-2.5'} border-l border-line text-accent text-[13px] font-bold whitespace-nowrap`}>취소</button>
+      <button type="button" onClick={() => onCancel(ticket)} className={`${phone ? 'h-10 pl-2.5 pr-1' : 'h-9 pl-3.5 pr-2.5 ml-2.5'} border-l border-line text-danger text-[13px] font-bold whitespace-nowrap`}>취소</button>
     </>
   );
 

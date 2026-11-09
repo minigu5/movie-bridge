@@ -112,7 +112,7 @@ export default function SeatZoneEditor({ isGrandHall, vipEnabled, onVipEnabledCh
             role="switch"
             checked={vipEnabled}
             onChange={(e) => onVipEnabledChange(e.target.checked)}
-            className="w-5 h-5 m-0 accent-[#F2F2F0]"
+            className="w-5 h-5 m-0 accent-[#F4F1EA]"
           />
         </label>
         <span className="text-[13px] text-sub">무엇을 지정할까요?</span>

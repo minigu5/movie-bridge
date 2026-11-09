@@ -130,7 +130,7 @@ export default function ConsentStatusCard() {
               <button
                 type="button"
                 onClick={() => setPhase('confirming')}
-                className="h-10 px-4 border border-line-strong text-accent hover:border-line-bold text-sm font-bold transition-colors"
+                className="h-10 px-4 border border-line-strong text-danger hover:border-line-bold text-sm font-bold transition-colors"
               >
                 동의 철회
               </button>
@@ -143,13 +143,13 @@ export default function ConsentStatusCard() {
                 <li>이미 한 예매와 작성한 후기는 자동으로 지워지지 않습니다(삭제는 보호책임자에게 요청).</li>
                 <li>다시 로그인해서 동의하면 바로 이용할 수 있습니다.</li>
               </ul>
-              {error && <p className="text-xs text-accent mb-2">{error}</p>}
+              {error && <p className="text-xs text-danger mb-2">{error}</p>}
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={withdraw}
                   disabled={phase === 'working'}
-                  className="h-10 px-4 bg-ink hover:bg-white text-accent text-sm font-bold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="h-10 px-4 bg-ink hover:bg-white text-ground text-sm font-bold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {phase === 'working' ? '처리 중…' : '철회합니다'}
                 </button>

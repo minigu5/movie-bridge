@@ -181,7 +181,7 @@ export default function MovieReviews({ movieSettingsId, profile, canWrite, onCha
             rows={3}
             className="mt-3 w-full bg-ground border border-line-strong p-3 text-sm text-ink placeholder:text-mute focus:outline-none focus:border-ink"
           />
-          {error && <p className="text-accent text-xs mt-2">{error}</p>}
+          {error && <p className="text-danger text-xs mt-2">{error}</p>}
           <button type="button" onClick={handleCreate} disabled={isSaving} className="mt-3 h-10 px-4 bg-ink hover:bg-white text-ground disabled:opacity-50 text-sm font-bold transition-colors">
             등록하기
           </button>
@@ -207,7 +207,7 @@ export default function MovieReviews({ movieSettingsId, profile, canWrite, onCha
                     rows={3}
                     className="mt-3 w-full bg-ground border border-line-strong p-3 text-sm text-ink focus:outline-none focus:border-ink"
                   />
-                  {error && <p className="text-accent text-xs mt-2">{error}</p>}
+                  {error && <p className="text-danger text-xs mt-2">{error}</p>}
                   <div className="flex gap-2 mt-3">
                     <button type="button" onClick={handleUpdate} disabled={isSaving} className="h-8 px-3 bg-ink hover:bg-white text-ground disabled:opacity-50 text-xs font-bold transition-colors">저장</button>
                     <button type="button" onClick={() => { setIsEditing(false); setError(null); }} disabled={isSaving} className="h-8 px-3 border border-line-strong hover:border-line-bold disabled:opacity-50 text-ink text-xs font-bold transition-colors">취소</button>
@@ -225,7 +225,7 @@ export default function MovieReviews({ movieSettingsId, profile, canWrite, onCha
                 {isMine && (
                   <div className="flex gap-4 mt-2">
                     <button type="button" onClick={startEditing} className="text-dim hover:text-ink text-xs font-bold transition-colors">수정</button>
-                    <button type="button" onClick={handleDelete} disabled={isSaving} className="text-accent hover:opacity-80 text-xs font-bold transition-colors disabled:opacity-50">삭제</button>
+                    <button type="button" onClick={handleDelete} disabled={isSaving} className="text-danger hover:opacity-80 text-xs font-bold transition-colors disabled:opacity-50">삭제</button>
                   </div>
                 )}
                 </div>

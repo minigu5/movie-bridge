@@ -144,7 +144,7 @@ export default function LogTab(props: Props) {
                     </span>
                     <p className="text-[13px] leading-relaxed text-sub whitespace-pre-wrap break-keep">{review.content}</p>
                   </div>
-                  <button type="button" onClick={() => onDeleteReview(review)} className="shrink-0 h-9 pl-3.5 border-l border-line text-accent text-[13px] font-bold">지우기</button>
+                  <button type="button" onClick={() => onDeleteReview(review)} className="shrink-0 h-9 pl-3.5 border-l border-line text-danger text-[13px] font-bold">지우기</button>
                 </div>
               );
             })}

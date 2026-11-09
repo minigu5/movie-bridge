@@ -36,7 +36,7 @@ export interface MailTabProps {
 function SourceRow({ checked, onChange, title, detail, count, disabled }: { checked: boolean; onChange(): void; title: string; detail: string; count: number; disabled: boolean }) {
   return (
     <label className={`flex items-center gap-3.5 min-h-[54px] border-b border-line ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
-      <input type="checkbox" checked={checked} onChange={onChange} disabled={disabled} className="w-5 h-5 m-0 shrink-0 accent-[#F2F2F0]" />
+      <input type="checkbox" checked={checked} onChange={onChange} disabled={disabled} className="w-5 h-5 m-0 shrink-0 accent-[#F4F1EA]" />
       <span className="flex-1 min-w-0 flex flex-col gap-0.5">
         <span className="text-[15px] font-bold">{title}</span>
         <span className="text-xs text-dim break-keep">{detail}</span>
