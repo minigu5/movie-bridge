@@ -8,9 +8,9 @@ from unittest import mock
 sys.path.insert(0, os.path.dirname(__file__))
 import build_logo  # noqa: E402
 
-DOT_DARK = "#F2B544"   # 어두운 바탕용 '화' 점(노랑)
-DOT_LIGHT = "#B07A12"  # 밝은 바탕용 '화' 점(진한 호박색)
-INK_DARK = "#F4F1EA"   # 어두운 바탕용 글씨
+MOON_DARK = "#F2B544"   # 어두운 바탕용 달(노랑)
+MOON_LIGHT = "#B07A12"  # 밝은 바탕용 달(진한 호박색)
+INK_DARK = "#F4F1EA"    # 어두운 바탕용 글씨
 OLD_COLORS = ("#E0443B", "#F2F2F0")  # 빨강 시절 점·글씨
 
 
@@ -37,31 +37,30 @@ class BuildLogoTest(unittest.TestCase):
     def svg(self, name: str) -> str:
         return open(os.path.join(self.out, name), encoding="utf-8").read()
 
-    def test_dot_appears_once_where_hwa_exists(self):
+    def test_moon_only_on_square_and_icons(self):
         for p in self.files:
             svg = open(p, encoding="utf-8").read()
-            dot = DOT_LIGHT if "light" in p else DOT_DARK
-            expected = 0 if ("yeong" in p or "mono" in p) else 1
-            self.assertEqual(svg.count(dot), expected, p)
+            name = os.path.basename(p)
+            if "horizontal" in name:
+                # 가로형엔 달이 없다(사이트 위의 큰 빛이 달 역할)
+                self.assertNotIn("radialGradient", svg, name)
+                for c in (MOON_DARK, MOON_LIGHT):
+                    self.assertNotIn(c, svg, name)
+            else:
+                self.assertEqual(svg.count("<radialGradient"), 1, name)
+                self.assertIn(MOON_LIGHT if "light" in name else MOON_DARK, svg, name)
 
-    def test_dot_colors(self):
+    def test_colors(self):
         for name in ("logo-horizontal-dark.svg", "logo-square-dark.svg", "icon-hwa-dark.svg"):
-            svg = self.svg(name)
-            self.assertIn(DOT_DARK, svg, name)
-            self.assertIn(INK_DARK, svg, name)
-            for old in OLD_COLORS:
-                self.assertNotIn(old, svg, name)
-        for name in ("logo-horizontal-light.svg", "logo-square-light.svg"):
-            self.assertIn(DOT_LIGHT, self.svg(name), name)
-        # 흑백 영수증용은 점도 검정: 빨강·노랑 둘 다 없어야 한다
-        mono = self.svg("logo-horizontal-mono.svg")
-        for c in ("#E0443B", DOT_DARK, DOT_LIGHT):
-            self.assertNotIn(c, mono)
-        # 어떤 파일에도 옛 색이 남지 않는다
+            self.assertIn(INK_DARK, self.svg(name), name)
         for p in self.files:
             svg = open(p, encoding="utf-8").read()
             for old in OLD_COLORS:
                 self.assertNotIn(old, svg, p)
+
+    def test_square_has_no_frame(self):
+        # 옛 로고처럼 테두리 없이 두 줄 + 달
+        self.assertNotIn("stroke", self.svg("logo-square-dark.svg"))
 
     def test_no_english_text(self):
         for p in self.files:

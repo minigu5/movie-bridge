@@ -182,7 +182,7 @@ export function buildPromoMailHtml(p: PromoMailParams): string {
 
   const top = `<tr><td>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
-      <td valign="middle"><img src="cid:logoH" width="100" height="39" alt="영화대교" style="display:block; border:0; width:100px; height:39px;" /></td>
+      <td valign="middle"><img src="cid:logoH" width="100" height="36" alt="영화대교" style="display:block; border:0; width:100px; height:36px;" /></td>
       ${dday ? `<td valign="middle" align="right" style="text-align:right; font-size:12px; font-weight:700; letter-spacing:1.2px; color:${C.accent}; white-space:nowrap;" data-dday>${dday}</td>` : ''}
     </tr></table>
   </td></tr>`;
