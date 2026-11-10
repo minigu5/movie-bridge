@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { Printer } from 'lucide-react';
+import logoDark from '@/public/brand/logo-horizontal-dark.svg';
+import logoMono from '@/public/brand/logo-horizontal-mono.svg';
 
 
 export default function KioskPrintPage() {
@@ -140,7 +142,7 @@ export default function KioskPrintPage() {
     return (
       <div className="min-h-screen bg-[#0E0D0B] text-[#F4F1EA] flex flex-col items-center justify-center p-4">
         <div className="w-full max-w-sm flex flex-col items-center gap-6 text-center">
-          <img src="/brand/logo-horizontal-dark.svg" alt="영화대교" className="w-[150px] h-auto" />
+          <img src={logoDark.src} alt="영화대교" className="w-[150px] h-auto" />
           <div className="flex flex-col gap-1.5">
             <h1 className="text-2xl font-black tracking-tight">발권기 열기</h1>
             <p className="text-[#ABA69C] text-sm">현장 발권을 시작하려면 관리자 비밀번호를 입력해 주세요.</p>
@@ -179,7 +181,7 @@ export default function KioskPrintPage() {
         {!ticketData ? (
           <div className="w-full max-w-[420px] flex flex-col gap-7 print:hidden">
             <div className="flex flex-col items-center gap-[18px] text-center">
-              <img src="/brand/logo-horizontal-dark.svg" alt="영화대교" className="w-[170px] h-auto" />
+              <img src={logoDark.src} alt="영화대교" className="w-[170px] h-auto" />
               <div className="flex flex-col gap-1.5">
                 <h1 className="text-[32px] font-black tracking-tight">현장 발권</h1>
                 <p className="text-[#ABA69C] text-[15px]">예매한 티켓을 영수증으로 뽑아요.</p>
@@ -226,7 +228,7 @@ export default function KioskPrintPage() {
           <div className="w-[72mm] mx-auto bg-white text-black px-1 pt-2 pb-1 flex flex-col gap-2.5 print:w-full print:m-0 print:px-4">
 
             <div className="flex flex-col items-center gap-2">
-              <img src="/brand/logo-horizontal-mono.svg" alt="영화대교" className="w-[150px] h-auto" />
+              <img src={logoMono.src} alt="영화대교" className="w-[150px] h-auto" />
               <div className="text-[13px] font-black tracking-[0.5em] pl-[0.5em]">입장권</div>
               <div className="text-[11px] tabular-nums">{new Date().toLocaleString('ko-KR')} · 현장 발권</div>
             </div>

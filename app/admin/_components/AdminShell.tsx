@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from 'react';
+import logoDark from '@/public/brand/logo-horizontal-dark.svg';
 
 export type AdminSection = 'reservations' | 'movie' | 'mail' | 'people' | 'log';
 
@@ -28,7 +29,7 @@ export default function AdminShell({ active, onChange, pendingCount, email, onSi
       <aside className="hidden md:flex md:flex-col md:gap-7 md:w-[220px] md:shrink-0 md:sticky md:top-0 md:h-screen border-r border-line px-4 py-6">
         <div className="flex flex-col gap-2 px-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/logo-horizontal-dark.svg" alt="영화대교" className="w-[120px] h-auto block" />
+          <img src={logoDark.src} alt="영화대교" className="w-[120px] h-auto block" />
           <span className="text-xs text-dim tracking-[0.2em]">관리</span>
         </div>
         <nav className="flex flex-col gap-0.5 text-[15px]">
@@ -63,7 +64,7 @@ export default function AdminShell({ active, onChange, pendingCount, email, onSi
       <header className="md:hidden flex items-center justify-between border-b border-line px-4 py-3">
         <div className="flex items-center gap-2.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/logo-horizontal-dark.svg" alt="영화대교" className="w-[88px] h-auto block" />
+          <img src={logoDark.src} alt="영화대교" className="w-[88px] h-auto block" />
           <span className="text-[11px] text-dim tracking-[0.2em]">관리</span>
         </div>
         {onSignOut && (

@@ -18,6 +18,7 @@ import { renderPromoHeadlines, type PromoHeadlines } from '../../lib/promoHeadli
 import { formatBigDate, parseScreening } from '../../lib/promoMailHtml';
 import { applyPromoExclusions, removePromoRecipient, restorePromoRecipient, type PromoRecipient } from '../../lib/promoRecipients';
 import LogTab from './_components/LogTab';
+import logoDark from '@/public/brand/logo-horizontal-dark.svg';
 
 // 옛 탭 키(?tab=settings 등)로 들어와도 같은 메뉴를 연다.
 // movie_settings 행 → 상영 폼. VIP 칸이 비어 있으면 기본 네모를 채운다(lib/seatGrid.ts와 같은 기본값).
@@ -704,7 +705,7 @@ function AdminPageInner() {
     <div className="min-h-screen bg-ground text-ink flex items-center justify-center p-4">
       <div className="w-full max-w-xs flex flex-col items-center gap-6 text-center">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/brand/logo-horizontal-dark.svg" alt="영화대교" className="w-[160px] h-auto" />
+        <img src={logoDark.src} alt="영화대교" className="w-[160px] h-auto" />
         {body}
       </div>
       <ToastStack toasts={toasts} />

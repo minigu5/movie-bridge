@@ -17,6 +17,9 @@ import ZoneMap from '@/components/home/ZoneMap';
 import SeatLegend from '@/components/home/SeatLegend';
 import BookingBar from '@/components/home/BookingBar';
 import MovieInfo from '@/components/home/MovieInfo';
+import logoDark from '@/public/brand/logo-horizontal-dark.svg';
+// 정적 import라야 /_next/static으로 나가 pages.dev(서울)에서 오래 캐시된다. public/ 경로는 LAX를 거친다.
+import qrImage from '@/public/qr.jpeg';
 
 // 🌟 [로그인 리다이렉트 복원] 비로그인 좌석 클릭 -> 구글 로그인 -> 복귀 사이에 풀 페이지
 // 리다이렉트로 예매 진행 state가 초기화되는 것을 막기 위한 임시 저장 키
@@ -719,7 +722,7 @@ export default function Home() {
       <div className="min-h-screen bg-ground flex items-center justify-center select-none">
         <div className="flex flex-col items-center gap-6 animate-pulse">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/logo-horizontal-dark.svg" alt="영화대교" className="w-40 h-auto block" />
+          <img src={logoDark.src} alt="영화대교" className="w-40 h-auto block" />
           <p className="text-dim text-sm">{authLoading ? '로그인 확인 중...' : '불러오는 중...'}</p>
         </div>
       </div>
@@ -733,7 +736,7 @@ export default function Home() {
       <header className="relative">
         <div className="max-w-[1120px] mx-auto px-4 md:px-10 py-2.5 md:py-4 flex items-center justify-between gap-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/logo-horizontal-dark.svg" alt="영화대교" className="w-24 md:w-[148px] h-auto block shrink-0" />
+          <img src={logoDark.src} alt="영화대교" className="w-24 md:w-[148px] h-auto block shrink-0" />
           <nav className="flex items-center gap-4 md:gap-7 text-[13px] md:text-sm font-medium">
             <button type="button" onClick={() => setIsManualOpen(true)} className="py-2.5 text-ink hover:text-sub transition-colors whitespace-nowrap">이용 안내</button>
             {isAdmin && (
@@ -882,7 +885,7 @@ export default function Home() {
               </div>
               <div className="flex flex-col md:flex-row gap-5 md:gap-8 md:items-start">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <div className="bg-white p-2.5 shrink-0 self-center md:self-start"><img src="/qr.jpeg" alt="송금 QR" loading="lazy" decoding="async" className="w-32 h-32 object-contain" /></div>
+                <div className="bg-white p-2.5 shrink-0 self-center md:self-start"><img src={qrImage.src} alt="송금 QR" decoding="async" className="w-32 h-32 object-contain" /></div>
                 <dl className="flex-1 min-w-0 m-0 text-sm">
                   <div className="py-3 border-b border-line flex items-center gap-4"><dt className="w-16 shrink-0 text-dim">결제 금액</dt><dd className="m-0 text-lg font-black tabular-nums">{(myPopcorns.length * 2500).toLocaleString()}원</dd></div>
                   <div className="py-3 border-b border-line flex items-center gap-4"><dt className="w-16 shrink-0 text-dim">입금자명</dt><dd className="m-0 font-bold">{profile?.student_id ?? ''} {profile?.name}</dd></div>
@@ -924,7 +927,7 @@ export default function Home() {
       <footer className="relative border-t border-line">
         <div className="max-w-[1120px] mx-auto px-4 md:px-10 py-6 flex flex-wrap items-center justify-between gap-3 text-xs text-dim">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/logo-horizontal-dark.svg" alt="영화대교" className="w-[68px] md:w-[88px] h-auto block opacity-80" />
+          <img src={logoDark.src} alt="영화대교" className="w-[68px] md:w-[88px] h-auto block opacity-80" />
           <div className="flex items-center gap-2.5 flex-wrap">
             <a href="/privacy" className="hover:text-sub transition-colors">개인정보처리방침</a>
             <span className="opacity-40">·</span>
@@ -994,7 +997,7 @@ export default function Home() {
             <h2 className="text-2xl font-black text-ink mb-2">결제 대기 중</h2>
             <p className="text-sub mb-6 text-sm">QR코드로 30분 내에 입금을 완료해주세요.</p>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <div className="bg-white p-4 mb-4 inline-block"><img src="/qr.jpeg" alt="QR" loading="lazy" decoding="async" className="w-48 h-48 object-contain" /></div>
+            <div className="bg-white p-4 mb-4 inline-block"><img src={qrImage.src} alt="QR" decoding="async" className="w-48 h-48 object-contain" /></div>
             <div className="mb-6"><AccountInfo /></div>
             <dl className="border-t border-ink text-left text-sm mb-6">
               <div className="py-2.5 border-b border-line flex items-baseline gap-4"><dt className="w-16 shrink-0 text-dim">결제 금액</dt><dd className="font-black text-xl">{(popcornList.filter(p => p !== 'none').length * 2500).toLocaleString()}원</dd></div>
