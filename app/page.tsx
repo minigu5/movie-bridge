@@ -18,6 +18,7 @@ import SeatLegend from '@/components/home/SeatLegend';
 import BookingBar from '@/components/home/BookingBar';
 import MovieInfo from '@/components/home/MovieInfo';
 import logoDark from '@/public/brand/logo-horizontal-dark.svg';
+import logoSquare from '@/public/brand/logo-square-dark.svg';
 // 정적 import라야 /_next/static으로 나가 pages.dev(서울)에서 오래 캐시된다. public/ 경로는 LAX를 거친다.
 import qrImage from '@/public/qr.jpeg';
 
@@ -720,9 +721,9 @@ export default function Home() {
   if (authLoading || isLoading) {
     return (
       <div className="min-h-screen bg-ground flex items-center justify-center select-none">
-        <div className="flex flex-col items-center gap-6 animate-pulse">
+        <div className="flex flex-col items-center gap-2 animate-pulse">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={logoDark.src} alt="영화대교" className="w-40 h-auto block" />
+          <img src={logoSquare.src} alt="영화대교" className="w-52 h-auto block" />
           <p className="text-dim text-sm">{authLoading ? '로그인 확인 중...' : '불러오는 중...'}</p>
         </div>
       </div>
