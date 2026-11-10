@@ -26,7 +26,7 @@ TEXT = "영화대교"
 INK_DARK = "#F4F1EA"  # 어두운 바탕용 글씨
 INK_LIGHT = "#111111"  # 밝은 바탕용 글씨
 MOON_DARK = "#F2B544"  # 어두운 바탕용 달(노랑)
-MOON_LIGHT = "#B07A12"  # 밝은 바탕용 달. 흰 바탕에서 노랑이 묻혀서 진한 호박색
+MOON_LIGHT = "#D7BE32"  # 밝은 바탕용 달. 원본 로고(흰 바탕) 가운데 #F7F2D6에 맞춘 연노랑
 HWA = 1  # "화" 글리프 번호
 FAMILY, FONT_FILE = "Song Myung", "SongMyung-subset.ttf"
 
@@ -101,9 +101,12 @@ def place(g: dict, x: float, y: float, k: float, ink: str) -> str:
     return f'<path transform="{tr}" fill="{ink}" d="{" ".join(g["ds"])}"/>'
 
 
-def moon(cx: float, cy: float, r: float, color: str, gid: str) -> str:
-    """옛 로고의 달: 가운데가 조금 밝고 가장자리가 보이다가 스러지는 둥근 빛."""
-    stops = ((0, 0.30), (0.62, 0.21), (0.86, 0.14), (0.97, 0.06), (1, 0))
+MOON_EDGE = ((0, 0.30), (0.62, 0.21), (0.86, 0.14), (0.97, 0.06), (1, 0))  # 어두운 바탕: 오프닝 영상처럼 가장자리가 보이는 달
+MOON_SOFT = ((0, 0.20), (0.45, 0.15), (0.8, 0.07), (1, 0.02))  # 밝은 바탕: 원본처럼 가장자리 없이 스러지는 빛
+
+
+def moon(cx: float, cy: float, r: float, color: str, gid: str, stops: tuple = MOON_EDGE) -> str:
+    """옛 로고의 달. 둥근 노란 빛."""
     s = "".join(f'<stop offset="{o}" stop-color="{color}" stop-opacity="{a}"/>' for o, a in stops)
     return (f'<defs><radialGradient id="{gid}">{s}</radialGradient></defs>'
             f'<circle cx="{num(cx)}" cy="{num(cy)}" r="{num(r)}" fill="url(#{gid})"/>')
@@ -114,27 +117,21 @@ def wrap(body: str, x: float, y: float, w: float, h: float) -> str:
             f'width="{num(w)}" height="{num(h)}"><title>영화대교</title>{body}</svg>\n')
 
 
+# 사용자 원본 네모 로고(2561px 정사각, iCloud 프로젝트/03_영화대교/로고.jpeg)에서 잰 각 글자 외곽 상자의 왼쪽 위.
+# 원본은 송명 글꼴 한 배율(1 글꼴 단위 = 0.7117px)로 찍혀 있어서, 같은 자리에 두면 간격이 원본 그대로다.
+SQUARE_CANVAS = 2561.0
+SQUARE_K = 0.7117
+SQUARE_POS = ((700, 649), (1290, 648), (662, 1329), (1279, 1403))  # 영, 화, 대, 교
+SQUARE_SIZE = 456.0  # SVG 출력 크기
+
+
 def square(glyphs: list, ink: str, moon_color: str) -> str:
-    """옛 로고 그대로: 영화 / 대교 두 줄, 뒤에 달. 테두리 없음."""
-    h, track, lead = 100.0, 0.10, 0.40
-    k = h / max(g["bb"][3] - g["bb"][1] for g in glyphs)
-    rows = []
-    for pair in (glyphs[:2], glyphs[2:]):
-        widths = [(g["bb"][2] - g["bb"][0]) * k for g in pair]
-        rows.append((pair, widths, sum(widths) + h * track))
-    w = max(r[2] for r in rows)
-    parts = []
-    for row, (pair, widths, rw) in enumerate(rows):
-        x, y = (w - rw) / 2, row * h * (1 + lead)
-        for g, gw in zip(pair, widths):
-            gh = (g["bb"][3] - g["bb"][1]) * k
-            parts.append(place(g, x, y + (h - gh) / 2, k, ink))
-            x += gw + h * track
-    th = h * (2 + lead)
-    r = th * 0.95
-    size = 2 * r
-    cx, cy = w / 2, th / 2
-    return wrap(moon(cx, cy, r, moon_color, "moon") + "".join(parts), cx - r, cy - r, size, size)
+    """옛 로고 그대로: 영화 / 대교 두 줄, 뒤에 화면을 채우는 달. 테두리 없음."""
+    f = SQUARE_SIZE / SQUARE_CANVAS
+    parts = [place(g, x * f, y * f, SQUARE_K * f, ink) for g, (x, y) in zip(glyphs, SQUARE_POS)]
+    r = SQUARE_SIZE / 2
+    stops = MOON_SOFT if moon_color == MOON_LIGHT else MOON_EDGE
+    return wrap(moon(r, r, r, moon_color, "moon", stops) + "".join(parts), 0, 0, SQUARE_SIZE, SQUARE_SIZE)
 
 
 def horizontal(glyphs: list, ink: str) -> str:

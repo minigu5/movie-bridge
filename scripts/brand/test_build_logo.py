@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 import build_logo  # noqa: E402
 
 MOON_DARK = "#F2B544"   # 어두운 바탕용 달(노랑)
-MOON_LIGHT = "#B07A12"  # 밝은 바탕용 달(진한 호박색)
+MOON_LIGHT = "#D7BE32"  # 밝은 바탕용 달(원본 로고의 연노랑)
 INK_DARK = "#F4F1EA"    # 어두운 바탕용 글씨
 OLD_COLORS = ("#E0443B", "#F2F2F0")  # 빨강 시절 점·글씨
 

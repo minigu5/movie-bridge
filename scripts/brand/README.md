@@ -25,7 +25,7 @@ node scripts/brand/gen-mail-assets.mjs                 # lib/brandMailAssets.ts 
 | `png/*@2x.png`, `png/*@3x.png` | 메일처럼 SVG를 못 쓰는 곳 |
 | `png/icon-*-{16,32,48,180,512}.png` | 파비콘·앱 아이콘. 지금은 `icon-hwa-*`를 `public/icon*.png`·`apple-touch-icon.png`로 복사해 씀 |
 
-`dark`는 어두운 바탕에 올리는 버전(글씨 #F4F1EA, 달 노랑 #F2B544), `light`는 밝은 바탕용(글씨 #111111, 달 진한 호박색 #B07A12)이다. 색은 달 하나뿐이고 가로형엔 달이 없다. `mono`(감열 영수증)는 검정 한 색이다. 아이콘 PNG와 메일 자산의 바탕은 #0E0D0B, 티켓 카드는 #1A1916이다. 색 규칙은 `docs/superpowers/specs/2026-11-09-warm-tone-design.md`를 따른다.
+`dark`는 어두운 바탕에 올리는 버전(글씨 #F4F1EA, 달 노랑 #F2B544), `light`는 밝은 바탕용(글씨 #111111, 달 연노랑 #D7BE32, 가장자리 없이 스러짐)이다. 색은 달 하나뿐이고 가로형엔 달이 없다. `mono`(감열 영수증)는 검정 한 색이다. 아이콘 PNG와 메일 자산의 바탕은 #0E0D0B, 티켓 카드는 #1A1916이다. 색 규칙은 `docs/superpowers/specs/2026-11-09-warm-tone-design.md`를 따른다.
 
 ## 테스트
 
