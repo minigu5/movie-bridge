@@ -59,7 +59,7 @@ export function buildRestrictionMailHtml(p: RestrictionMailParams): string {
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="${C.bg}" style="background-color:${C.bg};">
     <tr><td align="center" style="padding:40px 12px;">
       <table role="presentation" width="400" cellpadding="0" cellspacing="0" style="width:100%; max-width:400px; font-family:${FONT}; color:${C.fg};">
-        <tr><td align="center"><img src="cid:logoH" width="150" height="55" alt="영화대교" style="display:block; border:0; width:150px; height:55px;" /></td></tr>
+        <tr><td align="center"><img src="cid:logoH" width="150" height="54" alt="영화대교" style="display:block; border:0; width:150px; height:54px;" /></td></tr>
         <tr><td style="padding-top:28px;">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="${C.card}" style="background-color:${C.card}; border-radius:16px;">
             ${body}

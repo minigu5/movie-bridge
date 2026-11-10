@@ -134,15 +134,23 @@ def square(glyphs: list, ink: str, moon_color: str) -> str:
     return wrap(moon(r, r, r, moon_color, "moon", stops) + "".join(parts), 0, 0, SQUARE_SIZE, SQUARE_SIZE)
 
 
+# 가로형 광학 보정(글자 높이 100 기준). 교는 원래 납작해서 획 면적이 다른 글자의 3/4뿐이라 조금 키우고,
+# 간격은 상자 사이가 아니라 윤곽 사이 빈 공간이 같아 보이게 글자 쌍마다 따로 준다.
+# 다시 잴 때: 윤곽 간격 측정 스크립트로 쌍별 평균 빈 공간(행마다 거리, 40에서 자름)을 맞춘다.
+HORIZ_SCALE = (1.0, 1.0, 1.0, 1.08)  # 영, 화, 대, 교
+HORIZ_GAP = (16.6, 9.8, 13.8)  # 영-화, 화-대, 대-교 상자 사이 간격
+
+
 def horizontal(glyphs: list, ink: str) -> str:
     h = 100.0
     k = h / max(g["bb"][3] - g["bb"][1] for g in glyphs)
     x, parts = 0.0, []
-    for g in glyphs:
-        gh = (g["bb"][3] - g["bb"][1]) * k
-        parts.append(place(g, x, (h - gh) / 2, k, ink))
-        x += (g["bb"][2] - g["bb"][0]) * k + h * 0.14
-    w = x - h * 0.14
+    for i, g in enumerate(glyphs):
+        kk = k * HORIZ_SCALE[i]
+        gh = (g["bb"][3] - g["bb"][1]) * kk
+        parts.append(place(g, x, (h - gh) / 2, kk, ink))
+        x += (g["bb"][2] - g["bb"][0]) * kk + (HORIZ_GAP[i] if i < len(HORIZ_GAP) else 0)
+    w = x
     lines = (f'<rect x="0" y="-24.4" width="{num(w)}" height="2.4" fill="{ink}"/>'
              f'<rect x="0" y="{num(h + 22)}" width="{num(w)}" height="2.4" fill="{ink}"/>')
     return wrap(lines + "".join(parts), 0, -24.4, w, h + 48.8)
