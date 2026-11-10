@@ -2,6 +2,7 @@
 // 홍보(초청) 메일 제목과 본문 HTML. 방향 "다 · 날짜가 먼저, 곧 상영": 큰 날짜 → 포스터와 제목 → 인사말 → 흰 버튼.
 // 티켓 메일(lib/ticketMailHtml.ts)과 같은 어두운 바탕·노랑은 꼭 필요한 곳(상영까지 N일)만.
 // 메일 앱 호환을 위해 table + 인라인 스타일만 쓴다. flex·position·background-image는 앱마다 깨진다.
+// 맨 위 달 빛은 그라데이션 대신 반투명 PNG(logoMoon)로 굽는다.
 // 의존성이 없는 순수 함수라 node --test lib/promoMailHtml.test.mjs 로 바로 검증한다.
 
 export type PromoMovieInfo = {
@@ -180,19 +181,19 @@ export function buildPromoMailHtml(p: PromoMailParams): string {
   const deadline = formatDeadlineShort(info.deadline_date, s?.month ?? 0);
   const hl = p.headlines;
 
-  const top = `<tr><td>
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
-      <td valign="middle"><img src="cid:logoH" width="100" height="36" alt="영화대교" style="display:block; border:0; width:100px; height:36px;" /></td>
-      ${dday ? `<td valign="middle" align="right" style="text-align:right; font-size:12px; font-weight:700; letter-spacing:1.2px; color:${C.accent}; white-space:nowrap;" data-dday>${dday}</td>` : ''}
-    </tr></table>
-  </td></tr>`;
+  // 맨 위: 티켓 메일과 같은 달 붙은 로고(logoMoon). 바탕 윗변부터 빛이 번지도록 안쪽 여백 밖에 둔다.
+  const top = `<tr><td align="center"><img src="cid:logoMoon" width="400" height="150" alt="영화대교" style="display:block; border:0; width:100%; max-width:400px; height:auto;" /></td></tr>`;
+  const ddayCell = dday ? `<td valign="bottom" align="right" style="text-align:right; font-size:12px; font-weight:700; letter-spacing:1.2px; color:${C.accent}; white-space:nowrap; padding-left:12px;" data-dday>${dday}</td>` : '';
 
   const bigDate = s || timeLine
-    ? `<tr><td style="padding-top:22px;">
+    ? `<tr><td style="padding-top:4px;">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
         <td style="padding-bottom:18px; border-bottom:1px solid ${C.fg};">
           ${s && hl ? headlineImg(hl.date, formatDateAlt(s)) : s ? `<div style="font-family:${FONT}; font-size:64px; font-weight:800; line-height:1; letter-spacing:-2px; color:${C.fg}; font-variant-numeric:tabular-nums;">${esc(formatBigDate(s))}</div>` : ''}
-          ${timeLine ? `<div style="padding-top:${s ? '4px' : '0'}; font-size:16px; line-height:1.5; color:${C.fg2};">${esc(timeLine)}</div>` : ''}
+          ${timeLine || dday ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding-top:${s ? '4px' : '0'};"><tr>
+            <td valign="bottom" style="font-size:16px; line-height:1.5; color:${C.fg2};">${esc(timeLine)}</td>
+            ${ddayCell}
+          </tr></table>` : ''}
         </td>
       </tr></table>
     </td></tr>`
@@ -231,9 +232,9 @@ export function buildPromoMailHtml(p: PromoMailParams): string {
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="${C.bg}" style="background-color:${C.bg};">
     <tr><td align="center" style="padding:0;">
       <table role="presentation" width="440" cellpadding="0" cellspacing="0" bgcolor="${C.bg}" style="width:100%; max-width:440px; background-color:${C.bg}; font-family:${FONT}; color:${C.fg}; text-align:left;">
-        <tr><td style="padding:32px 28px 28px 28px;">
+        ${top}
+        <tr><td style="padding:0 28px 28px 28px;">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-            ${top}
             ${bigDate}
             ${feature}
             <tr><td style="padding-top:22px; font-size:14px; line-height:1.7; color:${C.fg2}; word-break:keep-all;">${PROMO_GREETING[0]}<br>${PROMO_GREETING[1]}</td></tr>

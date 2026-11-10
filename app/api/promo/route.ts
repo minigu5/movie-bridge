@@ -49,7 +49,7 @@ export async function POST(req: Request) {
     const subject = buildPromoSubject(movieInfo?.title);
     const attachments = [
       ...(posterAttachment ? [posterAttachment] : []),
-      brandMailAttachment('logoH'),
+      brandMailAttachment('logoMoon'),
       ...(headlines?.attachments ?? []),
     ];
 
