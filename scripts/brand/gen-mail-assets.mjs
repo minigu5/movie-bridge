@@ -23,6 +23,20 @@ async function logo() {
   return { buf, size: [LOGO_W, h] };
 }
 
+// 가로 로고 + 위에서 번지는 큰 달(사이트 홈의 .home-glow와 같은 빛). 메일 맨 위에 붙여 빛이 바탕 윗변에서 시작한다.
+// 메일 앱 대부분이 CSS 그라데이션을 못 그려서 반투명 PNG로 굽는다. 빛은 그림 안에서 0으로 스러져 가장자리가 안 보인다.
+const MOON = { w: 400, h: 150, cy: 8, fade: 142, logoTop: 36 };
+async function logoMoon() {
+  const s = 3, W = MOON.w * s, H = MOON.h * s;
+  const r = (MOON.fade / 0.7) * s; // 70% 지점에서 0
+  const glow = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}"><defs><radialGradient id="g" cx="${W / 2}" cy="${MOON.cy * s}" r="${r}" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#F0DC3A" stop-opacity="0.34"/><stop offset="0.38" stop-color="#F0DC3A" stop-opacity="0.13"/><stop offset="0.7" stop-color="#F0DC3A" stop-opacity="0"/></radialGradient></defs><rect width="${W}" height="${H}" fill="url(#g)"/></svg>`;
+  const { buf: logoBuf, size: [lw] } = await logo();
+  const buf = await sharp(Buffer.from(glow))
+    .composite([{ input: logoBuf, left: Math.round(((MOON.w - lw) / 2) * s), top: MOON.logoTop * s }])
+    .png().toBuffer();
+  return { buf, size: [MOON.w, MOON.h] };
+}
+
 // 카드 가장자리에 파인 반원: 카드색 바탕에 바탕색 반원. side는 홈이 붙는 카드 쪽('left'|'right')
 async function notch(side) {
   const s = 3, w = NOTCH.w * s, h = NOTCH.h * s, r = h / 2;
@@ -32,13 +46,13 @@ async function notch(side) {
   return { buf, size: [NOTCH.w, NOTCH.h] };
 }
 
-const assets = { logoH: await logo(), notchL: await notch("left"), notchR: await notch("right") };
+const assets = { logoH: await logo(), logoMoon: await logoMoon(), notchL: await notch("left"), notchR: await notch("right") };
 
 const lines = Object.entries(assets).map(([k, v]) => `  ${k}: "${v.buf.toString("base64")}",`).join("\n");
 const sizes = Object.entries(assets).map(([k, v]) => `  ${k}: [${v.size[0]}, ${v.size[1]}],`).join("\n");
 
 writeFileSync(OUT, `// lib/brandMailAssets.ts
-// 메일 티켓용 브랜드 PNG(가로형 로고, 절취선 홈). 생성: node scripts/brand/gen-mail-assets.mjs — 직접 고치지 말 것.
+// 메일 티켓용 브랜드 PNG(가로형 로고, 달 붙은 가로형 로고, 절취선 홈). 생성: node scripts/brand/gen-mail-assets.mjs — 직접 고치지 말 것.
 // 메일 앱은 SVG와 data: 이미지를 막으므로 CID 첨부로 넣는다(lib/emailIcons.ts와 같은 방식).
 
 const ASSETS_B64 = {

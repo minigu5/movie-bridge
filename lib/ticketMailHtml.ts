@@ -159,10 +159,10 @@ export function buildTicketMailHtml(v: TicketMailView): string {
 </head>
 <body style="margin:0; padding:0; background-color:${C.bg}; -webkit-font-smoothing:antialiased;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="${C.bg}" style="background-color:${C.bg};">
-    <tr><td align="center" style="padding:40px 12px;">
+    <tr><td align="center" style="padding:0 12px 40px 12px;">
       <table role="presentation" width="400" cellpadding="0" cellspacing="0" style="width:100%; max-width:400px; font-family:${FONT}; color:${C.fg};">
-        <tr><td align="center"><img src="cid:logoH" width="150" height="54" alt="영화대교" style="display:block; border:0; width:150px; height:54px;" /></td></tr>
-        <tr><td align="center" style="padding-top:28px; font-size:14px; font-weight:700; color:${s.lineColor};">${s.line}</td></tr>
+        <tr><td align="center"><img src="cid:logoMoon" width="400" height="150" alt="영화대교" style="display:block; border:0; width:100%; max-width:400px; height:auto;" /></td></tr>
+        <tr><td align="center" style="padding-top:0; font-size:14px; font-weight:700; color:${s.lineColor};">${s.line}</td></tr>
         <tr><td style="padding-top:16px;">${card}</td></tr>
         ${payment}
         ${cta}

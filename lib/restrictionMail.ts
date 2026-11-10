@@ -11,6 +11,6 @@ export async function sendRestrictionMail(params: { email: string; name: string;
     to: email,
     subject: buildRestrictionSubject(added),
     html: buildRestrictionMailHtml({ name, added, reason }),
-    attachments: [brandMailAttachment('logoH')],
+    attachments: [brandMailAttachment('logoMoon')],
   });
 }

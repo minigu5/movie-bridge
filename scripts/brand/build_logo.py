@@ -25,7 +25,7 @@ from fontTools.ttLib import TTFont
 TEXT = "영화대교"
 INK_DARK = "#F4F1EA"  # 어두운 바탕용 글씨
 INK_LIGHT = "#111111"  # 밝은 바탕용 글씨
-MOON_DARK = "#F2B544"  # 어두운 바탕용 달(노랑)
+MOON_DARK = "#F0DC3A"  # 어두운 바탕용 달. 강조색 #F2B544보다 노랗게(옛 로고처럼)
 MOON_LIGHT = "#D7BE32"  # 밝은 바탕용 달. 원본 로고(흰 바탕) 가운데 #F7F2D6에 맞춘 연노랑
 HWA = 1  # "화" 글리프 번호
 FAMILY, FONT_FILE = "Song Myung", "SongMyung-subset.ttf"

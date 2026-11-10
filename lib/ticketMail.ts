@@ -107,7 +107,7 @@ export async function sendTicketMail(params: {
 
   const posterExt = poster?.ok ? (poster.contentType.includes('png') ? 'png' : poster.contentType.includes('webp') ? 'webp' : 'jpg') : 'jpg';
   const attachments = [
-    brandMailAttachment('logoH'),
+    brandMailAttachment('logoMoon'),
     brandMailAttachment('notchL'),
     brandMailAttachment('notchR'),
     ...(poster?.ok ? [{ filename: `poster.${posterExt}`, content: Buffer.from(poster.body), cid: TICKET_POSTER_CID, contentType: poster.contentType }] : []),

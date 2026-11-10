@@ -37,13 +37,13 @@ body {
   font-family: var(--font-sans);
 }
 
-/* 예매 홈 맨 위에 고인 노란 빛. 크기·위치는 page.tsx 클래스, 색만 여기서. */
+/* 예매 홈 맨 위에 고인 노란 빛(옛 로고의 달). 크기·위치는 page.tsx 클래스, 색만 여기서. 강조색보다 노란 #F0DC3A. */
 .home-glow {
-  background: radial-gradient(circle, rgba(242, 181, 68, 0.34) 0%, rgba(242, 181, 68, 0.13) 38%, rgba(242, 181, 68, 0) 70%);
+  background: radial-gradient(circle, rgba(240, 220, 58, 0.34) 0%, rgba(240, 220, 58, 0.13) 38%, rgba(240, 220, 58, 0) 70%);
 }
 @media (width >= 48rem) {
   .home-glow {
-    background: radial-gradient(circle, rgba(242, 181, 68, 0.30) 0%, rgba(242, 181, 68, 0.11) 38%, rgba(242, 181, 68, 0) 70%);
+    background: radial-gradient(circle, rgba(240, 220, 58, 0.30) 0%, rgba(240, 220, 58, 0.11) 38%, rgba(240, 220, 58, 0) 70%);
   }
 }
 
