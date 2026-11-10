@@ -46,7 +46,7 @@ function Nav({ canGoOlder, canGoNewer, onOlder, onNewer, small }: Pick<Props, 'c
   return (
     <div className="flex items-center gap-4">
       {canGoOlder && <button type="button" onClick={onOlder} className={cls}>‹ 지난 상영작</button>}
-      {canGoNewer && <button type="button" onClick={onNewer} className={cls}>다음 상영 ›</button>}
+      {canGoNewer && <button type="button" onClick={onNewer} className={cls}>다음 상영작 ›</button>}
     </div>
   );
 }
