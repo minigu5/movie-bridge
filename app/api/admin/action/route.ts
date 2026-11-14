@@ -67,7 +67,7 @@ export async function POST(req: Request) {
           supabaseAdmin.from('activity_logs').select('id, created_at, student_id, student_name, description').order('created_at', { ascending: false }).limit(100),
           supabaseAdmin.from('admins').select('email, added_by, created_at').order('created_at', { ascending: false }),
           supabaseAdmin.from('club_members').select('email, added_by, created_at').order('created_at', { ascending: false }),
-          supabaseAdmin.from('kiosk_settings').select('password').eq('id', 1).single(),
+          supabaseAdmin.from('kiosk_settings').select('password, attendance_only').eq('id', 1).single(),
           supabaseAdmin.from('invited_emails').select('email, added_by, source, created_at').order('created_at', { ascending: false }),
           // 로그인 이력이 있는 사람: 이름 표시 + 회원/권한 탭의 로그인 명단(조회 전용)
           supabaseAdmin.from('profiles').select('id, email, name, student_id, role, created_at').order('created_at', { ascending: false })
@@ -86,7 +86,7 @@ export async function POST(req: Request) {
           success: true,
           data: {
             movieData, resData: resQ.data, blData: blQ.data, logData: logQ.data,
-            adminData: adminQ.data, clubData: clubQ.data, kioskPassword: kioskQ.data?.password ?? '',
+            adminData: adminQ.data, clubData: clubQ.data, kioskPassword: kioskQ.data?.password ?? '', kioskAttendanceOnly: kioskQ.data?.attendance_only ?? false,
             invitedData: invitedQ.data, profileNames: profileQ.data
           }
         });
@@ -437,6 +437,12 @@ export async function POST(req: Request) {
           return NextResponse.json({ success: false, error: '비밀번호를 입력해주세요.' }, { status: 400 });
         }
         const { error } = await supabaseAdmin.from('kiosk_settings').update({ password: cleanPassword, updated_at: new Date().toISOString() }).eq('id', 1);
+        if (error) throw error;
+        return NextResponse.json({ success: true });
+      }
+
+      case 'UPDATE_KIOSK_ATTENDANCE_ONLY': {
+        const { error } = await supabaseAdmin.from('kiosk_settings').update({ attendance_only: payload?.attendanceOnly === true, updated_at: new Date().toISOString() }).eq('id', 1);
         if (error) throw error;
         return NextResponse.json({ success: true });
       }

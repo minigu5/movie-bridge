@@ -48,6 +48,8 @@ interface Props {
   kioskPassword: string;
   setKioskPassword: (v: string) => void;
   onUpdateKioskPassword: () => Promise<boolean>;
+  kioskAttendanceOnly: boolean;
+  onToggleKioskAttendanceOnly: (v: boolean) => void;
 }
 
 // 빈 칸 기본값은 lib/seatGrid.ts computeVipSeats와 같은 resolveVipZone을 쓴다(홈 화면과 같은 네모).
@@ -259,6 +261,19 @@ export default function MovieTab(p: Props) {
                 <button type="submit" className="h-10 px-5 bg-ink text-ground text-[13px] font-bold">저장</button>
               </form>
             )}
+            <label className="flex items-center justify-between gap-3 px-3.5 py-3 border border-line cursor-pointer">
+              <span className="flex flex-col gap-0.5">
+                <span className="text-sm font-bold">프린터 없이 출석만 확인</span>
+                <span className="text-xs text-dim">켜면 발권기가 인쇄창 없이 출석만 확인해요</span>
+              </span>
+              <input
+                type="checkbox"
+                role="switch"
+                checked={p.kioskAttendanceOnly}
+                onChange={(e) => p.onToggleKioskAttendanceOnly(e.target.checked)}
+                className="w-5 h-5 m-0 accent-[#F4F1EA]"
+              />
+            </label>
           </section>
         </>
       )}

@@ -18,6 +18,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true });
     }
 
+    // 관리자 화면에서 켜고 끄는 출석 확인 모드
+    if (action === 'GET_KIOSK_MODE') {
+      const { data: settings, error } = await supabaseAdmin.from('kiosk_settings').select('attendance_only').eq('id', 1).single();
+      if (error) throw error;
+      return NextResponse.json({ success: true, attendanceOnly: settings?.attendance_only === true });
+    }
+
     if (action === 'LOOKUP_TICKET') {
       const { studentId, studentName, movieDate } = payload;
 
@@ -42,7 +49,7 @@ export async function POST(req: Request) {
     }
 
     if (action === 'PRINT_TICKET') {
-      const { ticketId, studentId, studentName, seatNumber, attendanceOnly } = payload;
+      const { ticketId, studentId, studentName, seatNumber } = payload;
 
       const { data: ticket, error: fetchError } = await supabaseAdmin.from('reservations')
         .select('id, student_id, student_name')
@@ -52,6 +59,10 @@ export async function POST(req: Request) {
       if (fetchError || !ticket || (ticket.student_id ?? '') !== (studentId ?? '') || ticket.student_name !== studentName) {
         return NextResponse.json({ success: false, error: 'Unauthorized: 학번/이름이 예약 내역과 일치하지 않습니다.' }, { status: 401 });
       }
+
+      // 인쇄할지는 화면이 아니라 관리자 설정으로 정한다(발권기 화면이 옛 설정을 들고 있어도 맞게).
+      const { data: settings } = await supabaseAdmin.from('kiosk_settings').select('attendance_only').eq('id', 1).single();
+      const attendanceOnly = settings?.attendance_only === true;
 
       const { error: e1 } = await supabaseAdmin.from('reservations').update({ is_printed: true }).eq('id', ticketId);
       if (e1) throw e1;
@@ -63,7 +74,7 @@ export async function POST(req: Request) {
       }]);
       if (e2) throw e2;
 
-      return NextResponse.json({ success: true });
+      return NextResponse.json({ success: true, attendanceOnly });
     }
 
     return NextResponse.json({ success: false, error: 'Unknown action' }, { status: 400 });

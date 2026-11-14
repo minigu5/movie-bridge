@@ -20,24 +20,33 @@ export default function KioskPrintPage() {
   const [ticketData, setTicketData] = useState<any>(null);
   const [isPrinting, setIsPrinting] = useState(false);
   // 프린터를 안 물렸을 때는 출석 확인만: 인쇄창을 띄우지 않고 확인 화면만 잠깐 보여준다.
-  // 웹에서는 프린터 연결 여부를 알 수 없어서 발권기에서 직접 고르고, 이 기기에 기억해 둔다.
+  // 웹에서는 프린터 연결 여부를 알 수 없어서 관리자 화면(상영 탭)에서 켜고 끈다.
   const [attendanceOnly, setAttendanceOnly] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && localStorage.getItem('skip_auth') === 'true') {
       setIsAdminAuth(true);
     }
-    try {
-      setAttendanceOnly(localStorage.getItem('kiosk_attendance_only') === 'true');
-    } catch {}
   }, []);
 
-  const toggleAttendanceOnly = () => {
-    setAttendanceOnly(prev => {
-      try { localStorage.setItem('kiosk_attendance_only', String(!prev)); } catch {}
-      return !prev;
-    });
-  };
+  // 관리자가 바꾸면 새로고침 없이 따라가도록 주기적으로 읽는다.
+  useEffect(() => {
+    const fetchMode = async () => {
+      try {
+        const res = await fetch('/api/kiosk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'GET_KIOSK_MODE' })
+        });
+        const data = await res.json();
+        if (data.success) setAttendanceOnly(data.attendanceOnly === true);
+      } catch {}
+    };
+    fetchMode();
+    const timer = setInterval(fetchMode, 15000);
+    window.addEventListener('focus', fetchMode);
+    return () => { clearInterval(timer); window.removeEventListener('focus', fetchMode); };
+  }, []);
 
   const resetForm = () => {
     setTicketData(null);
@@ -129,7 +138,7 @@ export default function KioskPrintPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'PRINT_TICKET',
-          payload: { ticketId: ticket.id, studentId: cleanId, studentName: formData.name, seatNumber: ticket.seat_number, attendanceOnly }
+          payload: { ticketId: ticket.id, studentId: cleanId, studentName: formData.name, seatNumber: ticket.seat_number }
         })
       });
       const apiData = await apiRes.json();
@@ -140,6 +149,7 @@ export default function KioskPrintPage() {
       }
 
       ticket.is_printed = true;
+      setAttendanceOnly(apiData.attendanceOnly === true);
       setTicketData(ticket);
 
     } catch (err) {
@@ -241,13 +251,6 @@ export default function KioskPrintPage() {
                   티켓 출력하기
                 </>
               )}
-            </button>
-
-            <button type="button" onClick={toggleAttendanceOnly} className="self-center flex items-center gap-2 text-[13px] font-medium text-[#938E84] hover:text-[#F4F1EA] transition-colors">
-              <span className={`w-8 h-[18px] rounded-full p-0.5 transition-colors ${attendanceOnly ? 'bg-[#F4F1EA]' : 'bg-[#2C2A26]'}`}>
-                <span className={`block w-[14px] h-[14px] rounded-full transition-transform ${attendanceOnly ? 'translate-x-[14px] bg-[#0E0D0B]' : 'bg-[#938E84]'}`} />
-              </span>
-              프린터 없이 출석만 확인
             </button>
           </div>
         ) : attendanceOnly ? (

@@ -110,6 +110,7 @@ function AdminPageInner() {
   const [nameByEmail, setNameByEmail] = useState<Record<string, string>>({});
   const [loginProfiles, setLoginProfiles] = useState<{id?: string, email: string, name: string, student_id: string | null, role: string, created_at: string}[]>([]);
   const [kioskPasswordInput, setKioskPasswordInput] = useState('');
+  const [kioskAttendanceOnly, setKioskAttendanceOnly] = useState(false);
 
   // 상영작 홍보 메일
   const [promoSources, setPromoSources] = useState({ club: true, invited: false, g1: false, g2: false, g3: false });
@@ -186,7 +187,7 @@ function AdminPageInner() {
         return true;
       }
 
-      const { movieData, resData, blData, logData, adminData, clubData, kioskPassword, invitedData, profileNames } = data;
+      const { movieData, resData, blData, logData, adminData, clubData, kioskPassword, kioskAttendanceOnly, invitedData, profileNames } = data;
       if (movieData) {
         setMovieInfo(movieData);
         setEditForm((prev: any) => (resetForm || prev.id !== movieData.id ? formFromMovie(movieData) : prev));
@@ -206,6 +207,7 @@ function AdminPageInner() {
         ));
       }
       if (typeof kioskPassword === 'string') setKioskPasswordInput(kioskPassword);
+      if (typeof kioskAttendanceOnly === 'boolean') setKioskAttendanceOnly(kioskAttendanceOnly);
       return true;
     } catch (err) {
       console.error("데이터 불러오기 오류:", err);
@@ -518,6 +520,14 @@ function AdminPageInner() {
     return true;
   };
 
+  // 누르는 즉시 바꾸고 저장한다. 실패하면 되돌린다.
+  const handleToggleKioskAttendanceOnly = async (next: boolean) => {
+    setKioskAttendanceOnly(next);
+    const data = await callAction('UPDATE_KIOSK_ATTENDANCE_ONLY', { attendanceOnly: next });
+    if (!data.success) { setKioskAttendanceOnly(!next); notify("변경 실패: " + data.error, 'error'); return; }
+    notify(next ? "발권기가 출석만 확인해요. 인쇄창이 뜨지 않아요." : "발권기가 다시 티켓을 뽑아요.");
+  };
+
   // 체크·붙여넣기(와 명단 크기)가 바뀌면 500ms 뒤 받는 사람을 다시 센다(겹침·차단 제외는 서버가 한다).
   useEffect(() => {
     if (!isAdmin || activeTab !== 'mail') return;
@@ -788,6 +798,8 @@ function AdminPageInner() {
           kioskPassword={kioskPasswordInput}
           setKioskPassword={setKioskPasswordInput}
           onUpdateKioskPassword={handleUpdateKioskPassword}
+          kioskAttendanceOnly={kioskAttendanceOnly}
+          onToggleKioskAttendanceOnly={handleToggleKioskAttendanceOnly}
         />
       )}
 
