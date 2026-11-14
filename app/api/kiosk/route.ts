@@ -42,7 +42,7 @@ export async function POST(req: Request) {
     }
 
     if (action === 'PRINT_TICKET') {
-      const { ticketId, studentId, studentName, seatNumber } = payload;
+      const { ticketId, studentId, studentName, seatNumber, attendanceOnly } = payload;
 
       const { data: ticket, error: fetchError } = await supabaseAdmin.from('reservations')
         .select('id, student_id, student_name')
@@ -59,7 +59,7 @@ export async function POST(req: Request) {
       const { error: e2 } = await supabaseAdmin.from('activity_logs').insert([{
         student_id: studentId || null,
         student_name: studentName,
-        description: `현장 KIOSK 티켓 발권 완료 (${seatNumber})`
+        description: attendanceOnly ? `현장 KIOSK 출석 확인 (${seatNumber})` : `현장 KIOSK 티켓 발권 완료 (${seatNumber})`
       }]);
       if (e2) throw e2;
 

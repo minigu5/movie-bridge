@@ -52,8 +52,8 @@ export default function AdminShell({ active, onChange, pendingCount, email, onSi
           })}
         </nav>
         <div className="mt-auto flex flex-col gap-1 text-[13px] px-3">
-          <a href="/" target="_blank" rel="noopener noreferrer" className="py-2 text-sub hover:text-ink">예매 화면 열기 ↗</a>
-          <a href="/print" target="_blank" rel="noopener noreferrer" className="py-2 text-sub hover:text-ink">발권기 열기 ↗</a>
+          <a href="/" className="py-2 text-sub hover:text-ink">예매 화면 열기</a>
+          <a href="/print" className="py-2 text-sub hover:text-ink">발권기 열기</a>
           {email && <span className="pt-3 mt-2 border-t border-line text-xs text-mute truncate" title={email}>{email}</span>}
           {onSignOut && (
             <button type="button" onClick={onSignOut} className="py-2 text-left text-sub hover:text-ink">로그아웃</button>

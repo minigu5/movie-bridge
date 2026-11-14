@@ -868,8 +868,11 @@ export default function Home() {
             size={isPhone ? 'phone' : 'pc'}
           />
           {isClosed && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-ground/80">
-              <span className="text-sub text-base md:text-lg font-bold">예매가 마감되었어요</span>
+            <div className="absolute inset-0 z-10 flex items-center justify-center px-4 bg-ground/45">
+              <div className="flex flex-col items-center gap-1.5 md:gap-2 px-7 py-5 md:px-10 md:py-7 rounded-2xl md:rounded-[20px] bg-[rgba(26,25,22,0.72)] backdrop-blur-md border border-white/10 shadow-[0_32px_64px_-24px_rgba(0,0,0,0.75)] text-center">
+                <span className="text-ink text-lg md:text-2xl font-black break-keep">예매가 마감되었어요</span>
+                <span className="text-sub text-sm md:text-[15px] break-keep">상영 · {movieInfo.date_string}</span>
+              </div>
             </div>
           )}
         </div>

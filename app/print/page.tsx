@@ -19,12 +19,31 @@ export default function KioskPrintPage() {
 
   const [ticketData, setTicketData] = useState<any>(null);
   const [isPrinting, setIsPrinting] = useState(false);
+  // 프린터를 안 물렸을 때는 출석 확인만: 인쇄창을 띄우지 않고 확인 화면만 잠깐 보여준다.
+  // 웹에서는 프린터 연결 여부를 알 수 없어서 발권기에서 직접 고르고, 이 기기에 기억해 둔다.
+  const [attendanceOnly, setAttendanceOnly] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && localStorage.getItem('skip_auth') === 'true') {
       setIsAdminAuth(true);
     }
+    try {
+      setAttendanceOnly(localStorage.getItem('kiosk_attendance_only') === 'true');
+    } catch {}
   }, []);
+
+  const toggleAttendanceOnly = () => {
+    setAttendanceOnly(prev => {
+      try { localStorage.setItem('kiosk_attendance_only', String(!prev)); } catch {}
+      return !prev;
+    });
+  };
+
+  const resetForm = () => {
+    setTicketData(null);
+    setFormData({ studentId: '', name: '' });
+    setIsStaff(false);
+  };
 
   useEffect(() => {
     const fetchMovie = async () => {
@@ -36,20 +55,19 @@ export default function KioskPrintPage() {
   }, []);
 
   useEffect(() => {
-    if (ticketData) {
-      const timer = setTimeout(() => {
-        window.print();
-      }, 500);
+    if (!ticketData) return;
+    if (attendanceOnly) {
+      const timer = setTimeout(resetForm, 5000);
       return () => clearTimeout(timer);
     }
-  }, [ticketData]);
+    const timer = setTimeout(() => {
+      window.print();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [ticketData, attendanceOnly]);
 
   useEffect(() => {
-    const handleAfterPrint = () => {
-      setTicketData(null);
-      setFormData({ studentId: '', name: '' });
-      setIsStaff(false);
-    };
+    const handleAfterPrint = () => resetForm();
     window.addEventListener('afterprint', handleAfterPrint);
     return () => window.removeEventListener('afterprint', handleAfterPrint);
   }, []);
@@ -101,7 +119,9 @@ export default function KioskPrintPage() {
       const ticket = lookupData.ticket;
 
       if (ticket.is_printed) {
-        return alert("이미 현장에서 발권이 완료된 티켓입니다! (1인 1매 원칙)\n오류인 경우 관리자에게 문의하세요.");
+        return alert(attendanceOnly
+          ? "이미 출석 확인이 끝난 예매입니다.\n오류인 경우 관리자에게 문의하세요."
+          : "이미 현장에서 발권이 완료된 티켓입니다! (1인 1매 원칙)\n오류인 경우 관리자에게 문의하세요.");
       }
 
       const apiRes = await fetch('/api/kiosk', {
@@ -109,7 +129,7 @@ export default function KioskPrintPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'PRINT_TICKET',
-          payload: { ticketId: ticket.id, studentId: cleanId, studentName: formData.name, seatNumber: ticket.seat_number }
+          payload: { ticketId: ticket.id, studentId: cleanId, studentName: formData.name, seatNumber: ticket.seat_number, attendanceOnly }
         })
       });
       const apiData = await apiRes.json();
@@ -184,7 +204,7 @@ export default function KioskPrintPage() {
               <img src={logoDark.src} alt="영화대교" className="w-[170px] h-auto" />
               <div className="flex flex-col gap-1.5">
                 <h1 className="text-[32px] font-black tracking-tight">현장 발권</h1>
-                <p className="text-[#ABA69C] text-[15px]">예매한 티켓을 영수증으로 뽑아요.</p>
+                <p className="text-[#ABA69C] text-[15px]">{attendanceOnly ? '학번과 이름으로 출석을 확인해요.' : '예매한 티켓을 영수증으로 뽑아요.'}</p>
               </div>
             </div>
 
@@ -215,14 +235,41 @@ export default function KioskPrintPage() {
             </div>
 
             <button onClick={handlePrintSubmit} disabled={isPrinting} className="h-[62px] rounded-xl bg-[#F4F1EA] text-[#0E0D0B] font-black text-[19px] hover:bg-white disabled:opacity-60 transition-colors flex items-center justify-center gap-2.5">
-              {isPrinting ? '티켓을 찾는 중…' : (
+              {isPrinting ? '예매를 찾는 중…' : attendanceOnly ? '출석 확인하기' : (
                 <>
                   <Printer className="w-5 h-5" strokeWidth={2.2} />
                   티켓 출력하기
                 </>
               )}
             </button>
+
+            <button type="button" onClick={toggleAttendanceOnly} className="self-center flex items-center gap-2 text-[13px] font-medium text-[#938E84] hover:text-[#F4F1EA] transition-colors">
+              <span className={`w-8 h-[18px] rounded-full p-0.5 transition-colors ${attendanceOnly ? 'bg-[#F4F1EA]' : 'bg-[#2C2A26]'}`}>
+                <span className={`block w-[14px] h-[14px] rounded-full transition-transform ${attendanceOnly ? 'translate-x-[14px] bg-[#0E0D0B]' : 'bg-[#938E84]'}`} />
+              </span>
+              프린터 없이 출석만 확인
+            </button>
           </div>
+        ) : attendanceOnly ? (
+          <button type="button" onClick={resetForm} className="w-full max-w-[420px] flex flex-col items-center gap-6 text-center">
+            <div className="flex flex-col gap-1.5">
+              <h1 className="text-[32px] font-black tracking-tight">출석 확인됐어요</h1>
+              <p className="text-[#ABA69C] text-[15px]">{ticketData.student_name} ({ticketData.student_id ?? '교직원'})</p>
+            </div>
+            <div className="flex flex-col items-center">
+              <span className="text-[13px] font-bold text-[#ABA69C]">관람석</span>
+              <span className="text-[72px] font-black leading-none tracking-tighter tabular-nums">{ticketData.seat_number}</span>
+            </div>
+            {ticketData.popcorn_order && ticketData.popcorn_order !== 'none' && (
+              <div className="flex flex-col gap-1 text-[15px] font-medium">
+                <div className="font-black">팝콘 수령</div>
+                {getPopcornReceiptLines(ticketData.popcorn_order).map((line) => (
+                  <div key={line}>{line}</div>
+                ))}
+              </div>
+            )}
+            <span className="text-[13px] text-[#938E84]">화면을 누르면 처음으로 돌아가요</span>
+          </button>
         ) : (
           // 72mm 흑백 감열 영수증: 검정 한 가지 색만 쓴다(회색·빨강 금지)
           <div className="w-[72mm] mx-auto bg-white text-black px-1 pt-2 pb-1 flex flex-col gap-2.5 print:w-full print:m-0 print:px-4">
